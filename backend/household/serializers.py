@@ -92,6 +92,7 @@ class HouseholdTaskInstanceSerializer(serializers.ModelSerializer):
     system_action = serializers.CharField(source='definition.system_action', read_only=True, default='none')
     assigned_to_username = serializers.CharField(source='assigned_to.username', read_only=True, default=None)
     assigned_to_color = serializers.CharField(source='assigned_to.householdmember.color_hex', read_only=True, default=None)
+    created_by_username = serializers.CharField(source='created_by.username', read_only=True, default=None)
     events = HouseholdTaskEventSerializer(many=True, read_only=True)
 
     class Meta:
@@ -101,9 +102,9 @@ class HouseholdTaskInstanceSerializer(serializers.ModelSerializer):
             'standalone_title', 'standalone_icon', 'title', 'icon',
             'scheduled_date', 'occurrence_date', 'is_in_backlog', 'assigned_to',
             'assigned_to_username', 'assigned_to_color', 'status', 'completed_at',
-            'created_at', 'events',
+            'created_by', 'created_by_username', 'created_at', 'events',
         )
-        read_only_fields = ('occurrence_date',)
+        read_only_fields = ('occurrence_date', 'created_by')
 
     def get_title(self, obj):
         return obj.definition.title if obj.definition else obj.standalone_title

@@ -10,7 +10,7 @@ import { toISODate } from '../utils/weekDates';
 // buckets -- carried-over/unfinalized vs. new for the week being planned --
 // and unassigned tasks get a visual "needs attention" highlight.
 export default function WeekBoard({
-  weekDays, instances, members, onComplete, onSkip, onSnooze, onReassign, onReopen, onDragEnd,
+  weekDays, instances, members, onComplete, onSkip, onSnooze, onReassign, onReopen, onDelete, onDragEnd,
   planningWeekStart,
 }) {
   const { t } = useTranslation();
@@ -38,6 +38,7 @@ export default function WeekBoard({
             onSnooze={onSnooze}
             onReassign={onReassign}
             onReopen={onReopen}
+            onDelete={onDelete}
             attentionHighlight
           />
           <BacklogLane
@@ -50,6 +51,7 @@ export default function WeekBoard({
             onSnooze={onSnooze}
             onReassign={onReassign}
             onReopen={onReopen}
+            onDelete={onDelete}
             attentionHighlight
           />
         </>
@@ -62,6 +64,7 @@ export default function WeekBoard({
           onSnooze={onSnooze}
           onReassign={onReassign}
           onReopen={onReopen}
+          onDelete={onDelete}
         />
       )}
       <div className="grid grid-cols-1 md:grid-cols-7 gap-3">
@@ -80,6 +83,7 @@ export default function WeekBoard({
               onSnooze={onSnooze}
               onReassign={onReassign}
               onReopen={onReopen}
+              onDelete={onDelete}
               attentionHighlight={!!planningWeekStartISO}
             />
           );

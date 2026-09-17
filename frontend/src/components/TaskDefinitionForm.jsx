@@ -137,10 +137,18 @@ export default function TaskDefinitionForm({ members, definitions, onSaved }) {
                   {assignmentSummary(d)}
                 </div>
                 <div className="text-[11px] text-gray-400 mt-0.5">
-                  {t('tasks.createdInfo', {
-                    date: new Date(d.created_at).toLocaleDateString(),
-                    name: d.created_by_username || t('tasks.unassigned'),
-                  })}
+                  {/* auto_now_add and auto_now both fire during the same
+                      create() call, microseconds apart -- treat anything
+                      under a couple seconds as "never actually edited". */}
+                  {new Date(d.updated_at) - new Date(d.created_at) > 2000
+                    ? t('tasks.editedInfo', {
+                        date: new Date(d.updated_at).toLocaleDateString(),
+                        name: d.updated_by_username || t('tasks.unassigned'),
+                      })
+                    : t('tasks.createdInfo', {
+                        date: new Date(d.created_at).toLocaleDateString(),
+                        name: d.created_by_username || t('tasks.unassigned'),
+                      })}
                 </div>
               </div>
               <button

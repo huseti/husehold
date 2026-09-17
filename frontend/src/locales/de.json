@@ -112,6 +112,11 @@
     "addRecurringTask": "Hinzufügen",
     "deleteRecurringTask": "Löschen",
     "createdInfo": "Erstellt am {{date}} von {{name}}",
+    "editedInfo": "Bearbeitet von {{name}} am {{date}}",
+    "instanceCreatedBy": "Erstellt am {{date}} von {{name}}",
+    "instanceCreatedOn": "Erstellt am {{date}}",
+    "deleteInstance": "Diese Aufgabe löschen",
+    "confirmDeleteInstance": "\"{{title}}\" löschen?",
     "confirmDeleteWithInstances": "\"{{title}}\" hat {{count}} geplante Vorkommen. Diese ebenfalls löschen?",
     "icon": {
       "cleaning": "Putzen",

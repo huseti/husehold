@@ -112,6 +112,11 @@
     "addRecurringTask": "Add",
     "deleteRecurringTask": "Delete",
     "createdInfo": "Created {{date}} by {{name}}",
+    "editedInfo": "Edited by {{name}} on {{date}}",
+    "instanceCreatedBy": "Created {{date}} by {{name}}",
+    "instanceCreatedOn": "Created {{date}}",
+    "deleteInstance": "Delete this task",
+    "confirmDeleteInstance": "Delete \"{{title}}\"?",
     "confirmDeleteWithInstances": "\"{{title}}\" has {{count}} scheduled occurrence(s). Delete it and all of them?",
     "icon": {
       "cleaning": "Cleaning",

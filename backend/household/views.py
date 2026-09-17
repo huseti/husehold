@@ -153,7 +153,7 @@ class HouseholdTaskInstanceViewSet(viewsets.ModelViewSet):
         # One-off tasks (no definition): occurrence_date has no real
         # recurrence to anchor to, so it's just set equal to scheduled_date.
         scheduled_date = serializer.validated_data.get('scheduled_date')
-        serializer.save(occurrence_date=scheduled_date)
+        serializer.save(occurrence_date=scheduled_date, created_by=self.request.user)
 
     @action(detail=True, methods=['post'])
     def reassign(self, request, pk=None):

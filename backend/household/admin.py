@@ -44,6 +44,6 @@ class HouseholdTaskDefinitionAdmin(admin.ModelAdmin):
 
 @admin.register(HouseholdTaskInstance)
 class HouseholdTaskInstanceAdmin(admin.ModelAdmin):
-    list_display = ('__str__', 'scheduled_date', 'occurrence_date', 'is_in_backlog', 'assigned_to', 'status', 'completed_at')
+    list_display = ('__str__', 'scheduled_date', 'occurrence_date', 'is_in_backlog', 'assigned_to', 'status', 'completed_at', 'created_by', 'created_at')
     list_filter = ('status', 'is_in_backlog', 'scheduled_date')
     inlines = [HouseholdTaskEventInline]

@@ -182,6 +182,13 @@ class HouseholdTaskInstance(models.Model):
     assigned_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='task_instances')
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
     completed_at = models.DateTimeField(null=True, blank=True)
+    # Only set for standalone (one-off) tasks, via perform_create -- instances
+    # generated from a recurring definition are created by the recurrence
+    # engine itself (task_generation.generate_instances_for_range), not a
+    # specific user action, so this is left blank for those.
+    created_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name='created_task_instances',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

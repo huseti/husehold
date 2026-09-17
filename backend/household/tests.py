@@ -396,6 +396,12 @@ class TaskInstanceActionTests(TestCase):
         self.assertEqual(self.instance.assigned_to, self.other)
         self.assertEqual(self.instance.events.filter(event_type='reassigned').count(), 1)
 
+    def test_delete_instance(self):
+        response = self.client.delete(f'/api/task-instances/{self.instance.id}/')
+
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(HouseholdTaskInstance.objects.filter(id=self.instance.id).exists())
+
     def test_postpone_changes_scheduled_date_but_not_occurrence_date(self):
         response = self.client.post(
             f'/api/task-instances/{self.instance.id}/postpone/', {'scheduled_date': '2026-09-16'},
@@ -456,6 +462,8 @@ class StandaloneTaskTests(TestCase):
         self.assertIsNone(instance.definition)
         self.assertEqual(instance.occurrence_date, date(2026, 9, 16))
         self.assertEqual(response.data['title'], 'Pick up package')
+        self.assertEqual(instance.created_by, self.user)
+        self.assertEqual(response.data['created_by_username'], 'tim')
 
     def test_create_standalone_task_without_a_day_goes_to_backlog(self):
         response = self.client.post('/api/task-instances/', {

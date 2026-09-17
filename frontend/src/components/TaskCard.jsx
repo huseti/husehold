@@ -4,10 +4,16 @@ import TaskIcon from './icons/taskIcons';
 import { getDisplayTitle } from '../utils/taskDisplay';
 
 export default function TaskCard({
-  instance, members, onComplete, onSkip, onSnooze, onReassign, onReopen,
+  instance, members, onComplete, onSkip, onSnooze, onReassign, onReopen, onDelete,
   interactive = true, attentionHighlight = false,
 }) {
   const { t } = useTranslation();
+
+  const handleDelete = () => {
+    if (window.confirm(t('tasks.confirmDeleteInstance', { title: getDisplayTitle(instance, t) }))) {
+      onDelete(instance.id);
+    }
+  };
 
   const isDone = instance.status === 'done';
   const isSkipped = instance.status === 'skipped';
@@ -44,18 +50,32 @@ export default function TaskCard({
         {stateLabel && <span className="text-gray-400 ml-1">({stateLabel})</span>}
         {needsAttention && <span className="text-xs text-red-500 ml-1" title={t('weeklyPlanning.needsAttention')}>⚠</span>}
       </div>
-      <div className={`text-gray-500 mb-1 ${isResolved ? 'text-[11px]' : 'text-xs'}`}>
+      <div className={`text-gray-500 ${isResolved ? 'text-[11px]' : 'text-xs'}`}>
         {instance.assigned_to_username || t('tasks.unassigned')}
       </div>
+      <div className="text-[10px] text-gray-400 mb-1">
+        {instance.created_by_username
+          ? t('tasks.instanceCreatedBy', { date: new Date(instance.created_at).toLocaleDateString(), name: instance.created_by_username })
+          : t('tasks.instanceCreatedOn', { date: new Date(instance.created_at).toLocaleDateString() })}
+      </div>
 
-      {interactive && isResolved && onReopen && (
-        <button
-          onClick={() => onReopen(instance.id)}
-          className="text-[11px] px-2 py-0.5 rounded bg-gray-200 text-gray-700 hover:bg-gray-300"
-          title={t('tasks.undo')}
-        >
-          ↺ {t('tasks.undo')}
-        </button>
+      {interactive && isResolved && (onReopen || onDelete) && (
+        <div className="flex items-center gap-1 flex-wrap">
+          {onReopen && (
+            <button
+              onClick={() => onReopen(instance.id)}
+              className="text-[11px] px-2 py-0.5 rounded bg-gray-200 text-gray-700 hover:bg-gray-300"
+              title={t('tasks.undo')}
+            >
+              ↺ {t('tasks.undo')}
+            </button>
+          )}
+          {onDelete && (
+            <button onClick={handleDelete} title={t('tasks.deleteInstance')} className="text-red-500 hover:text-red-700">
+              <TaskIcon icon="trash" />
+            </button>
+          )}
+        </div>
       )}
 
       {interactive && !isResolved && (
@@ -93,6 +113,11 @@ export default function TaskCard({
                 <option key={m.user.id} value={m.user.id}>{m.user.username}</option>
               ))}
             </select>
+          )}
+          {onDelete && (
+            <button onClick={handleDelete} title={t('tasks.deleteInstance')} className="text-red-500 hover:text-red-700 ml-auto">
+              <TaskIcon icon="trash" />
+            </button>
           )}
         </div>
       )}

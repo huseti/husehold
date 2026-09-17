@@ -70,6 +70,7 @@ export const taskInstanceService = {
   postpone: (id, scheduledDate) => api.post(`/task-instances/${id}/postpone/`, { scheduled_date: scheduledDate, is_in_backlog: false }),
   moveToBacklog: (id) => api.post(`/task-instances/${id}/postpone/`, { is_in_backlog: true }),
   complete: (id) => api.post(`/task-instances/${id}/complete/`),
+  delete: (id) => api.delete(`/task-instances/${id}/`),
 };
 
 export const memberService = {

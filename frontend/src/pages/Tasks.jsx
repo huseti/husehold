@@ -139,6 +139,11 @@ export default function Tasks() {
     loadWeek();
   };
 
+  const handleDeleteInstance = async (id) => {
+    await taskInstanceService.delete(id);
+    loadWeek();
+  };
+
   if (loading) {
     return <div className="flex items-center justify-center h-screen">{t('common.loading')}</div>;
   }
@@ -239,6 +244,7 @@ export default function Tasks() {
               onSnooze={handleSnooze}
               onReassign={handleReassign}
               onReopen={handleReopen}
+              onDelete={handleDeleteInstance}
               onDragEnd={handleDragEnd}
               planningWeekStart={mode === 'planning' ? weekStart : undefined}
             />
