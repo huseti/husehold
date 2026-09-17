@@ -30,7 +30,21 @@ export default function WeekBoard({
     return occurrenceWeekStartISO < planningWeekStartISO;
   };
 
-  const carriedOver = planningWeekStartISO ? backlogInstances.filter(wasCarriedOver) : [];
+  // Also pull in still-open (pending) day-pinned tasks left over from an
+  // earlier week -- e.g. a normal task due this Wednesday that never got
+  // done before you start planning next week. These never touch the
+  // backlog flag at all, so they'd otherwise be invisible during planning.
+  const stillOpenFromPastWeek = planningWeekStartISO
+    ? instances.filter((i) => {
+        if (i.is_in_backlog || i.status !== 'pending') return false;
+        const scheduledWeekStartISO = toISODate(getWeekStart(parseISODate(i.scheduled_date)));
+        return scheduledWeekStartISO < planningWeekStartISO;
+      })
+    : [];
+
+  const carriedOver = planningWeekStartISO
+    ? [...backlogInstances.filter(wasCarriedOver), ...stillOpenFromPastWeek]
+    : [];
   const newThisWeek = planningWeekStartISO ? backlogInstances.filter((i) => !wasCarriedOver(i)) : backlogInstances;
 
   return (
@@ -48,6 +62,7 @@ export default function WeekBoard({
             onReassign={onReassign}
             onReopen={onReopen}
             onDelete={onDelete}
+            planningWeekStartISO={planningWeekStartISO}
             attentionHighlight
           />
           <BacklogLane

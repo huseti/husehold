@@ -32,7 +32,7 @@ export default function WeekPreview({ weekDays, instances }) {
                   >
                     <TaskIcon icon={instance.icon} className="text-gray-400 flex-shrink-0" />
                     <span className={instance.status === 'done' ? 'line-through text-gray-400' : ''}>
-                      {getDisplayTitle(instance, t)}
+                      {getDisplayTitle(instance, t, i18n)}
                     </span>
                   </div>
                 ))}

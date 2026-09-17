@@ -185,10 +185,12 @@
     "current": "Aktuell: {{summary}} um {{time}}",
     "notSetUp": "Noch nicht eingerichtet",
     "finish": "Planung abschließen",
+    "planNow": "Jetzt planen",
     "finishConfirm_one": "{{count}} Aufgabe für nächste Woche hat noch keinen Tag oder keine Person zugewiesen. Trotzdem abschließen?",
     "finishConfirm_other": "{{count}} Aufgaben für nächste Woche haben noch keinen Tag oder keine Person zugewiesen. Trotzdem abschließen?",
     "onlyThisOrNextWeek": "Die Wochenplanung ist nur für die aktuelle oder die nächste Woche verfügbar — navigiere mit den Pfeilen dorthin.",
     "carriedOver": "Noch nicht abgeschlossen (übertragen)",
+    "carriedOverFromLastWeek": "übernommen aus letzter Woche",
     "newThisWeek": "Neu diese Woche",
     "needsAttention": "Braucht Aufmerksamkeit — niemand zugewiesen"
   },

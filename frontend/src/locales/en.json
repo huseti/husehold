@@ -185,10 +185,12 @@
     "current": "Currently: {{summary}} at {{time}}",
     "notSetUp": "Not set up yet",
     "finish": "Finish Planning",
+    "planNow": "Plan now",
     "finishConfirm_one": "{{count}} task for next week still has no day or no person assigned. Finish planning anyway?",
     "finishConfirm_other": "{{count}} tasks for next week still have no day or no person assigned. Finish planning anyway?",
     "onlyThisOrNextWeek": "Weekly planning is only available for the current or next week — use the arrows to get there first.",
     "carriedOver": "Not yet finalized (carried over)",
+    "carriedOverFromLastWeek": "coming over from last week",
     "newThisWeek": "New this week",
     "needsAttention": "Needs attention — no one assigned"
   },

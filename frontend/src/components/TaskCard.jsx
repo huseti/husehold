@@ -1,18 +1,28 @@
 import { useDraggable } from '@dnd-kit/core';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import TaskIcon from './icons/taskIcons';
-import { getDisplayTitle } from '../utils/taskDisplay';
+import { getDisplayTitle, canSnoozeInstance } from '../utils/taskDisplay';
+import { getWeekStart, addDays, parseISODate, toISODate } from '../utils/weekDates';
 
 export default function TaskCard({
   instance, members, onComplete, onSkip, onSnooze, onReassign, onReopen, onDelete,
-  interactive = true, attentionHighlight = false,
+  interactive = true, attentionHighlight = false, planningWeekStartISO,
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
 
   const handleDelete = () => {
-    if (window.confirm(t('tasks.confirmDeleteInstance', { title: getDisplayTitle(instance, t) }))) {
+    if (window.confirm(t('tasks.confirmDeleteInstance', { title: getDisplayTitle(instance, t, i18n) }))) {
       onDelete(instance.id);
     }
+  };
+
+  const isWeeklyPlanning = instance.system_action === 'weekly_household_planning';
+
+  const handlePlanNow = () => {
+    const planWeekStart = addDays(getWeekStart(parseISODate(instance.scheduled_date)), 7);
+    navigate(`/tasks?planWeek=${toISODate(planWeekStart)}&planInstance=${instance.id}`);
   };
 
   const isDone = instance.status === 'done';
@@ -24,6 +34,14 @@ export default function TaskCard({
   // fully-interactive item, just tagged with where it came from.
   const isSnoozedCopy = instance.is_in_backlog && instance.status === 'pending'
     && instance.events?.some((e) => e.event_type === 'snoozed');
+
+  // A normal, day-pinned task (never touched the backlog) that's still open
+  // from before the week being planned -- e.g. a Wednesday task that never
+  // got done. Shown in the "carried over" bucket, but it's not a backlog
+  // item at all, so it needs its own distinct tag rather than "(snoozed)".
+  const isCarriedOverFromPastWeek = !!planningWeekStartISO && !instance.is_in_backlog
+    && instance.status === 'pending'
+    && toISODate(getWeekStart(parseISODate(instance.scheduled_date))) < planningWeekStartISO;
 
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: instance.id,
@@ -50,9 +68,10 @@ export default function TaskCard({
         className={`font-medium flex items-center gap-1.5 ${interactive && !isResolved ? 'cursor-grab' : ''} ${isResolved ? 'text-gray-500' : ''}`}
       >
         <TaskIcon icon={instance.icon} className={`flex-shrink-0 ${isResolved ? 'text-gray-400' : 'text-gray-500'}`} />
-        <span className={isDone ? 'line-through' : ''}>{getDisplayTitle(instance, t)}</span>
+        <span className={isDone ? 'line-through' : ''}>{getDisplayTitle(instance, t, i18n)}</span>
         {stateLabel && <span className="text-gray-400 ml-1">({stateLabel})</span>}
         {isSnoozedCopy && <span className="text-gray-400 font-normal ml-1">({t('tasks.snoozed')})</span>}
+        {isCarriedOverFromPastWeek && <span className="text-gray-400 font-normal ml-1">({t('weeklyPlanning.carriedOverFromLastWeek')})</span>}
         {needsAttention && <span className="text-xs text-red-500 ml-1" title={t('weeklyPlanning.needsAttention')}>⚠</span>}
       </div>
       <div className={`text-gray-500 ${isResolved ? 'text-[11px]' : 'text-xs'}`}>
@@ -85,6 +104,14 @@ export default function TaskCard({
 
       {interactive && !isResolved && (
         <div className="flex items-center gap-1 flex-wrap mt-1">
+          {isWeeklyPlanning && (
+            <button
+              onClick={handlePlanNow}
+              className="text-xs px-2 py-0.5 rounded bg-purple-100 text-purple-700 hover:bg-purple-200"
+            >
+              {t('weeklyPlanning.planNow')}
+            </button>
+          )}
           <button
             onClick={() => onComplete(instance.id)}
             className="text-xs px-2 py-0.5 rounded bg-green-100 text-green-700 hover:bg-green-200"
@@ -99,7 +126,7 @@ export default function TaskCard({
               {t('tasks.skip')}
             </button>
           )}
-          {onSnooze && (
+          {onSnooze && canSnoozeInstance(instance) && (
             <button
               onClick={() => onSnooze(instance.id)}
               className="text-xs px-2 py-0.5 rounded bg-yellow-100 text-yellow-700 hover:bg-yellow-200"

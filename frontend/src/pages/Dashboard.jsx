@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   shoppingService, recipeService, cookingPlanService, taskInstanceService, authService, householdSettingsService,
@@ -8,13 +8,14 @@ import Navbar from '../components/Navbar';
 import WeekPreview from '../components/WeekPreview';
 import OverviewPanel from '../components/OverviewPanel';
 import TaskIcon from '../components/icons/taskIcons';
-import { getDisplayTitle } from '../utils/taskDisplay';
-import { getWeekStart, toISODate, addDays } from '../utils/weekDates';
+import { getDisplayTitle, canSnoozeInstance } from '../utils/taskDisplay';
+import { getWeekStart, toISODate, addDays, parseISODate } from '../utils/weekDates';
 
 const OVERDUE_LOOKBACK_DAYS = 30;
 
 export default function Dashboard() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
   const [shopping, setShopping] = useState([]);
   const [recipeCount, setRecipeCount] = useState(0);
   const [mealCount, setMealCount] = useState(0);
@@ -87,38 +88,56 @@ export default function Dashboard() {
     (task) => task.status === 'pending' && !task.is_in_backlog && task.scheduled_date < todayISO,
   ).length;
 
-  const renderTaskRow = (task, { overdue = false, today = false } = {}) => (
-    <li
-      key={task.id}
-      className={`flex items-center gap-2 border-l-4 pl-2 py-1 ${overdue ? 'bg-red-50' : ''}`}
-      style={{ borderColor: task.assigned_to_color || '#9ca3af' }}
-    >
-      <TaskIcon icon={task.icon} className="text-gray-500 flex-shrink-0" />
-      <span className={`flex-1 text-sm ${overdue ? 'text-red-700 font-medium' : 'text-gray-700'}`}>
-        {getDisplayTitle(task, t)}
-        {overdue && <span className="ml-2 text-xs uppercase tracking-wide">{t('dashboard.overdue')}</span>}
-        {today && <span className="ml-2 text-xs text-blue-600 uppercase tracking-wide">{t('dashboard.dueToday')}</span>}
-      </span>
-      <button
-        onClick={() => handleComplete(task.id)}
-        className="text-xs px-2 py-0.5 rounded bg-green-100 text-green-700 hover:bg-green-200"
+  const handlePlanNow = (task) => {
+    const planWeekStart = addDays(getWeekStart(parseISODate(task.scheduled_date)), 7);
+    navigate(`/tasks?planWeek=${toISODate(planWeekStart)}&planInstance=${task.id}`);
+  };
+
+  const renderTaskRow = (task, { overdue = false, today = false } = {}) => {
+    const isWeeklyPlanning = task.system_action === 'weekly_household_planning';
+    return (
+      <li
+        key={task.id}
+        className={`flex items-center gap-2 border-l-4 pl-2 py-1 ${overdue ? 'bg-red-50' : ''}`}
+        style={{ borderColor: task.assigned_to_color || '#9ca3af' }}
       >
-        {t('tasks.complete')}
-      </button>
-      <button
-        onClick={() => handleSkip(task.id)}
-        className="text-xs px-2 py-0.5 rounded bg-orange-100 text-orange-700 hover:bg-orange-200"
-      >
-        {t('tasks.skip')}
-      </button>
-      <button
-        onClick={() => handleSnooze(task.id)}
-        className="text-xs px-2 py-0.5 rounded bg-yellow-100 text-yellow-700 hover:bg-yellow-200"
-      >
-        {t('tasks.snooze')}
-      </button>
-    </li>
-  );
+        <TaskIcon icon={task.icon} className="text-gray-500 flex-shrink-0" />
+        <span className={`flex-1 text-sm ${overdue ? 'text-red-700 font-medium' : 'text-gray-700'}`}>
+          {getDisplayTitle(task, t, i18n)}
+          {overdue && <span className="ml-2 text-xs uppercase tracking-wide">{t('dashboard.overdue')}</span>}
+          {today && <span className="ml-2 text-xs text-blue-600 uppercase tracking-wide">{t('dashboard.dueToday')}</span>}
+        </span>
+        {isWeeklyPlanning && (
+          <button
+            onClick={() => handlePlanNow(task)}
+            className="text-xs px-2 py-0.5 rounded bg-purple-100 text-purple-700 hover:bg-purple-200"
+          >
+            {t('weeklyPlanning.planNow')}
+          </button>
+        )}
+        <button
+          onClick={() => handleComplete(task.id)}
+          className="text-xs px-2 py-0.5 rounded bg-green-100 text-green-700 hover:bg-green-200"
+        >
+          {t('tasks.complete')}
+        </button>
+        <button
+          onClick={() => handleSkip(task.id)}
+          className="text-xs px-2 py-0.5 rounded bg-orange-100 text-orange-700 hover:bg-orange-200"
+        >
+          {t('tasks.skip')}
+        </button>
+        {canSnoozeInstance(task) && (
+          <button
+            onClick={() => handleSnooze(task.id)}
+            className="text-xs px-2 py-0.5 rounded bg-yellow-100 text-yellow-700 hover:bg-yellow-200"
+          >
+            {t('tasks.snooze')}
+          </button>
+        )}
+      </li>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">

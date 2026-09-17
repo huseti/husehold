@@ -1,21 +1,43 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router-dom';
 import { taskInstanceService, taskDefinitionService, memberService } from '../services/api';
 import Navbar from '../components/Navbar';
 import WeekBoard from '../components/WeekBoard';
 import TaskDefinitionForm from '../components/TaskDefinitionForm';
 import AddSingleTaskForm from '../components/AddSingleTaskForm';
-import { getWeekStart, toISODate, addDays } from '../utils/weekDates';
+import { getWeekStart, toISODate, addDays, parseISODate } from '../utils/weekDates';
 
 export default function Tasks() {
   const { t } = useTranslation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  // Set when arriving here via a weekly-planning task's "Plan now" button
+  // (Dashboard or the calendar itself) -- lets Finish Planning mark that
+  // specific reminder instance as done instead of just returning to the
+  // calendar with nothing resolved.
+  const [planningSourceInstanceId, setPlanningSourceInstanceId] = useState(null);
   const [mode, setMode] = useState('calendar'); // 'calendar' | 'config' | 'planning'
-  const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()));
+  const [weekStart, setWeekStart] = useState(() => {
+    const planWeek = searchParams.get('planWeek');
+    return planWeek ? parseISODate(planWeek) : getWeekStart(new Date());
+  });
   const [instances, setInstances] = useState([]);
   const [members, setMembers] = useState([]);
   const [definitions, setDefinitions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddSingle, setShowAddSingle] = useState(false);
+
+  useEffect(() => {
+    const planWeek = searchParams.get('planWeek');
+    const planInstance = searchParams.get('planInstance');
+    if (planWeek) {
+      setWeekStart(parseISODate(planWeek));
+      setMode('planning');
+      if (planInstance) setPlanningSourceInstanceId(Number(planInstance));
+      setSearchParams({}, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const thisWeekStart = getWeekStart(new Date());
   const nextWeekStart = addDays(thisWeekStart, 7);
@@ -78,7 +100,7 @@ export default function Tasks() {
     setMode('planning');
   };
 
-  const handleFinishPlanning = () => {
+  const handleFinishPlanning = async () => {
     const unresolved = instances.filter((i) => i.is_in_backlog || !i.assigned_to);
     if (unresolved.length > 0) {
       const confirmed = window.confirm(
@@ -86,11 +108,16 @@ export default function Tasks() {
       );
       if (!confirmed) return;
     }
+    if (planningSourceInstanceId) {
+      await taskInstanceService.complete(planningSourceInstanceId);
+      setPlanningSourceInstanceId(null);
+    }
     setWeekStart(getWeekStart(new Date()));
     setMode('calendar');
   };
 
   const handleCancelPlanning = () => {
+    setPlanningSourceInstanceId(null);
     setWeekStart(getWeekStart(new Date()));
     setMode('calendar');
   };
