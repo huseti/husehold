@@ -5,6 +5,7 @@ import { summarizeRecurrenceRule } from '../utils/recurrenceSummary';
 import { toISODate } from '../utils/weekDates';
 
 const WEEKDAYS = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
+const ASSIGNMENT_MODES = ['none', 'alternating', 'fixed'];
 
 // Finds the next date (including today) that falls on the given RRULE
 // weekday code, so a freshly (re)configured reminder starts from a sane
@@ -18,18 +19,22 @@ function nextDateForWeekday(code) {
   return toISODate(result);
 }
 
-export default function WeeklyPlanningConfig({ definitions, onSaved }) {
+export default function WeeklyPlanningConfig({ definitions, members, onSaved }) {
   const { t, i18n } = useTranslation();
   const existing = definitions.find((d) => d.system_action === 'weekly_household_planning');
 
   const [weekday, setWeekday] = useState('SU');
   const [time, setTime] = useState('18:00');
+  const [assignmentMode, setAssignmentMode] = useState('none');
+  const [defaultAssignee, setDefaultAssignee] = useState('');
 
   useEffect(() => {
     if (existing) {
       const match = existing.recurrence_rule.match(/BYDAY=([A-Z]{2})/);
       if (match) setWeekday(match[1]);
       if (existing.reminder_time) setTime(existing.reminder_time.slice(0, 5));
+      setAssignmentMode(existing.assignment_mode);
+      setDefaultAssignee(existing.default_assignee || '');
     }
   }, [existing?.id]);
 
@@ -40,7 +45,8 @@ export default function WeeklyPlanningConfig({ definitions, onSaved }) {
       icon: 'calendar',
       starts_on: nextDateForWeekday(weekday),
       recurrence_rule: `FREQ=WEEKLY;BYDAY=${weekday}`,
-      assignment_mode: 'none',
+      assignment_mode: assignmentMode,
+      default_assignee: assignmentMode === 'fixed' ? (defaultAssignee || null) : null,
       system_action: 'weekly_household_planning',
       reminder_time: time,
     };
@@ -63,6 +69,10 @@ export default function WeeklyPlanningConfig({ definitions, onSaved }) {
             summary: summarizeRecurrenceRule(existing.recurrence_rule, t),
             time: existing.reminder_time ? existing.reminder_time.slice(0, 5) : '–',
           })}
+          {' · '}
+          {existing.assignment_mode === 'fixed'
+            ? t('tasks.assignmentSummary.fixed', { name: existing.default_assignee_username || t('tasks.unassigned') })
+            : t(`tasks.assignmentMode.${existing.assignment_mode}`)}
         </p>
       ) : (
         <p className="text-sm text-gray-400 mb-3">{t('weeklyPlanning.notSetUp')}</p>
@@ -92,6 +102,33 @@ export default function WeeklyPlanningConfig({ definitions, onSaved }) {
             className="border rounded px-2 py-1 text-sm"
           />
         </div>
+        <div>
+          <label className="block text-xs text-gray-500">{t('tasks.formAssignmentMode')}</label>
+          <select
+            value={assignmentMode}
+            onChange={(e) => setAssignmentMode(e.target.value)}
+            className="border rounded px-2 py-1 text-sm"
+          >
+            {ASSIGNMENT_MODES.map((mode) => (
+              <option key={mode} value={mode}>{t(`tasks.assignmentMode.${mode}`)}</option>
+            ))}
+          </select>
+        </div>
+        {assignmentMode === 'fixed' && (
+          <div>
+            <label className="block text-xs text-gray-500">{t('tasks.formDefaultAssignee')}</label>
+            <select
+              value={defaultAssignee}
+              onChange={(e) => setDefaultAssignee(e.target.value)}
+              className="border rounded px-2 py-1 text-sm"
+            >
+              <option value="">{t('tasks.unassigned')}</option>
+              {members.map((m) => (
+                <option key={m.user.id} value={m.user.id}>{m.user.username}</option>
+              ))}
+            </select>
+          </div>
+        )}
         <button type="submit" className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600">
           {t('weeklyPlanning.save')}
         </button>
