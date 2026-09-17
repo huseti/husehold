@@ -2,7 +2,7 @@ import { useDroppable } from '@dnd-kit/core';
 import { useTranslation } from 'react-i18next';
 import TaskCard from './TaskCard';
 
-export default function TaskDayColumn({ date, dateISO, instances, members, onComplete, onSnooze, onReassign }) {
+export default function TaskDayColumn({ date, dateISO, instances, members, onComplete, onSkip, onSnooze, onReassign }) {
   const { t, i18n } = useTranslation();
   const { setNodeRef, isOver } = useDroppable({ id: dateISO });
 
@@ -27,6 +27,7 @@ export default function TaskDayColumn({ date, dateISO, instances, members, onCom
             instance={instance}
             members={members}
             onComplete={onComplete}
+            onSkip={onSkip}
             onSnooze={onSnooze}
             onReassign={onReassign}
           />

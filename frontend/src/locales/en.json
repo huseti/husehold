@@ -27,7 +27,12 @@
     "tasksTitle": "Tasks",
     "tasksPending_one": "{{count}} task pending",
     "tasksPending_other": "{{count}} tasks pending",
-    "viewAll": "View all →"
+    "viewAll": "View all →",
+    "weekOverview": "This Week",
+    "myOpenTasks": "My open household tasks",
+    "noOpenTasks": "Nothing open — nice.",
+    "mealsComingSoon": "Meals row — coming with the Cooking Plan.",
+    "calendarComingSoon": "Calendar entries row — coming with Google Calendar sync."
   },
   "shoppingList": {
     "title": "Shopping List",
@@ -48,13 +53,27 @@
   },
   "tasks": {
     "title": "Household Plan",
+    "configTitle": "Configure Household Plan",
     "noTasks": "No tasks",
     "unassigned": "Unassigned",
     "complete": "Done",
+    "skip": "Skip",
+    "skipped": "skipped",
     "snooze": "Snooze",
+    "backlog": "Backlog — no day yet",
+    "backlogEmpty": "Nothing here — drag a task in, or add one without a day.",
+    "backlogCount_one": "{{count}} task in the backlog",
+    "backlogCount_other": "{{count}} tasks in the backlog",
+    "addSingleTask": "Add a single task",
+    "formDay": "Day",
     "manageRecurringTasks": "Manage recurring tasks",
+    "configSave": "Save",
+    "configCancel": "Cancel",
+    "configSaveNote": "Changes above save immediately as you make them — Save and Cancel both just take you back to the calendar.",
     "memberColors": "Member colors",
     "recurringTasks": "Recurring tasks",
+    "editRecurringTask": "Edit",
+    "nowEditing": "Editing — Save to apply changes, or Cancel to stop editing.",
     "formTitle": "Title",
     "formStartsOn": "Starts on",
     "formRecurrenceRule": "Repeats",
@@ -64,6 +83,9 @@
       "fixed": "Always the same person",
       "alternating": "Alternate between members",
       "none": "Decide during weekly planning"
+    },
+    "assignmentSummary": {
+      "fixed": "Always {{name}}"
     },
     "formIcon": "Icon",
     "addRecurringTask": "Add",
@@ -109,6 +131,8 @@
         "sa": "Sat",
         "su": "Sun"
       },
+      "hasPreferredDay": "Has a preferred weekday",
+      "noPreferredDayHint": "No preferred day — it'll land in the backlog each time and can be dragged onto whichever day makes sense that week.",
       "summary": {
         "daily_one": "Every day",
         "daily_other": "Every {{count}} days",
@@ -118,7 +142,8 @@
         "monthly_other": "Every {{count}} months",
         "onDays": "on {{days}}",
         "onDayOfMonth": "on day {{day}}",
-        "onOrdinalWeekday": "on the {{ordinal}} {{weekday}}"
+        "onOrdinalWeekday": "on the {{ordinal}} {{weekday}}",
+        "noPreferredDay": "{{every}} (no preferred day)"
       }
     }
   },
@@ -128,9 +153,13 @@
     "weekday": "Day",
     "time": "Time",
     "save": "Save",
+    "cancel": "Cancel",
     "startNow": "Start Weekly Planning",
     "current": "Currently: {{summary}} at {{time}}",
-    "notSetUp": "Not set up yet"
+    "notSetUp": "Not set up yet",
+    "finish": "Finish Planning",
+    "finishConfirm_one": "{{count}} task for next week still has no day or no person assigned. Finish planning anyway?",
+    "finishConfirm_other": "{{count}} tasks for next week still have no day or no person assigned. Finish planning anyway?"
   },
   "settings": {
     "title": "Settings",

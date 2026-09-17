@@ -27,7 +27,12 @@
     "tasksTitle": "Aufgaben",
     "tasksPending_one": "{{count}} offene Aufgabe",
     "tasksPending_other": "{{count}} offene Aufgaben",
-    "viewAll": "Alle anzeigen →"
+    "viewAll": "Alle anzeigen →",
+    "weekOverview": "Diese Woche",
+    "myOpenTasks": "Meine offenen Haushaltsaufgaben",
+    "noOpenTasks": "Nichts offen — sehr gut.",
+    "mealsComingSoon": "Mahlzeiten-Zeile — kommt mit dem Kochplan.",
+    "calendarComingSoon": "Kalendereinträge-Zeile — kommt mit der Google-Kalender-Synchronisierung."
   },
   "shoppingList": {
     "title": "Einkaufsliste",
@@ -48,13 +53,27 @@
   },
   "tasks": {
     "title": "Haushaltsplan",
+    "configTitle": "Haushaltsplan konfigurieren",
     "noTasks": "Keine Aufgaben",
     "unassigned": "Nicht zugewiesen",
     "complete": "Erledigt",
-    "snooze": "Überspringen",
+    "skip": "Überspringen",
+    "skipped": "übersprungen",
+    "snooze": "Verschieben",
+    "backlog": "Rückstand — noch kein Tag",
+    "backlogEmpty": "Nichts hier — ziehe eine Aufgabe hierher oder füge eine ohne Tag hinzu.",
+    "backlogCount_one": "{{count}} Aufgabe im Rückstand",
+    "backlogCount_other": "{{count}} Aufgaben im Rückstand",
+    "addSingleTask": "Einzelne Aufgabe hinzufügen",
+    "formDay": "Tag",
     "manageRecurringTasks": "Wiederkehrende Aufgaben verwalten",
+    "configSave": "Speichern",
+    "configCancel": "Abbrechen",
+    "configSaveNote": "Änderungen oben werden sofort gespeichert — Speichern und Abbrechen bringen dich beide zurück zum Kalender.",
     "memberColors": "Mitgliederfarben",
     "recurringTasks": "Wiederkehrende Aufgaben",
+    "editRecurringTask": "Bearbeiten",
+    "nowEditing": "Wird bearbeitet — Speichern übernimmt die Änderungen, Abbrechen beendet die Bearbeitung.",
     "formTitle": "Titel",
     "formStartsOn": "Beginnt am",
     "formRecurrenceRule": "Wiederholt sich",
@@ -64,6 +83,9 @@
       "fixed": "Immer dieselbe Person",
       "alternating": "Abwechselnd zwischen Mitgliedern",
       "none": "Bei der Wochenplanung entscheiden"
+    },
+    "assignmentSummary": {
+      "fixed": "Immer {{name}}"
     },
     "formIcon": "Symbol",
     "addRecurringTask": "Hinzufügen",
@@ -109,6 +131,8 @@
         "sa": "Sa",
         "su": "So"
       },
+      "hasPreferredDay": "Hat einen bevorzugten Wochentag",
+      "noPreferredDayHint": "Kein bevorzugter Tag — landet jedes Mal im Rückstand und kann auf den passenden Tag der Woche gezogen werden.",
       "summary": {
         "daily_one": "Jeden Tag",
         "daily_other": "Alle {{count}} Tage",
@@ -118,7 +142,8 @@
         "monthly_other": "Alle {{count}} Monate",
         "onDays": "am {{days}}",
         "onDayOfMonth": "am Tag {{day}}",
-        "onOrdinalWeekday": "am {{ordinal}} {{weekday}}"
+        "onOrdinalWeekday": "am {{ordinal}} {{weekday}}",
+        "noPreferredDay": "{{every}} (kein bevorzugter Tag)"
       }
     }
   },
@@ -128,9 +153,13 @@
     "weekday": "Tag",
     "time": "Uhrzeit",
     "save": "Speichern",
+    "cancel": "Abbrechen",
     "startNow": "Wochenplanung starten",
     "current": "Aktuell: {{summary}} um {{time}}",
-    "notSetUp": "Noch nicht eingerichtet"
+    "notSetUp": "Noch nicht eingerichtet",
+    "finish": "Planung abschließen",
+    "finishConfirm_one": "{{count}} Aufgabe für nächste Woche hat noch keinen Tag oder keine Person zugewiesen. Trotzdem abschließen?",
+    "finishConfirm_other": "{{count}} Aufgaben für nächste Woche haben noch keinen Tag oder keine Person zugewiesen. Trotzdem abschließen?"
   },
   "settings": {
     "title": "Einstellungen",

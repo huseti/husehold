@@ -114,6 +114,10 @@ class HouseholdTaskDefinition(AuditableMixin):
         max_length=500,
         help_text="RFC 5545 RRULE string, e.g. FREQ=WEEKLY;BYDAY=MO or FREQ=MONTHLY;BYDAY=1MO",
     )
+    has_preferred_day = models.BooleanField(
+        default=True,
+        help_text="If false, occurrences land in the backlog (no day) until dragged onto one during planning.",
+    )
     assignment_mode = models.CharField(max_length=15, choices=ASSIGNMENT_MODE_CHOICES, default='none')
     default_assignee = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, blank=True, related_name='default_assigned_task_definitions',
@@ -136,11 +140,32 @@ class HouseholdTaskInstance(models.Model):
     STATUS_CHOICES = [
         ('pending', 'Pending'),
         ('done', 'Done'),
-        ('snoozed', 'Snoozed'),
+        ('skipped', 'Skipped'),
     ]
 
-    definition = models.ForeignKey(HouseholdTaskDefinition, on_delete=models.CASCADE, related_name='instances')
+    # Nullable so a one-off task (created via the "+" button, not from any
+    # recurring definition) can be a plain HouseholdTaskInstance too --
+    # standalone_title/standalone_icon carry its identity in that case.
+    definition = models.ForeignKey(
+        HouseholdTaskDefinition, on_delete=models.CASCADE, null=True, blank=True, related_name='instances',
+    )
+    standalone_title = models.CharField(max_length=200, blank=True)
+    standalone_icon = models.CharField(max_length=20, choices=HouseholdTaskDefinition.ICON_CHOICES, blank=True)
+
+    # occurrence_date is the date the recurrence rule actually computed for
+    # this occurrence, and never changes -- it's what get_or_create() in
+    # task_generation keys on, so that dragging an instance to a different
+    # scheduled_date (postpone) doesn't leave its "natural" slot looking
+    # unfulfilled and get a fresh duplicate generated into it later.
+    # scheduled_date is the mutable, displayed date and is what postpone/
+    # snooze actually change.
+    occurrence_date = models.DateField()
     scheduled_date = models.DateField()
+    is_in_backlog = models.BooleanField(
+        default=False,
+        help_text="Shown in the backlog lane (no day yet) instead of under scheduled_date's weekday.",
+    )
+
     assigned_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='task_instances')
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
     completed_at = models.DateTimeField(null=True, blank=True)
@@ -148,17 +173,19 @@ class HouseholdTaskInstance(models.Model):
 
     class Meta:
         ordering = ['scheduled_date']
-        unique_together = ('definition', 'scheduled_date')
+        unique_together = ('definition', 'occurrence_date')
 
     def __str__(self):
-        return f"{self.definition.title} - {self.scheduled_date}"
+        title = self.definition.title if self.definition else self.standalone_title
+        return f"{title} - {self.scheduled_date}"
 
 
 class HouseholdTaskEvent(models.Model):
     EVENT_TYPE_CHOICES = [
         ('created', 'Created'),
         ('reassigned', 'Reassigned'),
-        ('snoozed', 'Snoozed'),
+        ('snoozed', 'Snoozed to backlog'),
+        ('skipped', 'Skipped this occurrence'),
         ('postponed', 'Postponed'),
         ('completed', 'Completed'),
     ]

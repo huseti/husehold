@@ -11,26 +11,57 @@ const DEFAULT_FORM = {
   icon: 'other',
   starts_on: new Date().toISOString().slice(0, 10),
   recurrence_rule: 'FREQ=WEEKLY;BYDAY=MO',
+  has_preferred_day: true,
   assignment_mode: 'none',
   default_assignee: '',
 };
 
 const ASSIGNMENT_MODES = ['none', 'alternating', 'fixed'];
 
+function formFromDefinition(d) {
+  return {
+    title: d.title,
+    icon: d.icon,
+    starts_on: d.starts_on,
+    recurrence_rule: d.recurrence_rule,
+    has_preferred_day: d.has_preferred_day,
+    assignment_mode: d.assignment_mode,
+    default_assignee: d.default_assignee || '',
+  };
+}
+
 export default function TaskDefinitionForm({ members, definitions, onSaved }) {
   const { t } = useTranslation();
   const [form, setForm] = useState(DEFAULT_FORM);
+  const [editingId, setEditingId] = useState(null);
 
   const regularDefinitions = definitions.filter((d) => d.system_action === 'none');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    await taskDefinitionService.create({
+    const payload = {
       ...form,
       default_assignee: form.assignment_mode === 'fixed' ? (form.default_assignee || null) : null,
-    });
+    };
+    if (editingId) {
+      await taskDefinitionService.update(editingId, payload);
+    } else {
+      await taskDefinitionService.create(payload);
+    }
     setForm(DEFAULT_FORM);
+    setEditingId(null);
     onSaved();
+  };
+
+  const handleEdit = (definition) => {
+    setEditingId(definition.id);
+    setForm(formFromDefinition(definition));
+    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setForm(DEFAULT_FORM);
   };
 
   const handleColorChange = async (member, color) => {
@@ -58,6 +89,15 @@ export default function TaskDefinitionForm({ members, definitions, onSaved }) {
     }
   };
 
+  const assignmentSummary = (d) => {
+    if (d.assignment_mode === 'fixed') {
+      return d.default_assignee_username
+        ? t('tasks.assignmentSummary.fixed', { name: d.default_assignee_username })
+        : t('tasks.assignmentMode.fixed');
+    }
+    return t(`tasks.assignmentMode.${d.assignment_mode}`);
+  };
+
   return (
     <div className="space-y-6 mb-6">
       <div className="bg-white rounded-lg shadow p-4">
@@ -80,13 +120,29 @@ export default function TaskDefinitionForm({ members, definitions, onSaved }) {
 
       <div className="bg-white rounded-lg shadow p-4">
         <h3 className="font-semibold mb-2">{t('tasks.recurringTasks')}</h3>
-        <ul className="text-sm mb-3 space-y-1">
+        <ul className="text-sm mb-3 space-y-2">
           {regularDefinitions.map((d) => (
-            <li key={d.id} className="flex items-center gap-2 text-gray-600">
-              <TaskIcon icon={d.icon} className="text-gray-400 flex-shrink-0" />
-              <span className="flex-1">
-                {d.title} — {summarizeRecurrenceRule(d.recurrence_rule, t)}
-              </span>
+            <li key={d.id} className="flex items-start gap-2 text-gray-600 border-b pb-2 last:border-0">
+              <TaskIcon icon={d.icon} className="text-gray-400 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <div className="font-medium text-gray-800">{d.title}</div>
+                <div className="text-xs text-gray-500">
+                  {d.has_preferred_day
+                    ? summarizeRecurrenceRule(d.recurrence_rule, t)
+                    : t('tasks.recurrence.summary.noPreferredDay', {
+                        every: summarizeRecurrenceRule(d.recurrence_rule, t).split(' on ')[0],
+                      })}
+                  {' · '}
+                  {assignmentSummary(d)}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleEdit(d)}
+                className="text-xs text-blue-600 hover:text-blue-800"
+              >
+                {t('tasks.editRecurringTask')}
+              </button>
               <button
                 type="button"
                 onClick={() => handleDelete(d)}
@@ -99,6 +155,9 @@ export default function TaskDefinitionForm({ members, definitions, onSaved }) {
         </ul>
 
         <form onSubmit={handleSubmit} className="space-y-3">
+          {editingId && (
+            <p className="text-xs text-blue-700 bg-blue-50 rounded px-2 py-1">{t('tasks.nowEditing')}</p>
+          )}
           <div className="flex gap-2 flex-wrap items-end">
             <div>
               <label className="block text-xs text-gray-500">{t('tasks.formTitle')}</label>
@@ -175,14 +234,29 @@ export default function TaskDefinitionForm({ members, definitions, onSaved }) {
           <div>
             <label className="block text-xs text-gray-500 mb-1">{t('tasks.formRecurrenceRule')}</label>
             <RecurrencePicker
+              key={editingId || 'new'}
               value={form.recurrence_rule}
+              initialRule={form.recurrence_rule}
+              hasPreferredDay={form.has_preferred_day}
+              onHasPreferredDayChange={(checked) => setForm((f) => ({ ...f, has_preferred_day: checked }))}
               onChange={(rule) => setForm((f) => ({ ...f, recurrence_rule: rule }))}
             />
           </div>
 
-          <button type="submit" className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600">
-            {t('tasks.addRecurringTask')}
-          </button>
+          <div className="flex gap-2">
+            <button type="submit" className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600">
+              {editingId ? t('weeklyPlanning.save') : t('tasks.addRecurringTask')}
+            </button>
+            {editingId && (
+              <button
+                type="button"
+                onClick={handleCancelEdit}
+                className="px-3 py-1 rounded text-sm bg-gray-200 hover:bg-gray-300"
+              >
+                {t('weeklyPlanning.cancel')}
+              </button>
+            )}
+          </div>
         </form>
       </div>
     </div>

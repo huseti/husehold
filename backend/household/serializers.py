@@ -49,30 +49,51 @@ class HouseholdTaskEventSerializer(serializers.ModelSerializer):
 class HouseholdTaskDefinitionSerializer(serializers.ModelSerializer):
     created_by_username = serializers.CharField(source='created_by.username', read_only=True)
     updated_by_username = serializers.CharField(source='updated_by.username', read_only=True)
+    default_assignee_username = serializers.CharField(source='default_assignee.username', read_only=True, default=None)
 
     instance_count = serializers.IntegerField(source='instances.count', read_only=True)
 
     class Meta:
         model = HouseholdTaskDefinition
         fields = (
-            'id', 'title', 'description', 'icon', 'starts_on', 'recurrence_rule',
-            'assignment_mode', 'default_assignee', 'system_action', 'reminder_time', 'instance_count',
+            'id', 'title', 'description', 'icon', 'starts_on', 'recurrence_rule', 'has_preferred_day',
+            'assignment_mode', 'default_assignee', 'default_assignee_username',
+            'system_action', 'reminder_time', 'instance_count',
             'created_by', 'created_by_username', 'created_at',
             'updated_by', 'updated_by_username', 'updated_at',
         )
         read_only_fields = ('created_by', 'updated_by')
 
 class HouseholdTaskInstanceSerializer(serializers.ModelSerializer):
-    definition_title = serializers.CharField(source='definition.title', read_only=True)
-    definition_icon = serializers.CharField(source='definition.icon', read_only=True)
-    assigned_to_username = serializers.CharField(source='assigned_to.username', read_only=True)
+    # Explicit (not auto-generated) because 'definition' participates in the
+    # model's unique_together with occurrence_date -- DRF's ModelSerializer
+    # otherwise forces fields in a unique_together constraint to be
+    # "required", even though the model itself allows it to be blank/null
+    # for standalone (one-off) tasks.
+    definition = serializers.PrimaryKeyRelatedField(
+        queryset=HouseholdTaskDefinition.objects.all(), required=False, allow_null=True,
+    )
+    title = serializers.SerializerMethodField()
+    icon = serializers.SerializerMethodField()
+    definition_title = serializers.CharField(source='definition.title', read_only=True, default=None)
+    definition_icon = serializers.CharField(source='definition.icon', read_only=True, default=None)
+    assigned_to_username = serializers.CharField(source='assigned_to.username', read_only=True, default=None)
     assigned_to_color = serializers.CharField(source='assigned_to.householdmember.color_hex', read_only=True, default=None)
     events = HouseholdTaskEventSerializer(many=True, read_only=True)
 
     class Meta:
         model = HouseholdTaskInstance
         fields = (
-            'id', 'definition', 'definition_title', 'definition_icon', 'scheduled_date', 'assigned_to',
+            'id', 'definition', 'definition_title', 'definition_icon',
+            'standalone_title', 'standalone_icon', 'title', 'icon',
+            'scheduled_date', 'occurrence_date', 'is_in_backlog', 'assigned_to',
             'assigned_to_username', 'assigned_to_color', 'status', 'completed_at',
             'created_at', 'events',
         )
+        read_only_fields = ('occurrence_date',)
+
+    def get_title(self, obj):
+        return obj.definition.title if obj.definition else obj.standalone_title
+
+    def get_icon(self, obj):
+        return obj.definition.icon if obj.definition else obj.standalone_icon

@@ -34,12 +34,12 @@ class HouseholdTaskEventInline(admin.TabularInline):
 
 @admin.register(HouseholdTaskDefinition)
 class HouseholdTaskDefinitionAdmin(admin.ModelAdmin):
-    list_display = ('title', 'icon', 'recurrence_rule', 'assignment_mode', 'default_assignee', 'system_action', 'updated_by', 'updated_at')
-    list_filter = ('system_action', 'icon', 'assignment_mode')
+    list_display = ('title', 'icon', 'recurrence_rule', 'has_preferred_day', 'assignment_mode', 'default_assignee', 'system_action', 'updated_by', 'updated_at')
+    list_filter = ('system_action', 'icon', 'assignment_mode', 'has_preferred_day')
     search_fields = ('title',)
 
 @admin.register(HouseholdTaskInstance)
 class HouseholdTaskInstanceAdmin(admin.ModelAdmin):
-    list_display = ('definition', 'scheduled_date', 'assigned_to', 'status', 'completed_at')
-    list_filter = ('status', 'scheduled_date')
+    list_display = ('__str__', 'scheduled_date', 'occurrence_date', 'is_in_backlog', 'assigned_to', 'status', 'completed_at')
+    list_filter = ('status', 'is_in_backlog', 'scheduled_date')
     inlines = [HouseholdTaskEventInline]

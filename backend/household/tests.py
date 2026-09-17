@@ -4,7 +4,7 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 from rest_framework.test import APIClient
 
-from .models import HouseholdTaskDefinition, HouseholdTaskInstance, HouseholdTaskEvent
+from .models import HouseholdMember, HouseholdTaskDefinition, HouseholdTaskInstance, HouseholdTaskEvent
 from .services.task_generation import generate_instances_for_range
 
 
@@ -27,6 +27,7 @@ class TaskGenerationTests(TestCase):
         dates = sorted(i.scheduled_date for i in created)
         self.assertEqual(dates, [date(2026, 9, 14), date(2026, 9, 21), date(2026, 9, 28)])
         self.assertTrue(all(i.assigned_to == self.user for i in created))
+        self.assertTrue(all(not i.is_in_backlog for i in created))
 
     def test_first_monday_of_month_recurrence(self):
         HouseholdTaskDefinition.objects.create(
@@ -52,9 +53,19 @@ class TaskGenerationTests(TestCase):
 
         self.assertIsNone(created[0].assigned_to)
 
-    def test_alternating_assignment_mode_rotates_between_members(self):
-        from .models import HouseholdMember
+    def test_has_preferred_day_false_lands_in_backlog(self):
+        HouseholdTaskDefinition.objects.create(
+            title='Whenever chore',
+            starts_on=date(2026, 9, 14),
+            recurrence_rule='FREQ=WEEKLY',
+            has_preferred_day=False,
+        )
 
+        created = generate_instances_for_range(date(2026, 9, 14), date(2026, 9, 14))
+
+        self.assertTrue(created[0].is_in_backlog)
+
+    def test_alternating_assignment_mode_rotates_between_members(self):
         other = User.objects.create_user(username='partner', password='pw')
         HouseholdMember.objects.create(user=self.user, role='member')
         HouseholdMember.objects.create(user=other, role='member')
@@ -71,6 +82,33 @@ class TaskGenerationTests(TestCase):
         assignees = [i.assigned_to for i in sorted(created, key=lambda i: i.scheduled_date)]
         self.assertEqual(assignees, [self.user, other, self.user, other])
 
+    def test_alternating_skips_dont_advance_rotation(self):
+        """If an occurrence is skipped, the same person keeps it next time
+        instead of the rotation moving on to the other member."""
+        other = User.objects.create_user(username='partner', password='pw')
+        HouseholdMember.objects.create(user=self.user, role='member')
+        HouseholdMember.objects.create(user=other, role='member')
+
+        definition = HouseholdTaskDefinition.objects.create(
+            title='Take out trash',
+            starts_on=date(2026, 9, 14),
+            recurrence_rule='FREQ=WEEKLY;BYDAY=MO',
+            assignment_mode='alternating',
+        )
+
+        # Week 1 generates for self.user (first member).
+        generate_instances_for_range(date(2026, 9, 14), date(2026, 9, 14))
+        week1 = HouseholdTaskInstance.objects.get(occurrence_date=date(2026, 9, 14))
+        self.assertEqual(week1.assigned_to, self.user)
+
+        # Skip week 1's occurrence, then generate week 2.
+        week1.status = 'skipped'
+        week1.save()
+        generate_instances_for_range(date(2026, 9, 21), date(2026, 9, 21))
+        week2 = HouseholdTaskInstance.objects.get(occurrence_date=date(2026, 9, 21))
+
+        self.assertEqual(week2.assigned_to, self.user)  # not other -- rotation didn't advance
+
     def test_generation_is_idempotent(self):
         HouseholdTaskDefinition.objects.create(
             title='Water plants',
@@ -83,6 +121,27 @@ class TaskGenerationTests(TestCase):
 
         self.assertEqual(len(second_run), 0)
         self.assertEqual(HouseholdTaskInstance.objects.count(), 4)  # Sep 7, 14, 21, 28
+
+    def test_postponing_an_instance_does_not_cause_a_duplicate_on_regeneration(self):
+        """Regression test for the drag-and-drop duplication bug: moving an
+        instance's scheduled_date away from its natural occurrence_date must
+        not make the generator think that slot is unfulfilled again."""
+        definition = HouseholdTaskDefinition.objects.create(
+            title='Take out trash',
+            starts_on=date(2026, 9, 14),
+            recurrence_rule='FREQ=WEEKLY;BYDAY=MO',
+        )
+
+        generate_instances_for_range(date(2026, 9, 14), date(2026, 9, 20))
+        instance = HouseholdTaskInstance.objects.get(definition=definition)
+        instance.scheduled_date = date(2026, 9, 16)  # drag Monday's task to Wednesday
+        instance.save()
+
+        # Re-fetching the same week (as the frontend does on every load)
+        # must not regenerate a fresh instance for the original Monday slot.
+        generate_instances_for_range(date(2026, 9, 14), date(2026, 9, 20))
+
+        self.assertEqual(HouseholdTaskInstance.objects.filter(definition=definition).count(), 1)
 
     def test_creating_an_instance_logs_a_created_event(self):
         HouseholdTaskDefinition.objects.create(
@@ -136,16 +195,28 @@ class TaskInstanceActionTests(TestCase):
             default_assignee=self.user,
         )
         self.instance = HouseholdTaskInstance.objects.create(
-            definition=self.definition, scheduled_date=date(2026, 9, 14), assigned_to=self.user,
+            definition=self.definition, occurrence_date=date(2026, 9, 14),
+            scheduled_date=date(2026, 9, 14), assigned_to=self.user,
         )
 
-    def test_snooze_sets_status_and_logs_event(self):
+    def test_snooze_pushes_to_next_week_backlog_without_changing_status(self):
         response = self.client.post(f'/api/task-instances/{self.instance.id}/snooze/')
 
         self.assertEqual(response.status_code, 200)
         self.instance.refresh_from_db()
-        self.assertEqual(self.instance.status, 'snoozed')
+        self.assertEqual(self.instance.status, 'pending')
+        self.assertTrue(self.instance.is_in_backlog)
+        self.assertEqual(self.instance.scheduled_date, date(2026, 9, 21))  # next Monday
+        self.assertEqual(self.instance.occurrence_date, date(2026, 9, 14))  # unchanged
         self.assertEqual(self.instance.events.filter(event_type='snoozed', actor=self.user).count(), 1)
+
+    def test_skip_sets_status_and_logs_event(self):
+        response = self.client.post(f'/api/task-instances/{self.instance.id}/skip/')
+
+        self.assertEqual(response.status_code, 200)
+        self.instance.refresh_from_db()
+        self.assertEqual(self.instance.status, 'skipped')
+        self.assertEqual(self.instance.events.filter(event_type='skipped', actor=self.user).count(), 1)
 
     def test_reassign_changes_assignee_and_logs_event(self):
         response = self.client.post(
@@ -157,7 +228,7 @@ class TaskInstanceActionTests(TestCase):
         self.assertEqual(self.instance.assigned_to, self.other)
         self.assertEqual(self.instance.events.filter(event_type='reassigned').count(), 1)
 
-    def test_postpone_changes_scheduled_date(self):
+    def test_postpone_changes_scheduled_date_but_not_occurrence_date(self):
         response = self.client.post(
             f'/api/task-instances/{self.instance.id}/postpone/', {'scheduled_date': '2026-09-16'},
         )
@@ -165,7 +236,19 @@ class TaskInstanceActionTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.instance.refresh_from_db()
         self.assertEqual(self.instance.scheduled_date, date(2026, 9, 16))
+        self.assertEqual(self.instance.occurrence_date, date(2026, 9, 14))
+        self.assertFalse(self.instance.is_in_backlog)
         self.assertEqual(self.instance.events.filter(event_type='postponed').count(), 1)
+
+    def test_postpone_with_is_in_backlog_moves_to_backlog_without_changing_date(self):
+        response = self.client.post(
+            f'/api/task-instances/{self.instance.id}/postpone/', {'is_in_backlog': True},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.instance.refresh_from_db()
+        self.assertTrue(self.instance.is_in_backlog)
+        self.assertEqual(self.instance.scheduled_date, date(2026, 9, 14))  # unchanged
 
     def test_complete_sets_status_and_timestamp(self):
         response = self.client.post(f'/api/task-instances/{self.instance.id}/complete/')
@@ -181,6 +264,43 @@ class TaskInstanceActionTests(TestCase):
         response = anonymous_client.post(f'/api/task-instances/{self.instance.id}/complete/')
 
         self.assertEqual(response.status_code, 401)
+
+
+class StandaloneTaskTests(TestCase):
+    """One-off tasks created directly via the '+' button, not tied to any
+    recurring HouseholdTaskDefinition."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username='tim', password='pw')
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+
+    def test_create_standalone_task_with_a_day(self):
+        response = self.client.post('/api/task-instances/', {
+            'standalone_title': 'Pick up package',
+            'standalone_icon': 'other',
+            'scheduled_date': '2026-09-16',
+            'assigned_to': self.user.id,
+        })
+
+        self.assertEqual(response.status_code, 201, response.data)
+        instance = HouseholdTaskInstance.objects.get(id=response.data['id'])
+        self.assertIsNone(instance.definition)
+        self.assertEqual(instance.occurrence_date, date(2026, 9, 16))
+        self.assertEqual(response.data['title'], 'Pick up package')
+
+    def test_create_standalone_task_without_a_day_goes_to_backlog(self):
+        response = self.client.post('/api/task-instances/', {
+            'standalone_title': 'Fix the shelf',
+            'standalone_icon': 'tool',
+            'scheduled_date': '2026-09-14',
+            'is_in_backlog': True,
+            'assigned_to': '',
+        })
+
+        self.assertEqual(response.status_code, 201, response.data)
+        self.assertTrue(response.data['is_in_backlog'])
+        self.assertIsNone(response.data['assigned_to'])
 
 
 class TaskDefinitionDeletionTests(TestCase):
@@ -201,7 +321,9 @@ class TaskDefinitionDeletionTests(TestCase):
         self.assertFalse(HouseholdTaskDefinition.objects.filter(id=self.definition.id).exists())
 
     def test_delete_with_instances_requires_confirmation(self):
-        HouseholdTaskInstance.objects.create(definition=self.definition, scheduled_date=date(2026, 9, 14))
+        HouseholdTaskInstance.objects.create(
+            definition=self.definition, occurrence_date=date(2026, 9, 14), scheduled_date=date(2026, 9, 14),
+        )
 
         response = self.client.delete(f'/api/task-definitions/{self.definition.id}/')
 
@@ -211,7 +333,9 @@ class TaskDefinitionDeletionTests(TestCase):
         self.assertTrue(HouseholdTaskDefinition.objects.filter(id=self.definition.id).exists())
 
     def test_delete_with_confirm_flag_removes_definition_and_instances(self):
-        instance = HouseholdTaskInstance.objects.create(definition=self.definition, scheduled_date=date(2026, 9, 14))
+        instance = HouseholdTaskInstance.objects.create(
+            definition=self.definition, occurrence_date=date(2026, 9, 14), scheduled_date=date(2026, 9, 14),
+        )
 
         response = self.client.delete(f'/api/task-definitions/{self.definition.id}/?confirm=true')
 

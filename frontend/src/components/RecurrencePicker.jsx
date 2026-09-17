@@ -36,9 +36,34 @@ function buildRule(state) {
   return parts.join(';');
 }
 
-export default function RecurrencePicker({ value, onChange }) {
+// Used when editing an existing recurring task -- seeds the picker's
+// controls from its stored rule. Render this component with a `key` tied
+// to the task being edited so React remounts it (and re-runs this) rather
+// than trying to patch a live picker's state.
+export function parseRuleToState(rule) {
+  if (!rule) return DEFAULT_STATE;
+  const parts = Object.fromEntries(rule.split(';').map((p) => p.split('=')));
+  const state = { ...DEFAULT_STATE, freq: parts.FREQ || 'WEEKLY', interval: parseInt(parts.INTERVAL || '1', 10) };
+  if (parts.FREQ === 'WEEKLY' && parts.BYDAY) {
+    state.byday = parts.BYDAY.split(',');
+  }
+  if (parts.FREQ === 'MONTHLY' && parts.BYMONTHDAY) {
+    state.monthlyMode = 'day';
+    state.monthDay = parseInt(parts.BYMONTHDAY, 10);
+  } else if (parts.FREQ === 'MONTHLY' && parts.BYDAY) {
+    const match = parts.BYDAY.match(/^(-?\d+)([A-Z]{2})$/);
+    if (match) {
+      state.monthlyMode = 'ordinal';
+      state.ordinal = match[1];
+      state.ordinalWeekday = match[2];
+    }
+  }
+  return state;
+}
+
+export default function RecurrencePicker({ value, onChange, initialRule, hasPreferredDay, onHasPreferredDayChange }) {
   const { t } = useTranslation();
-  const [state, setState] = useState(DEFAULT_STATE);
+  const [state, setState] = useState(() => parseRuleToState(initialRule));
 
   useEffect(() => {
     onChange(buildRule(state));
@@ -79,7 +104,21 @@ export default function RecurrencePicker({ value, onChange }) {
         </select>
       </div>
 
-      {state.freq === 'WEEKLY' && (
+      {onHasPreferredDayChange && (
+        <label className="flex items-center gap-2 text-sm mb-2">
+          <input
+            type="checkbox"
+            checked={hasPreferredDay}
+            onChange={(e) => onHasPreferredDayChange(e.target.checked)}
+          />
+          {t('tasks.recurrence.hasPreferredDay')}
+        </label>
+      )}
+      {onHasPreferredDayChange && !hasPreferredDay && (
+        <p className="text-xs text-gray-500 mb-2">{t('tasks.recurrence.noPreferredDayHint')}</p>
+      )}
+
+      {state.freq === 'WEEKLY' && (hasPreferredDay === undefined || hasPreferredDay) && (
         <div className="flex gap-1 flex-wrap mb-2">
           {WEEKDAYS.map((day) => (
             <button
@@ -98,7 +137,7 @@ export default function RecurrencePicker({ value, onChange }) {
         </div>
       )}
 
-      {state.freq === 'MONTHLY' && (
+      {state.freq === 'MONTHLY' && (hasPreferredDay === undefined || hasPreferredDay) && (
         <div className="flex items-center gap-2 flex-wrap mb-2 text-sm">
           <label className="flex items-center gap-1">
             <input
@@ -149,7 +188,11 @@ export default function RecurrencePicker({ value, onChange }) {
         </div>
       )}
 
-      <p className="text-xs text-gray-500 italic mt-1">{summarizeRecurrenceRule(value, t)}</p>
+      <p className="text-xs text-gray-500 italic mt-1">
+        {hasPreferredDay === false
+          ? t('tasks.recurrence.summary.noPreferredDay', { every: summarizeRecurrenceRule(`FREQ=${state.freq}${state.interval > 1 ? `;INTERVAL=${state.interval}` : ''}`, t) })
+          : summarizeRecurrenceRule(value, t)}
+      </p>
     </div>
   );
 }

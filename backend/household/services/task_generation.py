@@ -10,8 +10,10 @@ def _resolve_assignee(definition):
     """Who a newly generated instance should default to, based on the
     definition's assignment_mode:
       - fixed: always the same configured member
-      - alternating: rotates through household members in order, based on
-        how many instances of this definition already exist
+      - alternating: rotates through household members, based on who the
+        most recent instance of this definition was assigned to. If that
+        most recent instance was *skipped* rather than completed, the
+        rotation does not advance -- the same person keeps it next time.
       - none: left unassigned -- decided during weekly planning
     """
     if definition.assignment_mode == 'fixed':
@@ -20,15 +22,26 @@ def _resolve_assignee(definition):
         members = list(User.objects.filter(householdmember__isnull=False).order_by('householdmember__id'))
         if not members:
             return None
-        index = definition.instances.count() % len(members)
-        return members[index]
+        last_instance = definition.instances.order_by('-occurrence_date', '-id').first()
+        if last_instance is None:
+            return members[0]
+        if last_instance.status == 'skipped':
+            return last_instance.assigned_to or members[0]
+        try:
+            index = members.index(last_instance.assigned_to)
+        except ValueError:
+            index = -1
+        return members[(index + 1) % len(members)]
     return None
 
 
 def generate_instances_for_range(start_date, end_date):
     """Ensure a HouseholdTaskInstance exists for every occurrence of every
     HouseholdTaskDefinition's recurrence rule within [start_date, end_date].
-    Idempotent -- safe to call repeatedly for overlapping ranges.
+    Idempotent -- safe to call repeatedly for overlapping ranges. Keys on
+    occurrence_date (the rule's natural, immutable date), not the mutable
+    scheduled_date, so postponing/snoozing an instance elsewhere doesn't
+    make its original slot look unfulfilled and get regenerated.
     """
     created = []
     for definition in HouseholdTaskDefinition.objects.all():
@@ -40,10 +53,15 @@ def generate_instances_for_range(start_date, end_date):
             inc=True,
         )
         for occurrence in occurrences:
+            occurrence_date = occurrence.date()
             instance, was_created = HouseholdTaskInstance.objects.get_or_create(
                 definition=definition,
-                scheduled_date=occurrence.date(),
-                defaults={'assigned_to': _resolve_assignee(definition)},
+                occurrence_date=occurrence_date,
+                defaults={
+                    'scheduled_date': occurrence_date,
+                    'assigned_to': _resolve_assignee(definition),
+                    'is_in_backlog': not definition.has_preferred_day,
+                },
             )
             if was_created:
                 HouseholdTaskEvent.objects.create(task_instance=instance, event_type='created')

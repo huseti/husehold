@@ -1,39 +1,21 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { DndContext } from '@dnd-kit/core';
 import { taskInstanceService, taskDefinitionService, memberService } from '../services/api';
 import Navbar from '../components/Navbar';
-import TaskDayColumn from '../components/TaskDayColumn';
+import WeekBoard from '../components/WeekBoard';
 import TaskDefinitionForm from '../components/TaskDefinitionForm';
-
-// Monday-first week, matching the "once a week, plan the coming week" workflow.
-function getWeekStart(date) {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  d.setDate(d.getDate() + diff);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
-function toISODate(date) {
-  return date.toISOString().slice(0, 10);
-}
-
-function addDays(date, days) {
-  const d = new Date(date);
-  d.setDate(d.getDate() + days);
-  return d;
-}
+import AddSingleTaskForm from '../components/AddSingleTaskForm';
+import { getWeekStart, toISODate, addDays } from '../utils/weekDates';
 
 export default function Tasks() {
   const { t } = useTranslation();
+  const [mode, setMode] = useState('calendar'); // 'calendar' | 'config' | 'planning'
   const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()));
   const [instances, setInstances] = useState([]);
   const [members, setMembers] = useState([]);
   const [definitions, setDefinitions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showConfig, setShowConfig] = useState(false);
+  const [showAddSingle, setShowAddSingle] = useState(false);
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   const weekEnd = weekDays[6];
@@ -83,25 +65,49 @@ export default function Tasks() {
     loadWeek();
   };
 
-  const handleStartPlanningNow = () => {
+  const handleStartPlanning = () => {
+    setWeekStart(getWeekStart(addDays(new Date(), 7))); // next week
+    setMode('planning');
+  };
+
+  const handleFinishPlanning = () => {
+    const unresolved = instances.filter((i) => i.is_in_backlog || !i.assigned_to);
+    if (unresolved.length > 0) {
+      const confirmed = window.confirm(
+        t('weeklyPlanning.finishConfirm', { count: unresolved.length }),
+      );
+      if (!confirmed) return;
+    }
     setWeekStart(getWeekStart(new Date()));
+    setMode('calendar');
   };
 
   const handleDragEnd = async (event) => {
     const { active, over } = event;
     if (!over) return;
     const instance = instances.find((i) => i.id === active.id);
-    if (!instance || instance.scheduled_date === over.id) return;
+    if (!instance) return;
     try {
-      await taskInstanceService.postpone(instance.id, over.id);
+      if (over.id === 'backlog') {
+        if (!instance.is_in_backlog) await taskInstanceService.moveToBacklog(instance.id);
+      } else if (instance.scheduled_date !== over.id || instance.is_in_backlog) {
+        await taskInstanceService.postpone(instance.id, over.id);
+      } else {
+        return;
+      }
       loadWeek();
     } catch (error) {
-      console.error('Error postponing task:', error);
+      console.error('Error moving task:', error);
     }
   };
 
   const handleComplete = async (id) => {
     await taskInstanceService.complete(id);
+    loadWeek();
+  };
+
+  const handleSkip = async (id) => {
+    await taskInstanceService.skip(id);
     loadWeek();
   };
 
@@ -125,66 +131,91 @@ export default function Tasks() {
 
       <main className="max-w-7xl mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-6 flex-wrap gap-2">
-          <h2 className="text-3xl font-bold">{t('tasks.title')}</h2>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setWeekStart(addDays(weekStart, -7))}
-              className="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300"
-            >
-              ←
-            </button>
-            <span className="text-sm text-gray-600">
-              {toISODate(weekStart)} – {toISODate(weekEnd)}
-            </span>
-            <button
-              onClick={() => setWeekStart(addDays(weekStart, 7))}
-              className="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300"
-            >
-              →
-            </button>
-            <button
-              onClick={handleStartPlanningNow}
-              className="ml-4 px-3 py-1 rounded bg-green-600 text-white hover:bg-green-700"
-            >
-              {t('weeklyPlanning.startNow')}
-            </button>
-            <button
-              onClick={() => setShowConfig((v) => !v)}
-              className="px-3 py-1 rounded bg-blue-500 text-white hover:bg-blue-600"
-            >
-              {t('tasks.manageRecurringTasks')}
-            </button>
-          </div>
+          <h2 className="text-3xl font-bold">
+            {mode === 'planning' ? t('weeklyPlanning.title') : mode === 'config' ? t('tasks.configTitle') : t('tasks.title')}
+          </h2>
+
+          {mode === 'calendar' && (
+            <div className="flex items-center gap-2">
+              <button onClick={() => setWeekStart(addDays(weekStart, -7))} className="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300">←</button>
+              <span className="text-sm text-gray-600">{toISODate(weekStart)} – {toISODate(weekEnd)}</span>
+              <button onClick={() => setWeekStart(addDays(weekStart, 7))} className="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300">→</button>
+              <button
+                onClick={() => setShowAddSingle((v) => !v)}
+                className="ml-2 px-3 py-1 rounded bg-gray-800 text-white hover:bg-black"
+                title={t('tasks.addSingleTask')}
+              >
+                +
+              </button>
+              <button onClick={handleStartPlanning} className="px-3 py-1 rounded bg-green-600 text-white hover:bg-green-700">
+                {t('weeklyPlanning.startNow')}
+              </button>
+              <button onClick={() => setMode('config')} className="px-3 py-1 rounded bg-blue-500 text-white hover:bg-blue-600">
+                {t('tasks.manageRecurringTasks')}
+              </button>
+            </div>
+          )}
+
+          {mode === 'planning' && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">{toISODate(weekStart)} – {toISODate(weekEnd)}</span>
+              <button
+                onClick={() => setShowAddSingle((v) => !v)}
+                className="ml-2 px-3 py-1 rounded bg-gray-800 text-white hover:bg-black"
+                title={t('tasks.addSingleTask')}
+              >
+                +
+              </button>
+              <button onClick={handleFinishPlanning} className="px-3 py-1 rounded bg-green-600 text-white hover:bg-green-700">
+                {t('weeklyPlanning.finish')}
+              </button>
+            </div>
+          )}
         </div>
 
-        {showConfig && (
-          <TaskDefinitionForm
-            members={members}
-            definitions={definitions}
-            onSaved={handleConfigSaved}
-          />
+        {mode === 'config' && (
+          <>
+            <TaskDefinitionForm members={members} definitions={definitions} onSaved={handleConfigSaved} />
+            <div className="flex gap-2">
+              <button
+                onClick={() => { handleConfigSaved(); setMode('calendar'); }}
+                className="px-4 py-2 rounded bg-gray-700 text-white hover:bg-gray-900"
+              >
+                {t('tasks.configSave')}
+              </button>
+              <button
+                onClick={() => setMode('calendar')}
+                className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300"
+              >
+                {t('tasks.configCancel')}
+              </button>
+            </div>
+            <p className="text-xs text-gray-400 mt-2">{t('tasks.configSaveNote')}</p>
+          </>
         )}
 
-        <DndContext onDragEnd={handleDragEnd}>
-          <div className="grid grid-cols-1 md:grid-cols-7 gap-3">
-            {weekDays.map((day) => {
-              const iso = toISODate(day);
-              const dayInstances = instances.filter((i) => i.scheduled_date === iso);
-              return (
-                <TaskDayColumn
-                  key={iso}
-                  date={day}
-                  dateISO={iso}
-                  instances={dayInstances}
-                  members={members}
-                  onComplete={handleComplete}
-                  onSnooze={handleSnooze}
-                  onReassign={handleReassign}
-                />
-              );
-            })}
-          </div>
-        </DndContext>
+        {(mode === 'calendar' || mode === 'planning') && (
+          <>
+            {showAddSingle && (
+              <AddSingleTaskForm
+                weekDays={weekDays}
+                members={members}
+                onClose={() => setShowAddSingle(false)}
+                onAdded={loadWeek}
+              />
+            )}
+            <WeekBoard
+              weekDays={weekDays}
+              instances={instances}
+              members={members}
+              onComplete={handleComplete}
+              onSkip={handleSkip}
+              onSnooze={handleSnooze}
+              onReassign={handleReassign}
+              onDragEnd={handleDragEnd}
+            />
+          </>
+        )}
       </main>
     </div>
   );

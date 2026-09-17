@@ -2,9 +2,12 @@ import { useDraggable } from '@dnd-kit/core';
 import { useTranslation } from 'react-i18next';
 import TaskIcon from './icons/taskIcons';
 
-export default function TaskCard({ instance, members, onComplete, onSnooze, onReassign }) {
+export default function TaskCard({ instance, members, onComplete, onSkip, onSnooze, onReassign, interactive = true }) {
   const { t } = useTranslation();
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: instance.id });
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: instance.id,
+    disabled: !interactive,
+  });
 
   const color = instance.assigned_to_color || '#9ca3af';
   const style = transform
@@ -12,21 +15,25 @@ export default function TaskCard({ instance, members, onComplete, onSnooze, onRe
     : undefined;
 
   const isDone = instance.status === 'done';
-  const isSnoozed = instance.status === 'snoozed';
+  const isSkipped = instance.status === 'skipped';
 
   return (
     <div
       ref={setNodeRef}
       style={{ ...style, borderLeftColor: color, opacity: isDragging ? 0.5 : 1 }}
-      className={`border-l-4 rounded shadow-sm p-2 bg-gray-50 text-sm ${isDone ? 'opacity-60' : ''} ${isSnoozed ? 'opacity-50' : ''}`}
+      className={`border-l-4 rounded shadow-sm p-2 bg-gray-50 text-sm ${isDone ? 'opacity-60' : ''} ${isSkipped ? 'opacity-50' : ''}`}
     >
-      <div {...listeners} {...attributes} className="cursor-grab font-medium flex items-center gap-1.5">
-        <TaskIcon icon={instance.definition_icon} className="text-gray-500 flex-shrink-0" />
-        {instance.definition_title}
+      <div
+        {...(interactive ? { ...listeners, ...attributes } : {})}
+        className={`font-medium flex items-center gap-1.5 ${interactive ? 'cursor-grab' : ''}`}
+      >
+        <TaskIcon icon={instance.icon} className="text-gray-500 flex-shrink-0" />
+        {instance.title}
+        {isSkipped && <span className="text-xs text-gray-400 ml-1">({t('tasks.skipped')})</span>}
       </div>
       <div className="text-xs text-gray-500 mb-1">{instance.assigned_to_username || t('tasks.unassigned')}</div>
 
-      {!isDone && (
+      {interactive && !isDone && (
         <div className="flex items-center gap-1 flex-wrap mt-1">
           <button
             onClick={() => onComplete(instance.id)}
@@ -34,22 +41,34 @@ export default function TaskCard({ instance, members, onComplete, onSnooze, onRe
           >
             {t('tasks.complete')}
           </button>
-          <button
-            onClick={() => onSnooze(instance.id)}
-            className="text-xs px-2 py-0.5 rounded bg-yellow-100 text-yellow-700 hover:bg-yellow-200"
-          >
-            {t('tasks.snooze')}
-          </button>
-          <select
-            value={instance.assigned_to || ''}
-            onChange={(e) => onReassign(instance.id, e.target.value || null)}
-            className="text-xs border rounded px-1 py-0.5"
-          >
-            <option value="">{t('tasks.unassigned')}</option>
-            {members.map((m) => (
-              <option key={m.user.id} value={m.user.id}>{m.user.username}</option>
-            ))}
-          </select>
+          {onSkip && (
+            <button
+              onClick={() => onSkip(instance.id)}
+              className="text-xs px-2 py-0.5 rounded bg-orange-100 text-orange-700 hover:bg-orange-200"
+            >
+              {t('tasks.skip')}
+            </button>
+          )}
+          {onSnooze && (
+            <button
+              onClick={() => onSnooze(instance.id)}
+              className="text-xs px-2 py-0.5 rounded bg-yellow-100 text-yellow-700 hover:bg-yellow-200"
+            >
+              {t('tasks.snooze')}
+            </button>
+          )}
+          {members && onReassign && (
+            <select
+              value={instance.assigned_to || ''}
+              onChange={(e) => onReassign(instance.id, e.target.value || null)}
+              className="text-xs border rounded px-1 py-0.5"
+            >
+              <option value="">{t('tasks.unassigned')}</option>
+              {members.map((m) => (
+                <option key={m.user.id} value={m.user.id}>{m.user.username}</option>
+              ))}
+            </select>
+          )}
         </div>
       )}
     </div>

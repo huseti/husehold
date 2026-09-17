@@ -62,9 +62,12 @@ export const taskDefinitionService = {
 
 export const taskInstanceService = {
   getRange: (start, end) => api.get('/task-instances/', { params: { start, end } }),
+  create: (data) => api.post('/task-instances/', data),
   reassign: (id, assignedTo) => api.post(`/task-instances/${id}/reassign/`, { assigned_to: assignedTo }),
   snooze: (id) => api.post(`/task-instances/${id}/snooze/`),
-  postpone: (id, scheduledDate) => api.post(`/task-instances/${id}/postpone/`, { scheduled_date: scheduledDate }),
+  skip: (id) => api.post(`/task-instances/${id}/skip/`),
+  postpone: (id, scheduledDate) => api.post(`/task-instances/${id}/postpone/`, { scheduled_date: scheduledDate, is_in_backlog: false }),
+  moveToBacklog: (id) => api.post(`/task-instances/${id}/postpone/`, { is_in_backlog: true }),
   complete: (id) => api.post(`/task-instances/${id}/complete/`),
 };
 
