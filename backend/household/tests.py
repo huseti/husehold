@@ -17,6 +17,7 @@ class TaskGenerationTests(TestCase):
             title='Take out trash',
             starts_on=date(2026, 1, 5),  # a Monday
             recurrence_rule='FREQ=WEEKLY;BYDAY=MO',
+            assignment_mode='fixed',
             default_assignee=self.user,
         )
 
@@ -38,6 +39,37 @@ class TaskGenerationTests(TestCase):
 
         dates = sorted(i.scheduled_date for i in created)
         self.assertEqual(dates, [date(2026, 9, 7), date(2026, 10, 5), date(2026, 11, 2), date(2026, 12, 7)])
+
+    def test_none_assignment_mode_leaves_instances_unassigned(self):
+        HouseholdTaskDefinition.objects.create(
+            title='Water plants',
+            starts_on=date(2026, 9, 14),
+            recurrence_rule='FREQ=WEEKLY;BYDAY=MO',
+            assignment_mode='none',
+        )
+
+        created = generate_instances_for_range(date(2026, 9, 14), date(2026, 9, 14))
+
+        self.assertIsNone(created[0].assigned_to)
+
+    def test_alternating_assignment_mode_rotates_between_members(self):
+        from .models import HouseholdMember
+
+        other = User.objects.create_user(username='partner', password='pw')
+        HouseholdMember.objects.create(user=self.user, role='member')
+        HouseholdMember.objects.create(user=other, role='member')
+
+        HouseholdTaskDefinition.objects.create(
+            title='Take out trash',
+            starts_on=date(2026, 9, 14),
+            recurrence_rule='FREQ=WEEKLY;BYDAY=MO',
+            assignment_mode='alternating',
+        )
+
+        created = generate_instances_for_range(date(2026, 9, 14), date(2026, 10, 5))
+
+        assignees = [i.assigned_to for i in sorted(created, key=lambda i: i.scheduled_date)]
+        self.assertEqual(assignees, [self.user, other, self.user, other])
 
     def test_generation_is_idempotent(self):
         HouseholdTaskDefinition.objects.create(
@@ -64,6 +96,31 @@ class TaskGenerationTests(TestCase):
         instance = HouseholdTaskInstance.objects.get(scheduled_date=date(2026, 9, 14))
         self.assertEqual(instance.events.count(), 1)
         self.assertEqual(instance.events.first().event_type, 'created')
+
+
+class TaskInstanceListEndpointTests(TestCase):
+    """Regression test: the list endpoint receives start/end as query-string
+    text, not date objects -- generate_instances_for_range() requires real
+    date objects, so this exercises the actual HTTP path instead of calling
+    the service function directly (which is how the other tests missed this)."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username='tim', password='pw')
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+        HouseholdTaskDefinition.objects.create(
+            title='Take out trash',
+            starts_on=date(2026, 9, 14),
+            recurrence_rule='FREQ=WEEKLY;BYDAY=MO',
+        )
+
+    def test_list_with_start_end_query_params_generates_and_returns_instances(self):
+        response = self.client.get('/api/task-instances/', {'start': '2026-09-14', 'end': '2026-09-20'})
+
+        self.assertEqual(response.status_code, 200)
+        results = response.data.get('results', response.data)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]['scheduled_date'], '2026-09-14')
 
 
 class TaskInstanceActionTests(TestCase):

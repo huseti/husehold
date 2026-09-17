@@ -76,6 +76,11 @@ const ICONS = {
       <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 15h-2v-2h2v2Zm0-3.6h-2c0-3 2.6-2.7 2.6-4.7 0-1-.9-1.7-2-1.7-.9 0-1.7.5-1.9 1.3l-1.8-.8C8.3 6.2 9.9 5 12 5c2.2 0 4 1.5 4 3.6 0 2.4-2.6 2.6-3 4.8Z" />
     </Icon>
   ),
+  calendar: (props) => (
+    <Icon {...props}>
+      <path d="M7 2v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2V2h-2v2H9V2H7ZM5 9h14v11H5V9Zm2 3v2h2v-2H7Zm4 0v2h2v-2h-2Zm4 0v2h2v-2h-2Z" />
+    </Icon>
+  ),
 };
 
 export const TASK_ICON_KEYS = Object.keys(ICONS);

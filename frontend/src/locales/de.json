@@ -57,8 +57,14 @@
     "recurringTasks": "Wiederkehrende Aufgaben",
     "formTitle": "Titel",
     "formStartsOn": "Beginnt am",
-    "formRecurrenceRule": "Wiederholungsregel (RRULE)",
-    "formDefaultAssignee": "Standardzuweisung",
+    "formRecurrenceRule": "Wiederholt sich",
+    "formAssignmentMode": "Wer macht das?",
+    "formDefaultAssignee": "Mitglied",
+    "assignmentMode": {
+      "fixed": "Immer dieselbe Person",
+      "alternating": "Abwechselnd zwischen Mitgliedern",
+      "none": "Bei der Wochenplanung entscheiden"
+    },
     "formIcon": "Symbol",
     "addRecurringTask": "Hinzufügen",
     "deleteRecurringTask": "Löschen",
@@ -103,11 +109,28 @@
         "sa": "Sa",
         "su": "So"
       },
-      "preview": "Regel: {{rule}}",
-      "useAdvanced": "Als Rohregel bearbeiten",
-      "useSimple": "Auswahl verwenden",
-      "rawLabel": "RRULE (erweitert)"
+      "summary": {
+        "daily_one": "Jeden Tag",
+        "daily_other": "Alle {{count}} Tage",
+        "weekly_one": "Jede Woche",
+        "weekly_other": "Alle {{count}} Wochen",
+        "monthly_one": "Jeden Monat",
+        "monthly_other": "Alle {{count}} Monate",
+        "onDays": "am {{days}}",
+        "onDayOfMonth": "am Tag {{day}}",
+        "onOrdinalWeekday": "am {{ordinal}} {{weekday}}"
+      }
     }
+  },
+  "weeklyPlanning": {
+    "title": "Wöchentliche Haushaltsplanung",
+    "description": "Legt fest, wann die Erinnerung zur Planung der nächsten Woche erscheint. Erscheint an diesem Tag auch als Aufgabenkarte.",
+    "weekday": "Tag",
+    "time": "Uhrzeit",
+    "save": "Speichern",
+    "startNow": "Wochenplanung starten",
+    "current": "Aktuell: {{summary}} um {{time}}",
+    "notSetUp": "Noch nicht eingerichtet"
   },
   "settings": {
     "title": "Einstellungen",

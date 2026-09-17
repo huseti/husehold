@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { summarizeRecurrenceRule } from '../utils/recurrenceSummary';
 
-// Builds/reads a subset of RFC 5545 RRULE strings -- enough for "every N
+// Builds a subset of RFC 5545 RRULE strings -- enough for "every N
 // days/weeks/months", specific weekdays, a fixed day-of-month, or an
-// ordinal weekday ("first Monday", "last Friday"). An "advanced" raw text
-// fallback covers anything this picker doesn't have a control for.
+// ordinal weekday ("first Monday", "last Friday"). The raw rule is never
+// shown or editable directly -- only this picker and a plain-language
+// summary of what it produced.
 const WEEKDAYS = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
 const ORDINALS = ['1', '2', '3', '4', '-1'];
 
@@ -37,7 +39,6 @@ function buildRule(state) {
 export default function RecurrencePicker({ value, onChange }) {
   const { t } = useTranslation();
   const [state, setState] = useState(DEFAULT_STATE);
-  const [advanced, setAdvanced] = useState(false);
 
   useEffect(() => {
     onChange(buildRule(state));
@@ -55,27 +56,6 @@ export default function RecurrencePicker({ value, onChange }) {
   };
 
   const weekdayLabel = (day) => t(`tasks.recurrence.weekday.${day.toLowerCase()}`);
-
-  if (advanced) {
-    return (
-      <div>
-        <label className="block text-xs text-gray-500">{t('tasks.recurrence.rawLabel')}</label>
-        <input
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder="FREQ=WEEKLY;BYDAY=MO"
-          className="border rounded px-2 py-1 text-sm w-64"
-        />
-        <button
-          type="button"
-          onClick={() => { setAdvanced(false); onChange(buildRule(state)); }}
-          className="ml-2 text-xs text-blue-600 hover:underline"
-        >
-          {t('tasks.recurrence.useSimple')}
-        </button>
-      </div>
-    );
-  }
 
   return (
     <div className="border rounded p-3 bg-gray-50">
@@ -169,12 +149,7 @@ export default function RecurrencePicker({ value, onChange }) {
         </div>
       )}
 
-      <div className="flex items-center justify-between mt-1">
-        <p className="text-xs text-gray-500 italic">{t('tasks.recurrence.preview', { rule: value })}</p>
-        <button type="button" onClick={() => setAdvanced(true)} className="text-xs text-blue-600 hover:underline">
-          {t('tasks.recurrence.useAdvanced')}
-        </button>
-      </div>
+      <p className="text-xs text-gray-500 italic mt-1">{summarizeRecurrenceRule(value, t)}</p>
     </div>
   );
 }

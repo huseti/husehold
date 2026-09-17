@@ -57,8 +57,14 @@
     "recurringTasks": "Recurring tasks",
     "formTitle": "Title",
     "formStartsOn": "Starts on",
-    "formRecurrenceRule": "Recurrence rule (RRULE)",
-    "formDefaultAssignee": "Default assignee",
+    "formRecurrenceRule": "Repeats",
+    "formAssignmentMode": "Who does this?",
+    "formDefaultAssignee": "Member",
+    "assignmentMode": {
+      "fixed": "Always the same person",
+      "alternating": "Alternate between members",
+      "none": "Decide during weekly planning"
+    },
     "formIcon": "Icon",
     "addRecurringTask": "Add",
     "deleteRecurringTask": "Delete",
@@ -103,11 +109,28 @@
         "sa": "Sat",
         "su": "Sun"
       },
-      "preview": "Rule: {{rule}}",
-      "useAdvanced": "Edit as raw rule",
-      "useSimple": "Use picker instead",
-      "rawLabel": "RRULE (advanced)"
+      "summary": {
+        "daily_one": "Every day",
+        "daily_other": "Every {{count}} days",
+        "weekly_one": "Every week",
+        "weekly_other": "Every {{count}} weeks",
+        "monthly_one": "Every month",
+        "monthly_other": "Every {{count}} months",
+        "onDays": "on {{days}}",
+        "onDayOfMonth": "on day {{day}}",
+        "onOrdinalWeekday": "on the {{ordinal}} {{weekday}}"
+      }
     }
+  },
+  "weeklyPlanning": {
+    "title": "Weekly Household Planning",
+    "description": "This decides when the recurring reminder to plan next week's tasks shows up. It also appears as a task card on that day.",
+    "weekday": "Day",
+    "time": "Time",
+    "save": "Save",
+    "startNow": "Start Weekly Planning",
+    "current": "Currently: {{summary}} at {{time}}",
+    "notSetUp": "Not set up yet"
   },
   "settings": {
     "title": "Settings",

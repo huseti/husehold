@@ -56,7 +56,7 @@ class HouseholdTaskDefinitionSerializer(serializers.ModelSerializer):
         model = HouseholdTaskDefinition
         fields = (
             'id', 'title', 'description', 'icon', 'starts_on', 'recurrence_rule',
-            'default_assignee', 'system_action', 'instance_count',
+            'assignment_mode', 'default_assignee', 'system_action', 'reminder_time', 'instance_count',
             'created_by', 'created_by_username', 'created_at',
             'updated_by', 'updated_by_username', 'updated_at',
         )

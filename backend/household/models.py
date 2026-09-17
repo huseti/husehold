@@ -96,7 +96,14 @@ class HouseholdTaskDefinition(AuditableMixin):
         ('pet', 'Pet'),
         ('tool', 'Repair'),
         ('bed', 'Bed'),
+        ('calendar', 'Calendar'),
         ('other', 'Other'),
+    ]
+
+    ASSIGNMENT_MODE_CHOICES = [
+        ('fixed', 'Fixed member'),
+        ('alternating', 'Alternate between members'),
+        ('none', 'Decide during planning'),
     ]
 
     title = models.CharField(max_length=200)
@@ -107,10 +114,16 @@ class HouseholdTaskDefinition(AuditableMixin):
         max_length=500,
         help_text="RFC 5545 RRULE string, e.g. FREQ=WEEKLY;BYDAY=MO or FREQ=MONTHLY;BYDAY=1MO",
     )
+    assignment_mode = models.CharField(max_length=15, choices=ASSIGNMENT_MODE_CHOICES, default='none')
     default_assignee = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, blank=True, related_name='default_assigned_task_definitions',
+        help_text="Only used when assignment_mode is 'fixed'.",
     )
     system_action = models.CharField(max_length=30, choices=SYSTEM_ACTION_CHOICES, default='none')
+    reminder_time = models.TimeField(
+        null=True, blank=True,
+        help_text="Time of day this recurs at -- currently only surfaced for the weekly planning reminder; not yet wired to notifications.",
+    )
 
     class Meta:
         ordering = ['title']

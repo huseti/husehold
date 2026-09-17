@@ -77,6 +77,16 @@ export default function Tasks() {
     loadDefinitions();
   }, []);
 
+  const handleConfigSaved = () => {
+    loadMembers();
+    loadDefinitions();
+    loadWeek();
+  };
+
+  const handleStartPlanningNow = () => {
+    setWeekStart(getWeekStart(new Date()));
+  };
+
   const handleDragEnd = async (event) => {
     const { active, over } = event;
     if (!over) return;
@@ -133,8 +143,14 @@ export default function Tasks() {
               →
             </button>
             <button
+              onClick={handleStartPlanningNow}
+              className="ml-4 px-3 py-1 rounded bg-green-600 text-white hover:bg-green-700"
+            >
+              {t('weeklyPlanning.startNow')}
+            </button>
+            <button
               onClick={() => setShowConfig((v) => !v)}
-              className="ml-4 px-3 py-1 rounded bg-blue-500 text-white hover:bg-blue-600"
+              className="px-3 py-1 rounded bg-blue-500 text-white hover:bg-blue-600"
             >
               {t('tasks.manageRecurringTasks')}
             </button>
@@ -145,7 +161,7 @@ export default function Tasks() {
           <TaskDefinitionForm
             members={members}
             definitions={definitions}
-            onSaved={loadDefinitions}
+            onSaved={handleConfigSaved}
           />
         )}
 

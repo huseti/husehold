@@ -2,25 +2,32 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { taskDefinitionService, memberService } from '../services/api';
 import RecurrencePicker from './RecurrencePicker';
+import WeeklyPlanningConfig from './WeeklyPlanningConfig';
 import TaskIcon, { TASK_ICON_KEYS } from './icons/taskIcons';
+import { summarizeRecurrenceRule } from '../utils/recurrenceSummary';
 
 const DEFAULT_FORM = {
   title: '',
   icon: 'other',
   starts_on: new Date().toISOString().slice(0, 10),
   recurrence_rule: 'FREQ=WEEKLY;BYDAY=MO',
+  assignment_mode: 'none',
   default_assignee: '',
 };
+
+const ASSIGNMENT_MODES = ['none', 'alternating', 'fixed'];
 
 export default function TaskDefinitionForm({ members, definitions, onSaved }) {
   const { t } = useTranslation();
   const [form, setForm] = useState(DEFAULT_FORM);
 
+  const regularDefinitions = definitions.filter((d) => d.system_action === 'none');
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     await taskDefinitionService.create({
       ...form,
-      default_assignee: form.default_assignee || null,
+      default_assignee: form.assignment_mode === 'fixed' ? (form.default_assignee || null) : null,
     });
     setForm(DEFAULT_FORM);
     onSaved();
@@ -52,8 +59,8 @@ export default function TaskDefinitionForm({ members, definitions, onSaved }) {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow p-4 mb-6 space-y-6">
-      <div>
+    <div className="space-y-6 mb-6">
+      <div className="bg-white rounded-lg shadow p-4">
         <h3 className="font-semibold mb-2">{t('tasks.memberColors')}</h3>
         <div className="flex gap-4 flex-wrap">
           {members.map((m) => (
@@ -61,7 +68,7 @@ export default function TaskDefinitionForm({ members, definitions, onSaved }) {
               {m.user.username}
               <input
                 type="color"
-                defaultValue={m.color_hex}
+                value={m.color_hex}
                 onChange={(e) => handleColorChange(m, e.target.value)}
               />
             </label>
@@ -69,14 +76,16 @@ export default function TaskDefinitionForm({ members, definitions, onSaved }) {
         </div>
       </div>
 
-      <div>
+      <WeeklyPlanningConfig definitions={definitions} onSaved={onSaved} />
+
+      <div className="bg-white rounded-lg shadow p-4">
         <h3 className="font-semibold mb-2">{t('tasks.recurringTasks')}</h3>
         <ul className="text-sm mb-3 space-y-1">
-          {definitions.map((d) => (
+          {regularDefinitions.map((d) => (
             <li key={d.id} className="flex items-center gap-2 text-gray-600">
               <TaskIcon icon={d.icon} className="text-gray-400 flex-shrink-0" />
               <span className="flex-1">
-                {d.title} — <code className="text-xs">{d.recurrence_rule}</code>
+                {d.title} — {summarizeRecurrenceRule(d.recurrence_rule, t)}
               </span>
               <button
                 type="button"
@@ -110,25 +119,42 @@ export default function TaskDefinitionForm({ members, definitions, onSaved }) {
                 className="border rounded px-2 py-1 text-sm"
               />
             </div>
+          </div>
+
+          <div className="flex gap-2 flex-wrap items-end">
             <div>
-              <label className="block text-xs text-gray-500">{t('tasks.formDefaultAssignee')}</label>
+              <label className="block text-xs text-gray-500">{t('tasks.formAssignmentMode')}</label>
               <select
-                value={form.default_assignee}
-                onChange={(e) => setForm({ ...form, default_assignee: e.target.value })}
+                value={form.assignment_mode}
+                onChange={(e) => setForm({ ...form, assignment_mode: e.target.value })}
                 className="border rounded px-2 py-1 text-sm"
               >
-                <option value="">{t('tasks.unassigned')}</option>
-                {members.map((m) => (
-                  <option key={m.user.id} value={m.user.id}>{m.user.username}</option>
+                {ASSIGNMENT_MODES.map((mode) => (
+                  <option key={mode} value={mode}>{t(`tasks.assignmentMode.${mode}`)}</option>
                 ))}
               </select>
             </div>
+            {form.assignment_mode === 'fixed' && (
+              <div>
+                <label className="block text-xs text-gray-500">{t('tasks.formDefaultAssignee')}</label>
+                <select
+                  value={form.default_assignee}
+                  onChange={(e) => setForm({ ...form, default_assignee: e.target.value })}
+                  className="border rounded px-2 py-1 text-sm"
+                >
+                  <option value="">{t('tasks.unassigned')}</option>
+                  {members.map((m) => (
+                    <option key={m.user.id} value={m.user.id}>{m.user.username}</option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
 
           <div>
             <label className="block text-xs text-gray-500 mb-1">{t('tasks.formIcon')}</label>
             <div className="flex gap-1 flex-wrap">
-              {TASK_ICON_KEYS.map((key) => (
+              {TASK_ICON_KEYS.filter((key) => key !== 'calendar').map((key) => (
                 <button
                   key={key}
                   type="button"

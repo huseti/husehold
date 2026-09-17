@@ -1,4 +1,5 @@
 ﻿from django.utils import timezone
+from django.utils.dateparse import parse_date
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -98,8 +99,8 @@ class HouseholdTaskInstanceViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        start = self.request.query_params.get('start')
-        end = self.request.query_params.get('end')
+        start = parse_date(self.request.query_params.get('start') or '')
+        end = parse_date(self.request.query_params.get('end') or '')
         if start and end:
             generate_instances_for_range(start, end)
             queryset = queryset.filter(scheduled_date__gte=start, scheduled_date__lte=end)
