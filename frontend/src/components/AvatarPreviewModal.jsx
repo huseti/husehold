@@ -80,7 +80,7 @@ export default function AvatarPreviewModal({ member, onClose, onChanged }) {
           ref={fileInputRef}
           type="file"
           accept="image/*"
-          className="hidden"
+          className="sr-only"
           onChange={handleFileChange}
         />
       </div>
