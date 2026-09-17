@@ -25,3 +25,11 @@ export function addDays(date, days) {
   d.setDate(d.getDate() + days);
   return d;
 }
+
+// Parses a "YYYY-MM-DD" string as a local date, not new Date(iso) --
+// bare ISO date strings (no time) parse as UTC midnight per spec, which is
+// the same class of bug toISODate() above avoids for the other direction.
+export function parseISODate(iso) {
+  const [year, month, day] = iso.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}

@@ -1,9 +1,20 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from dateutil.rrule import rrulestr
 from django.contrib.auth.models import User
+from django.utils import timezone as dj_timezone
 
 from ..models import HouseholdTaskDefinition, HouseholdTaskInstance, HouseholdTaskEvent
+
+
+def monday_of_week_as_datetime(a_date):
+    """The Monday of a_date's week, as a timezone-aware datetime at
+    midnight -- used as the "created" timestamp for auto-generated
+    instances (recurring occurrences, snooze copies), so it reflects which
+    week's batch a task belongs to rather than the real moment a request
+    happened to trigger its generation."""
+    monday = a_date - timedelta(days=a_date.weekday())
+    return dj_timezone.make_aware(datetime.combine(monday, datetime.min.time()))
 
 
 def _resolve_assignee(definition):
@@ -61,6 +72,7 @@ def generate_instances_for_range(start_date, end_date):
                     'scheduled_date': occurrence_date,
                     'assigned_to': _resolve_assignee(definition),
                     'is_in_backlog': not definition.has_preferred_day,
+                    'created_at': monday_of_week_as_datetime(occurrence_date),
                 },
             )
             if was_created:

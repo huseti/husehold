@@ -16,7 +16,7 @@ from .serializers import (
     RecipeSerializer, CookingPlanSerializer,
     HouseholdTaskDefinitionSerializer, HouseholdTaskInstanceSerializer,
 )
-from .services.task_generation import generate_instances_for_range
+from .services.task_generation import generate_instances_for_range, monday_of_week_as_datetime
 
 
 def _monday_of_week(day):
@@ -187,6 +187,7 @@ class HouseholdTaskInstanceViewSet(viewsets.ModelViewSet):
             scheduled_date=next_date,
             is_in_backlog=True,
             assigned_to=instance.assigned_to,
+            created_at=monday_of_week_as_datetime(next_date),
         )
         HouseholdTaskEvent.objects.create(task_instance=copy, event_type='snoozed', actor=request.user)
 
@@ -196,11 +197,25 @@ class HouseholdTaskInstanceViewSet(viewsets.ModelViewSet):
     def skip(self, request, pk=None):
         """Skip just this occurrence (status only -- does not move it).
         For alternating tasks, the next occurrence stays with the same
-        person instead of rotating (see _resolve_assignee)."""
+        person instead of rotating (see _resolve_assignee) -- this covers
+        that at generation time, but if the next occurrence was *already*
+        generated before this skip happened (e.g. weekly planning mode
+        generates several weeks in one go), it would have been resolved
+        under the old rotation. Correct it retroactively here too."""
         instance = self.get_object()
         instance.status = 'skipped'
         instance.save()
         HouseholdTaskEvent.objects.create(task_instance=instance, event_type='skipped', actor=request.user)
+
+        definition = instance.definition
+        if definition and definition.assignment_mode == 'alternating':
+            next_instance = definition.instances.filter(
+                occurrence_date__gt=instance.occurrence_date, status='pending',
+            ).order_by('occurrence_date', 'id').first()
+            if next_instance and next_instance.assigned_to_id != instance.assigned_to_id:
+                next_instance.assigned_to = instance.assigned_to
+                next_instance.save()
+
         return Response(HouseholdTaskInstanceSerializer(instance).data)
 
     @action(detail=True, methods=['post'])

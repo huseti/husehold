@@ -3,6 +3,7 @@ from datetime import date
 
 from django.contrib.auth.models import User
 from django.test import TestCase, override_settings
+from django.utils import timezone as dj_timezone
 from rest_framework.test import APIClient
 
 from .models import HouseholdMember, HouseholdSettings, HouseholdTaskDefinition, HouseholdTaskInstance, HouseholdTaskEvent
@@ -150,6 +151,19 @@ class TaskGenerationTests(TestCase):
         self.assertTrue(all(i.assigned_to == self.user for i in created))
         self.assertTrue(all(not i.is_in_backlog for i in created))
 
+    def test_created_at_is_monday_of_the_occurrences_week_not_real_time(self):
+        HouseholdTaskDefinition.objects.create(
+            title='Water plants',
+            starts_on=date(2026, 9, 14),
+            recurrence_rule='FREQ=WEEKLY;BYDAY=WE',  # Wednesday, not Monday
+        )
+
+        created = generate_instances_for_range(date(2026, 9, 16), date(2026, 9, 16))
+
+        instance = created[0]
+        self.assertEqual(instance.scheduled_date, date(2026, 9, 16))  # the Wednesday
+        self.assertEqual(dj_timezone.localtime(instance.created_at).date(), date(2026, 9, 14))  # Monday of that week
+
     def test_first_monday_of_month_recurrence(self):
         HouseholdTaskDefinition.objects.create(
             title='Deep clean bathroom',
@@ -229,6 +243,38 @@ class TaskGenerationTests(TestCase):
         week2 = HouseholdTaskInstance.objects.get(occurrence_date=date(2026, 9, 21))
 
         self.assertEqual(week2.assigned_to, self.user)  # not other -- rotation didn't advance
+
+    def test_alternating_skip_retroactively_fixes_an_already_generated_next_occurrence(self):
+        """Weekly planning mode can generate several weeks in one request,
+        before a skip happens -- the next occurrence would already be
+        resolved under the old rotation by then. skip() must correct it,
+        not just affect occurrences generated afterwards."""
+        other = User.objects.create_user(username='partner', password='pw')
+        HouseholdMember.objects.create(user=self.user, role='member')
+        HouseholdMember.objects.create(user=other, role='member')
+
+        HouseholdTaskDefinition.objects.create(
+            title='Take out trash',
+            starts_on=date(2026, 9, 14),
+            recurrence_rule='FREQ=WEEKLY;BYDAY=MO',
+            assignment_mode='alternating',
+        )
+
+        # Both weeks generated in one go, as planning mode would -- week 2
+        # gets resolved to `other` under the normal rotation, before any skip.
+        generate_instances_for_range(date(2026, 9, 14), date(2026, 9, 21))
+        week1 = HouseholdTaskInstance.objects.get(occurrence_date=date(2026, 9, 14))
+        week2 = HouseholdTaskInstance.objects.get(occurrence_date=date(2026, 9, 21))
+        self.assertEqual(week1.assigned_to, self.user)
+        self.assertEqual(week2.assigned_to, other)
+
+        client = APIClient()
+        client.force_authenticate(user=self.user)
+        response = client.post(f'/api/task-instances/{week1.id}/skip/')
+
+        self.assertEqual(response.status_code, 200)
+        week2.refresh_from_db()
+        self.assertEqual(week2.assigned_to, self.user)  # corrected retroactively
 
     def test_generation_is_idempotent(self):
         HouseholdTaskDefinition.objects.create(
@@ -357,6 +403,10 @@ class TaskInstanceActionTests(TestCase):
         self.assertEqual(copy.scheduled_date, date(2026, 9, 21))
         self.assertEqual(copy.assigned_to, self.instance.assigned_to)
         self.assertEqual(copy.events.filter(event_type='snoozed').count(), 1)
+        # localtime() first: a freshly-queried aware datetime comes back
+        # from the DB normalized to UTC, so .date() alone would reflect the
+        # UTC calendar day, not the day it was actually set to.
+        self.assertEqual(dj_timezone.localtime(copy.created_at).date(), date(2026, 9, 21))
 
     def test_skip_sets_status_and_logs_event(self):
         response = self.client.post(f'/api/task-instances/{self.instance.id}/skip/')
@@ -475,6 +525,9 @@ class StandaloneTaskTests(TestCase):
         self.assertEqual(response.data['title'], 'Pick up package')
         self.assertEqual(instance.created_by, self.user)
         self.assertEqual(response.data['created_by_username'], 'tim')
+        # Manually created tasks get the real creation moment, unlike
+        # auto-generated ones (which get Monday-of-the-occurrence's-week).
+        self.assertEqual(dj_timezone.localtime(instance.created_at).date(), dj_timezone.localdate())
 
     def test_create_standalone_task_without_a_day_goes_to_backlog(self):
         response = self.client.post('/api/task-instances/', {

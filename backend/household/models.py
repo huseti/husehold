@@ -1,5 +1,6 @@
 ﻿from django.db import models
 from django.contrib.auth.models import User
+from django.utils import timezone
 
 from .mixins import AuditableMixin
 
@@ -190,7 +191,14 @@ class HouseholdTaskInstance(models.Model):
     created_by = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, blank=True, related_name='created_task_instances',
     )
-    created_at = models.DateTimeField(auto_now_add=True)
+    # Not auto_now_add: for auto-generated instances (recurring occurrences,
+    # snooze copies), task_generation/views explicitly set this to the
+    # Monday of the instance's own week rather than the real moment the row
+    # was inserted -- "created" should reflect which week's batch a task
+    # belongs to, not when someone happened to load the calendar. Manually
+    # created (standalone, via the "+" button) instances just get the
+    # real current moment, which is what the default gives them.
+    created_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
         ordering = ['scheduled_date']

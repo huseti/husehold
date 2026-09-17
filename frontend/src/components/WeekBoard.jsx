@@ -2,7 +2,7 @@ import { DndContext } from '@dnd-kit/core';
 import { useTranslation } from 'react-i18next';
 import BacklogLane from './BacklogLane';
 import TaskDayColumn from './TaskDayColumn';
-import { toISODate } from '../utils/weekDates';
+import { toISODate, getWeekStart, parseISODate } from '../utils/weekDates';
 
 // The interactive weekly board (backlog lane(s) + 7 day columns) shared by
 // the Household Plan page's calendar mode and its weekly-planning mode.
@@ -17,12 +17,21 @@ export default function WeekBoard({
   const backlogInstances = instances.filter((i) => i.is_in_backlog);
 
   const planningWeekStartISO = planningWeekStart ? toISODate(planningWeekStart) : null;
-  const carriedOver = planningWeekStartISO
-    ? backlogInstances.filter((i) => i.scheduled_date < planningWeekStartISO)
-    : [];
-  const newThisWeek = planningWeekStartISO
-    ? backlogInstances.filter((i) => i.scheduled_date >= planningWeekStartISO)
-    : backlogInstances;
+
+  // Carried over = anything snoozed (regardless of which week it's now
+  // dated for), or any backlog item whose *own* recurrence week is before
+  // the week being planned -- i.e. still-unresolved leftovers. Everything
+  // else in the backlog was genuinely generated fresh for this week's own
+  // batch (a has_preferred_day=false occurrence for this exact week).
+  const wasCarriedOver = (instance) => {
+    const wasSnoozed = instance.events?.some((e) => e.event_type === 'snoozed');
+    if (wasSnoozed) return true;
+    const occurrenceWeekStartISO = toISODate(getWeekStart(parseISODate(instance.occurrence_date)));
+    return occurrenceWeekStartISO < planningWeekStartISO;
+  };
+
+  const carriedOver = planningWeekStartISO ? backlogInstances.filter(wasCarriedOver) : [];
+  const newThisWeek = planningWeekStartISO ? backlogInstances.filter((i) => !wasCarriedOver(i)) : backlogInstances;
 
   return (
     <DndContext onDragEnd={onDragEnd}>
