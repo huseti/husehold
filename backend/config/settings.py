@@ -33,6 +33,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'household.middleware.HouseholdTimezoneMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -75,7 +76,7 @@ LANGUAGES = [
     ('en', 'English'),
 ]
 LOCALE_PATHS = [BASE_DIR / 'locale']
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Europe/Berlin'
 USE_I18N = True
 USE_TZ = True
 

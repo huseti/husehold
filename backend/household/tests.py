@@ -30,6 +30,53 @@ class HouseholdSettingsTests(TestCase):
         self.assertEqual(response.data['household_name'], 'The Smiths')
         self.assertEqual(HouseholdSettings.objects.count(), 1)
 
+    def test_patch_rejects_unknown_timezone(self):
+        response = self.client.patch('/api/household-settings/', {'timezone': 'Not/A_Real_Zone'})
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_patch_accepts_valid_timezone(self):
+        response = self.client.patch('/api/household-settings/', {'timezone': 'America/New_York'})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['timezone'], 'America/New_York')
+
+
+class HouseholdTimezoneMiddlewareTests(TestCase):
+    def test_activates_configured_household_timezone_during_the_request(self):
+        from django.utils import timezone as dj_timezone
+        from .middleware import HouseholdTimezoneMiddleware
+
+        HouseholdSettings.objects.create(pk=1, timezone='America/New_York')
+
+        seen = {}
+
+        def get_response(request):
+            seen['tz'] = str(dj_timezone.get_current_timezone())
+            return 'ok'
+
+        middleware = HouseholdTimezoneMiddleware(get_response)
+        middleware(request=object())
+
+        self.assertEqual(seen['tz'], 'America/New_York')
+        # Deactivated again afterwards, back to the settings.py default.
+        self.assertEqual(str(dj_timezone.get_current_timezone()), 'Europe/Berlin')
+
+    def test_falls_back_to_default_when_unconfigured(self):
+        from django.utils import timezone as dj_timezone
+        from .middleware import HouseholdTimezoneMiddleware
+
+        seen = {}
+
+        def get_response(request):
+            seen['tz'] = str(dj_timezone.get_current_timezone())
+            return 'ok'
+
+        middleware = HouseholdTimezoneMiddleware(get_response)
+        middleware(request=object())
+
+        self.assertEqual(seen['tz'], 'Europe/Berlin')
+
 
 @override_settings(MEDIA_ROOT=tempfile.mkdtemp())
 class HouseholdMemberAvatarTests(TestCase):
@@ -296,6 +343,37 @@ class TaskInstanceActionTests(TestCase):
         self.instance.refresh_from_db()
         self.assertEqual(self.instance.status, 'skipped')
         self.assertEqual(self.instance.events.filter(event_type='skipped', actor=self.user).count(), 1)
+
+    def test_reopen_undoes_skip(self):
+        self.client.post(f'/api/task-instances/{self.instance.id}/skip/')
+
+        response = self.client.post(f'/api/task-instances/{self.instance.id}/reopen/')
+
+        self.assertEqual(response.status_code, 200)
+        self.instance.refresh_from_db()
+        self.assertEqual(self.instance.status, 'pending')
+        self.assertEqual(self.instance.events.filter(event_type='reopened').count(), 1)
+
+    def test_reopen_undoes_complete(self):
+        self.client.post(f'/api/task-instances/{self.instance.id}/complete/')
+
+        response = self.client.post(f'/api/task-instances/{self.instance.id}/reopen/')
+
+        self.assertEqual(response.status_code, 200)
+        self.instance.refresh_from_db()
+        self.assertEqual(self.instance.status, 'pending')
+        self.assertIsNone(self.instance.completed_at)
+
+    def test_reopen_undoes_snooze_restoring_natural_day(self):
+        self.client.post(f'/api/task-instances/{self.instance.id}/snooze/')
+
+        response = self.client.post(f'/api/task-instances/{self.instance.id}/reopen/')
+
+        self.assertEqual(response.status_code, 200)
+        self.instance.refresh_from_db()
+        self.assertFalse(self.instance.is_in_backlog)
+        self.assertEqual(self.instance.scheduled_date, self.instance.occurrence_date)
+        self.assertEqual(self.instance.scheduled_date, date(2026, 9, 14))
 
     def test_reassign_changes_assignee_and_logs_event(self):
         response = self.client.post(

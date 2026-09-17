@@ -21,8 +21,12 @@ class HouseholdMember(models.Model):
 
 class HouseholdSettings(AuditableMixin):
     """Singleton (always pk=1) -- household-wide settings like its display
-    name, editable from Settings by any member."""
+    name and timezone, editable from Settings by any member. The timezone
+    is activated per-request by household.middleware.HouseholdTimezoneMiddleware
+    rather than being a static Django setting, since the household -- not
+    the server -- is what a "today"/"overdue" comparison should follow."""
     household_name = models.CharField(max_length=100, default='Our Household')
+    timezone = models.CharField(max_length=50, default='Europe/Berlin')
 
     def __str__(self):
         return self.household_name
@@ -197,6 +201,7 @@ class HouseholdTaskEvent(models.Model):
         ('skipped', 'Skipped this occurrence'),
         ('postponed', 'Postponed'),
         ('completed', 'Completed'),
+        ('reopened', 'Reopened (undo)'),
     ]
 
     task_instance = models.ForeignKey(HouseholdTaskInstance, on_delete=models.CASCADE, related_name='events')

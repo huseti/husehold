@@ -7,7 +7,7 @@ import TaskCard from './TaskCard';
 // dragged onto an actual day. droppableId/title let planning mode render
 // two separate buckets (carried-over vs. new) instead of one generic lane.
 export default function BacklogLane({
-  instances, members, onComplete, onSkip, onSnooze, onReassign,
+  instances, members, onComplete, onSkip, onSnooze, onReassign, onReopen,
   droppableId = 'backlog', title, attentionHighlight = false,
 }) {
   const { t } = useTranslation();
@@ -32,6 +32,7 @@ export default function BacklogLane({
               onSkip={onSkip}
               onSnooze={onSnooze}
               onReassign={onReassign}
+              onReopen={onReopen}
               attentionHighlight={attentionHighlight}
             />
           ))}

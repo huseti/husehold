@@ -20,8 +20,14 @@ class HouseholdMemberSerializer(serializers.ModelSerializer):
 class HouseholdSettingsSerializer(serializers.ModelSerializer):
     class Meta:
         model = HouseholdSettings
-        fields = ('id', 'household_name', 'updated_at')
+        fields = ('id', 'household_name', 'timezone', 'updated_at')
         read_only_fields = ('updated_at',)
+
+    def validate_timezone(self, value):
+        from zoneinfo import available_timezones
+        if value not in available_timezones():
+            raise serializers.ValidationError('Not a recognized IANA timezone name.')
+        return value
 
 class ShoppingListItemSerializer(serializers.ModelSerializer):
     created_by_username = serializers.CharField(source='created_by.username', read_only=True)

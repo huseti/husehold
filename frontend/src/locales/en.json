@@ -73,8 +73,11 @@
     "noTasks": "No tasks",
     "unassigned": "Unassigned",
     "complete": "Done",
+    "done": "done",
     "skip": "Skip",
     "skipped": "skipped",
+    "snoozed": "snoozed",
+    "undo": "Undo",
     "snooze": "Snooze",
     "backlog": "Backlog — no day yet",
     "backlogEmpty": "Nothing here — drag a task in, or add one without a day.",
@@ -106,6 +109,7 @@
     "formIcon": "Icon",
     "addRecurringTask": "Add",
     "deleteRecurringTask": "Delete",
+    "createdInfo": "Created {{date}} by {{name}}",
     "confirmDeleteWithInstances": "\"{{title}}\" has {{count}} scheduled occurrence(s). Delete it and all of them?",
     "icon": {
       "cleaning": "Cleaning",
@@ -187,7 +191,10 @@
     "language": "Language",
     "german": "Deutsch",
     "english": "English",
+    "household": "Household",
     "householdName": "Household name",
+    "timezone": "Timezone",
+    "timezoneHint": "Used for \"today\"/\"overdue\" and, later, reminder times -- not necessarily the server's own timezone.",
     "saved": "Saved"
   }
 }

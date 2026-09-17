@@ -5,11 +5,12 @@ import RecurrencePicker from './RecurrencePicker';
 import WeeklyPlanningConfig from './WeeklyPlanningConfig';
 import TaskIcon, { TASK_ICON_KEYS } from './icons/taskIcons';
 import { summarizeRecurrenceRule } from '../utils/recurrenceSummary';
+import { toISODate } from '../utils/weekDates';
 
 const DEFAULT_FORM = {
   title: '',
   icon: 'other',
-  starts_on: new Date().toISOString().slice(0, 10),
+  starts_on: toISODate(new Date()),
   recurrence_rule: 'FREQ=WEEKLY;BYDAY=MO',
   has_preferred_day: true,
   assignment_mode: 'none',
@@ -135,6 +136,12 @@ export default function TaskDefinitionForm({ members, definitions, onSaved }) {
                   {' · '}
                   {assignmentSummary(d)}
                 </div>
+                <div className="text-[11px] text-gray-400 mt-0.5">
+                  {t('tasks.createdInfo', {
+                    date: new Date(d.created_at).toLocaleDateString(),
+                    name: d.created_by_username || t('tasks.unassigned'),
+                  })}
+                </div>
               </div>
               <button
                 type="button"
@@ -146,9 +153,10 @@ export default function TaskDefinitionForm({ members, definitions, onSaved }) {
               <button
                 type="button"
                 onClick={() => handleDelete(d)}
-                className="text-xs text-red-500 hover:text-red-700"
+                title={t('tasks.deleteRecurringTask')}
+                className="text-red-500 hover:text-red-700"
               >
-                {t('tasks.deleteRecurringTask')}
+                <TaskIcon icon="trash" />
               </button>
             </li>
           ))}

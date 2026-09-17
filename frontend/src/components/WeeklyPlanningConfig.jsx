@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { taskDefinitionService } from '../services/api';
 import { summarizeRecurrenceRule } from '../utils/recurrenceSummary';
+import { toISODate } from '../utils/weekDates';
 
 const WEEKDAYS = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
 
@@ -14,7 +15,7 @@ function nextDateForWeekday(code) {
   const diff = (targetIndex - (today.getDay() === 0 ? 6 : today.getDay() - 1) + 7) % 7;
   const result = new Date(today);
   result.setDate(today.getDate() + diff);
-  return result.toISOString().slice(0, 10);
+  return toISODate(result);
 }
 
 export default function WeeklyPlanningConfig({ definitions, onSaved }) {

@@ -73,8 +73,11 @@
     "noTasks": "Keine Aufgaben",
     "unassigned": "Nicht zugewiesen",
     "complete": "Erledigt",
+    "done": "erledigt",
     "skip": "Überspringen",
     "skipped": "übersprungen",
+    "snoozed": "gesnoozt",
+    "undo": "Rückgängig",
     "snooze": "Snooze",
     "backlog": "Backlog — noch kein Tag",
     "backlogEmpty": "Nichts hier — ziehe eine Aufgabe hierher oder füge eine ohne Tag hinzu.",
@@ -106,6 +109,7 @@
     "formIcon": "Symbol",
     "addRecurringTask": "Hinzufügen",
     "deleteRecurringTask": "Löschen",
+    "createdInfo": "Erstellt am {{date}} von {{name}}",
     "confirmDeleteWithInstances": "\"{{title}}\" hat {{count}} geplante Vorkommen. Diese ebenfalls löschen?",
     "icon": {
       "cleaning": "Putzen",
@@ -187,7 +191,10 @@
     "language": "Sprache",
     "german": "Deutsch",
     "english": "English",
+    "household": "Haushalt",
     "householdName": "Name des Haushalts",
+    "timezone": "Zeitzone",
+    "timezoneHint": "Wird für \"heute\"/\"überfällig\" und später für Erinnerungszeiten verwendet — nicht zwingend die Zeitzone des Servers.",
     "saved": "Gespeichert"
   }
 }

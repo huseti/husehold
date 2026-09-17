@@ -129,6 +129,11 @@ export default function Tasks() {
     loadWeek();
   };
 
+  const handleReopen = async (id) => {
+    await taskInstanceService.reopen(id);
+    loadWeek();
+  };
+
   if (loading) {
     return <div className="flex items-center justify-center h-screen">{t('common.loading')}</div>;
   }
@@ -225,6 +230,7 @@ export default function Tasks() {
               onSkip={handleSkip}
               onSnooze={handleSnooze}
               onReassign={handleReassign}
+              onReopen={handleReopen}
               onDragEnd={handleDragEnd}
               planningWeekStart={mode === 'planning' ? weekStart : undefined}
             />

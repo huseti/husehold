@@ -3,11 +3,21 @@ import { useTranslation } from 'react-i18next';
 import TaskIcon from './icons/taskIcons';
 import { getDisplayTitle } from '../utils/taskDisplay';
 
-export default function TaskCard({ instance, members, onComplete, onSkip, onSnooze, onReassign, interactive = true, attentionHighlight = false }) {
+export default function TaskCard({
+  instance, members, onComplete, onSkip, onSnooze, onReassign, onReopen,
+  interactive = true, attentionHighlight = false,
+}) {
   const { t } = useTranslation();
+
+  const isDone = instance.status === 'done';
+  const isSkipped = instance.status === 'skipped';
+  const wasSnoozed = instance.events?.some((e) => e.event_type === 'snoozed');
+  const isSnoozedInBacklog = instance.is_in_backlog && wasSnoozed && instance.status === 'pending';
+  const isResolved = isDone || isSkipped || isSnoozedInBacklog;
+
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: instance.id,
-    disabled: !interactive,
+    disabled: !interactive || isResolved,
   });
 
   const color = instance.assigned_to_color || '#9ca3af';
@@ -15,28 +25,40 @@ export default function TaskCard({ instance, members, onComplete, onSkip, onSnoo
     ? { transform: `translate(${transform.x}px, ${transform.y}px)`, zIndex: 10 }
     : undefined;
 
-  const isDone = instance.status === 'done';
-  const isSkipped = instance.status === 'skipped';
-  const needsAttention = attentionHighlight && !isDone && !instance.assigned_to;
+  const needsAttention = attentionHighlight && !isResolved && !instance.assigned_to;
+
+  const stateLabel = isDone ? t('tasks.done') : isSkipped ? t('tasks.skipped') : isSnoozedInBacklog ? t('tasks.snoozed') : null;
 
   return (
     <div
       ref={setNodeRef}
-      style={{ ...style, borderLeftColor: color, opacity: isDragging ? 0.5 : 1 }}
-      className={`border-l-4 rounded shadow-sm p-2 bg-gray-50 text-sm ${isDone ? 'opacity-60' : ''} ${isSkipped ? 'opacity-50' : ''} ${needsAttention ? 'ring-2 ring-red-400' : ''}`}
+      style={{ ...style, borderLeftColor: color, opacity: isDragging ? 0.5 : isResolved ? 0.6 : 1 }}
+      className={`border-l-4 rounded shadow-sm bg-gray-50 ${isResolved ? 'p-1.5 text-xs' : 'p-2 text-sm'} ${needsAttention ? 'ring-2 ring-red-400' : ''}`}
     >
       <div
-        {...(interactive ? { ...listeners, ...attributes } : {})}
-        className={`font-medium flex items-center gap-1.5 ${interactive ? 'cursor-grab' : ''}`}
+        {...(interactive && !isResolved ? { ...listeners, ...attributes } : {})}
+        className={`font-medium flex items-center gap-1.5 ${interactive && !isResolved ? 'cursor-grab' : ''} ${isResolved ? 'text-gray-500' : ''}`}
       >
-        <TaskIcon icon={instance.icon} className="text-gray-500 flex-shrink-0" />
-        {getDisplayTitle(instance, t)}
-        {isSkipped && <span className="text-xs text-gray-400 ml-1">({t('tasks.skipped')})</span>}
+        <TaskIcon icon={instance.icon} className={`flex-shrink-0 ${isResolved ? 'text-gray-400' : 'text-gray-500'}`} />
+        <span className={isDone ? 'line-through' : ''}>{getDisplayTitle(instance, t)}</span>
+        {stateLabel && <span className="text-gray-400 ml-1">({stateLabel})</span>}
         {needsAttention && <span className="text-xs text-red-500 ml-1" title={t('weeklyPlanning.needsAttention')}>⚠</span>}
       </div>
-      <div className="text-xs text-gray-500 mb-1">{instance.assigned_to_username || t('tasks.unassigned')}</div>
+      <div className={`text-gray-500 mb-1 ${isResolved ? 'text-[11px]' : 'text-xs'}`}>
+        {instance.assigned_to_username || t('tasks.unassigned')}
+      </div>
 
-      {interactive && !isDone && (
+      {interactive && isResolved && onReopen && (
+        <button
+          onClick={() => onReopen(instance.id)}
+          className="text-[11px] px-2 py-0.5 rounded bg-gray-200 text-gray-700 hover:bg-gray-300"
+          title={t('tasks.undo')}
+        >
+          ↺ {t('tasks.undo')}
+        </button>
+      )}
+
+      {interactive && !isResolved && (
         <div className="flex items-center gap-1 flex-wrap mt-1">
           <button
             onClick={() => onComplete(instance.id)}

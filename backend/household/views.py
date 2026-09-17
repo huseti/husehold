@@ -203,3 +203,18 @@ class HouseholdTaskInstanceViewSet(viewsets.ModelViewSet):
         instance.save()
         HouseholdTaskEvent.objects.create(task_instance=instance, event_type='completed', actor=request.user)
         return Response(HouseholdTaskInstanceSerializer(instance).data)
+
+    @action(detail=True, methods=['post'])
+    def reopen(self, request, pk=None):
+        """Undo done/skipped/snoozed -- back to a plain open item. A
+        snoozed (backlogged) instance is restored to its natural day
+        (occurrence_date) rather than staying in the backlog."""
+        instance = self.get_object()
+        instance.status = 'pending'
+        instance.completed_at = None
+        if instance.is_in_backlog:
+            instance.is_in_backlog = False
+            instance.scheduled_date = instance.occurrence_date
+        instance.save()
+        HouseholdTaskEvent.objects.create(task_instance=instance, event_type='reopened', actor=request.user)
+        return Response(HouseholdTaskInstanceSerializer(instance).data)

@@ -66,6 +66,7 @@ export const taskInstanceService = {
   reassign: (id, assignedTo) => api.post(`/task-instances/${id}/reassign/`, { assigned_to: assignedTo }),
   snooze: (id) => api.post(`/task-instances/${id}/snooze/`),
   skip: (id) => api.post(`/task-instances/${id}/skip/`),
+  reopen: (id) => api.post(`/task-instances/${id}/reopen/`),
   postpone: (id, scheduledDate) => api.post(`/task-instances/${id}/postpone/`, { scheduled_date: scheduledDate, is_in_backlog: false }),
   moveToBacklog: (id) => api.post(`/task-instances/${id}/postpone/`, { is_in_backlog: true }),
   complete: (id) => api.post(`/task-instances/${id}/complete/`),
