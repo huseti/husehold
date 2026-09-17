@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import Navbar from '../components/Navbar';
 import {
-  householdSettingsService, notificationPreferenceService, pushSubscriptionService,
+  householdSettingsService, notificationPreferenceService, pushSubscriptionService, notificationTestService,
 } from '../services/api';
 import { urlBase64ToUint8Array, isPushSupported } from '../utils/push';
 
@@ -41,6 +41,10 @@ export default function Settings() {
   const [pushDeviceSubscribed, setPushDeviceSubscribed] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
   const [pushError, setPushError] = useState('');
+  const [testEmailStatus, setTestEmailStatus] = useState(null);
+  const [testPushStatus, setTestPushStatus] = useState(null);
+  const [testEmailBusy, setTestEmailBusy] = useState(false);
+  const [testPushBusy, setTestPushBusy] = useState(false);
 
   useEffect(() => {
     householdSettingsService.get().then((res) => {
@@ -85,6 +89,32 @@ export default function Settings() {
       setPushError(t('settings.pushEnableFailed'));
     } finally {
       setPushBusy(false);
+    }
+  };
+
+  const handleSendTestEmail = async () => {
+    setTestEmailBusy(true);
+    setTestEmailStatus(null);
+    try {
+      const { data } = await notificationTestService.sendTestEmail();
+      setTestEmailStatus({ ok: true, message: data.detail });
+    } catch (err) {
+      setTestEmailStatus({ ok: false, message: err.response?.data?.detail || t('settings.testFailed') });
+    } finally {
+      setTestEmailBusy(false);
+    }
+  };
+
+  const handleSendTestPush = async () => {
+    setTestPushBusy(true);
+    setTestPushStatus(null);
+    try {
+      const { data } = await notificationTestService.sendTestPush();
+      setTestPushStatus({ ok: true, message: data.detail });
+    } catch (err) {
+      setTestPushStatus({ ok: false, message: err.response?.data?.detail || t('settings.testFailed') });
+    } finally {
+      setTestPushBusy(false);
     }
   };
 
@@ -214,6 +244,33 @@ export default function Settings() {
             )
           ) : (
             <p className="text-sm text-gray-400">{t('settings.pushNotSupported')}</p>
+          )}
+
+          <div className="flex flex-wrap items-center gap-3 mt-4 pt-4 border-t">
+            <button
+              onClick={handleSendTestEmail}
+              disabled={testEmailBusy}
+              className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300 disabled:opacity-50 text-sm"
+            >
+              {testEmailBusy ? t('settings.testSending') : t('settings.sendTestEmail')}
+            </button>
+            <button
+              onClick={handleSendTestPush}
+              disabled={testPushBusy}
+              className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300 disabled:opacity-50 text-sm"
+            >
+              {testPushBusy ? t('settings.testSending') : t('settings.sendTestPush')}
+            </button>
+          </div>
+          {testEmailStatus && (
+            <p className={`text-sm mt-2 ${testEmailStatus.ok ? 'text-green-600' : 'text-red-600'}`}>
+              {testEmailStatus.message}
+            </p>
+          )}
+          {testPushStatus && (
+            <p className={`text-sm mt-2 ${testPushStatus.ok ? 'text-green-600' : 'text-red-600'}`}>
+              {testPushStatus.message}
+            </p>
           )}
         </div>
 

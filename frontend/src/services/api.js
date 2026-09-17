@@ -95,6 +95,11 @@ export const notificationPreferenceService = {
   update: (prefs) => api.patch('/notification-preferences/', prefs),
 };
 
+export const notificationTestService = {
+  sendTestEmail: () => api.post('/notifications/test-email/'),
+  sendTestPush: () => api.post('/notifications/test-push/'),
+};
+
 export const pushSubscriptionService = {
   getVapidPublicKey: () => api.get('/vapid-public-key/'),
   // subscription.toJSON() already gives keys as base64url strings, matching

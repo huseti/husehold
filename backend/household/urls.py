@@ -5,6 +5,7 @@ from .views import (
     RecipeViewSet, CookingPlanViewSet,
     HouseholdTaskDefinitionViewSet, HouseholdTaskInstanceViewSet,
     NotificationPreferencesView, PushSubscriptionViewSet, VapidPublicKeyView,
+    TestEmailNotificationView, TestPushNotificationView,
 )
 
 router = DefaultRouter()
@@ -21,5 +22,7 @@ urlpatterns = [
     path('household-settings/', HouseholdSettingsView.as_view(), name='household-settings'),
     path('notification-preferences/', NotificationPreferencesView.as_view(), name='notification-preferences'),
     path('vapid-public-key/', VapidPublicKeyView.as_view(), name='vapid-public-key'),
+    path('notifications/test-email/', TestEmailNotificationView.as_view(), name='test-email-notification'),
+    path('notifications/test-push/', TestPushNotificationView.as_view(), name='test-push-notification'),
     path('', include(router.urls)),
 ]

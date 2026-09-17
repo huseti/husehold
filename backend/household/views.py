@@ -110,6 +110,31 @@ class VapidPublicKeyView(APIView):
     def get(self, request):
         return Response({'public_key': django_settings.VAPID_PUBLIC_KEY})
 
+class TestEmailNotificationView(APIView):
+    """Settings page 'send test email' button -- lets you confirm SMTP is
+    configured correctly without waiting for a real task to come due."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        from .services.notifications import send_test_email
+        if not request.user.email:
+            return Response({'detail': 'Your account has no email address set.'}, status=status.HTTP_400_BAD_REQUEST)
+        if send_test_email(request.user):
+            return Response({'detail': 'Test email sent.'})
+        return Response({'detail': 'Failed to send -- check server logs.'}, status=status.HTTP_502_BAD_GATEWAY)
+
+class TestPushNotificationView(APIView):
+    """Settings page 'send test push' button -- same idea as TestEmailNotificationView."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        from .services.notifications import send_test_push
+        if not PushSubscription.objects.filter(user=request.user).exists():
+            return Response({'detail': 'No push subscription registered on this device yet.'}, status=status.HTTP_400_BAD_REQUEST)
+        if send_test_push(request.user):
+            return Response({'detail': 'Test push sent.'})
+        return Response({'detail': 'Failed to send -- check server logs.'}, status=status.HTTP_502_BAD_GATEWAY)
+
 class UserViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer

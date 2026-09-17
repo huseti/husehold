@@ -53,6 +53,18 @@ def notify_task_due(instance):
             _send_once(instance, user, notification_type, 'push', lambda: _send_push_all(subscriptions, subject, body))
 
 
+def send_test_email(user):
+    """Used by the Settings 'send test email' button -- a manual one-off
+    check, so unlike notify_task_due it doesn't touch NotificationLog."""
+    return _send_email(user, 'HUSEHOLD test notification', 'This is a test email from HUSEHOLD notification settings.')
+
+
+def send_test_push(user):
+    """Used by the Settings 'send test push' button -- see send_test_email."""
+    subscriptions = list(PushSubscription.objects.filter(user=user))
+    return _send_push_all(subscriptions, 'HUSEHOLD test notification', 'This is a test push notification.')
+
+
 def _send_once(instance, user, notification_type, channel, send_fn):
     already_sent = NotificationLog.objects.filter(
         task_instance=instance, user=user, notification_type=notification_type, channel=channel,

@@ -218,6 +218,10 @@
     "pushEnabledOnDevice": "Push notifications are enabled on this device.",
     "pushNotSupported": "This browser doesn't support push notifications.",
     "pushPermissionDenied": "Notification permission was denied in the browser.",
-    "pushEnableFailed": "Couldn't enable push notifications. Try again."
+    "pushEnableFailed": "Couldn't enable push notifications. Try again.",
+    "sendTestEmail": "Send test email",
+    "sendTestPush": "Send test push",
+    "testSending": "Sending...",
+    "testFailed": "Something went wrong."
   }
 }
