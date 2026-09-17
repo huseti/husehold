@@ -56,7 +56,9 @@ python manage.py createsuperuser
 python manage.py collectstatic --noinput
 ```
 
-### 5. Setup Frontend
+### 5. Setup Frontend (one-time only)
+
+This first build can happen on the Pi to get things running, but going forward, builds should happen on your laptop (see **Deployment Workflow** below) — a Pi 3 with 1GB RAM struggles with Vite's build process alongside Django/Gunicorn/Nginx already running.
 
 ```bash
 cd ../frontend
@@ -146,51 +148,33 @@ sudo systemctl restart nginx
 
 ## Deployment Workflow
 
-### Manual Deployment
+The frontend is **built on your laptop**, not on the Pi. A Raspberry Pi 3 only has 1GB RAM, and Vite's bundler can use 300-500MB+ during a build — on top of Django, Gunicorn, and Nginx already running, that risks swap thrashing or the build getting OOM-killed. Building locally is fast and keeps the Pi free to just serve files.
 
-1. SSH into the Pi:
-   ```bash
-   ssh husehold@<pi-ip>
-   cd ~/husehold
-   ```
+The split:
+- **`deploy.sh`** — runs ON the Pi. Pulls Python deps, runs migrations, collects static files, restarts Gunicorn. (Backend only — no Node.js needed here.)
+- **`deploy.ps1`** — runs on your LAPTOP. Builds the frontend with `npm run build`, copies the `dist/` folder to the Pi, then triggers `deploy.sh` remotely over SSH.
 
-2. Pull latest changes:
-   ```bash
-   git pull origin main
-   ```
+### Deploying a new version
 
-3. Run deployment script:
-   ```bash
-   chmod +x deploy.sh
-   ./deploy.sh
-   ```
+After committing and pushing your changes to GitHub:
 
-4. Restart services:
-   ```bash
-   sudo systemctl restart gunicorn nginx
-   ```
-
-### Automated Deployment (Git Hook)
-
-Create `/home/husehold/husehold.git/hooks/post-receive`:
-
-```bash
-#!/bin/bash
-WORK_TREE="/home/husehold/husehold" git checkout -f
-cd $WORK_TREE
-./deploy.sh
-sudo systemctl restart gunicorn
+```powershell
+.\deploy.ps1
 ```
 
-Make executable:
-```bash
-chmod +x /home/husehold/husehold.git/hooks/post-receive
-```
+That single command:
+1. Builds the React frontend locally (`npm run build`)
+2. SSHs into the Pi and runs `git pull origin main` (updates backend code)
+3. Copies the freshly-built `frontend/dist/` folder to the Pi via `scp`
+4. Runs `deploy.sh` on the Pi (installs any new Python deps, migrates, collects static, restarts Gunicorn)
 
-Then on your local machine, add the Pi as a remote:
-```bash
-git remote add pi ssh://husehold@<pi-ip>/home/husehold/husehold.git
-git push pi main
+Nginx doesn't need restarting — it just reads whatever files currently exist in `dist/` and `staticfiles/`.
+
+### First-time setup note
+
+If your SSH username or Pi IP differs from the defaults, override them:
+```powershell
+.\deploy.ps1 -PiHost "yourname@192.168.1.x" -PiPath "~/husehold"
 ```
 
 ## Access the Application
