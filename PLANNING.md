@@ -276,6 +276,8 @@ classDiagram
     +dishes_per_day
     +top_rating_percentile: default 30
     +uncooked_threshold_days: default 21
+    +rating_weight: default 0.7
+    +neglect_weight: default 0.3
   }
 
   Recipe "*" --> "*" MealTimeCategory
@@ -291,7 +293,7 @@ classDiagram
 
 | Decision | Modeled as |
 |---|---|
-| Craving / Top 30% / Not-cooked-21+ / Rest | Ranking query per `MealTimeCategory`, evaluated top-down and mutually exclusive: **1)** Craving = highest combined score of (rating percentile + neglect percentile), **2)** remaining recipes in top `top_rating_percentile`% by average `RecipeRating.score`, **3)** remaining recipes with `last_cooked_date` older than `uncooked_threshold_days`, **4)** everything else. Thresholds live on `CookingPlanConfig` so they're tunable. |
+| Craving / Top 30% / Not-cooked-21+ / Rest | Ranking query per `MealTimeCategory`, evaluated top-down and mutually exclusive: **1)** Craving = highest combined score of (rating percentile × `rating_weight` + neglect percentile × `neglect_weight`), weighted toward rating since the recipe list is expected to already skew toward liked dishes, **2)** remaining recipes in top `top_rating_percentile`% by average `RecipeRating.score`, **3)** remaining recipes with `last_cooked_date` older than `uncooked_threshold_days`, **4)** everything else. Thresholds and weights live on `CookingPlanConfig` so they're tunable. |
 | 1–5 star ratings, average shown | `RecipeRating` one row per (`recipe`, `rated_by`); UI shows each member's score plus the average. |
 | Labels, member-defined, searchable tab | `Label` (audited) with a plain M2M to `Recipe`; Cooking Plan gets a "browse by label" tab alongside the four ranked buckets. |
 | Photo / Instagram import | `Recipe.source_type`/`source_reference` fields reserved now, extraction pipeline deferred (see Phase 9). |
@@ -403,6 +405,8 @@ Analytics is unchanged — still pure queries, no new tables — but the new aud
 
 ## 4. Suggested build order
 
+See [PHASE1_PLAN.md](PHASE1_PLAN.md) for the concrete implementation plan for step 1.
+
 1. **Task engine core** — `AuditableMixin` introduced here (used everywhere after), `TaskDefinition` with RRULE recurrence, `TaskInstance`/`TaskEvent`, reassignment/snooze/postpone, color-coded drag-and-drop weekly view, `HouseholdMember.color_hex`.
 2. **Recipes with structure** — `Ingredient`, `UnitOfMeasure`, `RecipeIngredient`, `RecipeRating`, `Label`, meal-time categories.
 3. **Shopping list depth** — multiple lists, favorite flag, visibility, quantities/units.
@@ -413,8 +417,8 @@ Analytics is unchanged — still pure queries, no new tables — but the new aud
 8. **Analytics** — pure queries over everything above.
 9. **Deferred bundle:** notifications (email + push, needs HTTPS on the Pi first), Google Calendar one-way sync, recipe import from photo/Instagram.
 
-## 5. Remaining open questions
+## 5. Decisions (round 3) and remaining open questions
 
-- **HTTPS on the Pi**: phone push notifications need a secure context — plain HTTP won't work for Web Push even over WireGuard. Worth deciding whether that's a self-signed cert (browsers warn on first visit) or a local CA / internal domain + Let's Encrypt DNS challenge, since it affects the home-screen install flow already in use.
-- **Craving-score formula**: proposed as an equal-weight average of rating percentile and neglect percentile per category — fine as a first version, or should rating count more than "haven't cooked it in a while"?
-- **Recipe import service**: deferred, so no decision needed yet — flagging that it'll eventually mean picking (and likely paying for) an OCR/transcription service, since the Pi can't run that kind of model locally.
+- **HTTPS**: self-signed cert, kept simple. Only needed **on the Pi** — that's the machine a phone actually connects to for push. The laptop dev setup doesn't need one: browsers treat `http://localhost` as a secure context, so Web Push works fine there without a cert. Only the Pi's Nginx needs a self-signed cert; expect a one-time browser warning on each device the first time it connects (can be accepted permanently in most mobile browsers).
+- **Craving-score formula**: resolved — weighted toward rating (`rating_weight: 0.7`, `neglect_weight: 0.3` by default) rather than an equal split, since the recipe list is expected to already lean toward liked dishes.
+- **Recipe import service**: still deferred, no decision needed yet — flagging that it'll eventually mean picking (and likely paying for) an OCR/transcription service, since the Pi can't run that kind of model locally.
