@@ -22,6 +22,6 @@ ssh $PiHost "rm -rf $PiPath/frontend/dist"
 scp -r "$root\frontend\dist" "${PiHost}:${PiPath}/frontend/dist"
 
 Write-Host "==> Running backend deployment on Pi..." -ForegroundColor Cyan
-ssh $PiHost "chmod +x $PiPath/deploy.sh && $PiPath/deploy.sh"
+ssh $PiHost "bash $PiPath/deploy.sh"
 
 Write-Host "==> Deployment complete!" -ForegroundColor Green
