@@ -1,0 +1,420 @@
+# Feature Plan
+
+Domain model for the next phase of Husehold, covering household planning, cooking plan, shopping, recipes, packing lists, and supporting features (config, analytics, notifications). See [CLAUDE.md](CLAUDE.md) *(gitignored, local only)* for day-to-day dev/deploy context, and [README.md](README.md)/[DEPLOYMENT.md](DEPLOYMENT.md) for setup.
+
+Current state: this is a target model, not a migration plan. The existing `backend/household/models.py` (flat `ShoppingListItem`, `Recipe`, `CookingPlan`, `HouseholdTask`) will be substantially restructured to reach this — see [Suggested build order](#4-suggested-build-order) for how that's phased.
+
+## 0. Decisions
+
+- **Config**: editable by both household members, no admin gating. Every config-editable record tracks who created/last-updated it and when, via a shared `AuditableMixin` rather than repeating fields per table.
+- **Recipe import (photo/Instagram)**: deferred to the last build phase, alongside notifications and calendar sync.
+- **Notifications**: both email and phone push (via the home-screen web app), grouped into clustered types (task due today, weekly household planning due, weekly cooking plan due, ...), each independently toggleable per channel per user.
+- **Google Calendar**: one-way only, shown as a read-only overlay in the weekly planning view so you can see who's traveling/busy while assigning tasks and meals.
+- **Recipe recommendation lists**: three ranked, mutually-exclusive buckets per meal-time category — *Craving for it* (combined rating+neglect score) > *Top 30% rated* > *Not cooked in 21+ days* > everything else. 1–5 star ratings per member, average shown. Free-form **labels** (e.g. "Tim's Favorite", "10min Fast Track") that members define and assign, searchable as a tab in the Cooking Plan.
+- **Recurrence**: full Outlook-style flexibility, including "first Monday of the month" — solved by storing a standard [RFC 5545 RRULE](https://www.rfc-editor.org/rfc/rfc5545) string rather than hand-rolling recurrence fields (Python's `dateutil.rrule` already implements the whole spec).
+- **Role enforcement**: confirmed still equal permissions everywhere, including all config.
+- **UX**: color-coded task cards by assignee (color configurable per member) in a drag-and-drop weekly view — first-class requirement of Phase 1, not later polish.
+- **Visual styling**: out of scope for this planning pass. The diagrams above cover data/behavior only — layout, typography, and overall design system for the new screens will be discussed separately once a phase is ready to build.
+
+## 1. Use Case Diagram
+
+```mermaid
+graph TD
+  Member(["Household Member"])
+  Admin(["Admin"])
+
+  subgraph Home["Home Dashboard"]
+    UC_home[View overdue tasks, progress,<br/>today's meals, today's tasks]
+  end
+
+  subgraph Plan["Household Plan"]
+    UC_p1[Weekly view: color-coded,<br/>drag-and-drop tasks onto days]
+    UC_p2[Reassign a task]
+    UC_p3[Snooze a task]
+    UC_p4[Postpone a task]
+    UC_p5[Set own availability]
+    UC_p6[View Google Calendar overlay<br/>-- who's away when]
+    UC_p7[Configure task recurrence -- RRULE]
+    UC_p8[Configure member colors]
+  end
+
+  subgraph Cook["Cooking Plan"]
+    UC_c1[Weekly meal planning session]
+    UC_c2[Browse Craving / Top-rated /<br/>Not-cooked-recently / All]
+    UC_c3[Search recipes by label]
+    UC_c4[Send planned meal to shopping list]
+    UC_c5[Mark one dish as covering multiple meals]
+  end
+
+  subgraph Shop["Shopping"]
+    UC_s1[Maintain multiple shopping lists]
+    UC_s2[Check off item -- removed for everyone]
+    UC_s3[Mark a list as favorite]
+  end
+
+  subgraph Rec["Recipes"]
+    UC_r1[Add recipe via text]
+    UC_r2[["Add recipe via cookbook photo"]]
+    UC_r3[["Add recipe via Instagram video"]]
+    UC_r4[Rate a recipe 1-5 stars]
+    UC_r5[Create + assign labels]
+  end
+
+  subgraph Trip["Packing Lists"]
+    UC_t1[Create a trip, add participants]
+    UC_t2[Maintain per-user default items]
+    UC_t3[Check off packed items per person]
+    UC_t4[Browse past trips]
+  end
+
+  subgraph Admin_Sec["Admin only"]
+    UC_a1[Manage user accounts]
+    UC_a2[Database access]
+  end
+
+  subgraph Config["Config -- open to all members"]
+    UC_cfg1[Configure recurring tasks]
+    UC_cfg2[Configure meal-time categories]
+    UC_cfg3[Configure shopping lists + visibility]
+    UC_cfg4[Configure excluded ingredients + units]
+    UC_cfg5[Configure notification preferences]
+    UC_cfg6[["Connect Google Calendar"]]
+  end
+
+  subgraph Notif["Notifications"]
+    UC_n1[Receive clustered email/push digests]
+    UC_n2[Toggle each notification type<br/>per channel]
+  end
+
+  Member --> UC_home
+  Member --> UC_p1
+  Member --> UC_p2
+  Member --> UC_p3
+  Member --> UC_p4
+  Member --> UC_p5
+  Member --> UC_p6
+  Member --> UC_p7
+  Member --> UC_p8
+  Member --> UC_c1
+  Member --> UC_c2
+  Member --> UC_c3
+  Member --> UC_c4
+  Member --> UC_c5
+  Member --> UC_s1
+  Member --> UC_s2
+  Member --> UC_s3
+  Member --> UC_r1
+  Member --> UC_r2
+  Member --> UC_r3
+  Member --> UC_r4
+  Member --> UC_r5
+  Member --> UC_t1
+  Member --> UC_t2
+  Member --> UC_t3
+  Member --> UC_t4
+  Member --> UC_cfg1
+  Member --> UC_cfg2
+  Member --> UC_cfg3
+  Member --> UC_cfg4
+  Member --> UC_cfg5
+  Member --> UC_cfg6
+  Member --> UC_n1
+  Member --> UC_n2
+  Admin --> UC_a1
+  Admin --> UC_a2
+
+  classDef future stroke-dasharray: 4 3
+  class UC_r2,UC_r3,UC_cfg6 future
+```
+
+Dashed = deferred to the last build phase (recipe photo/Instagram import, Google Calendar connect).
+
+## 2a. Household Plan & Tasks
+
+*(Haushaltsplan)*
+
+All config-editable entities (marked `«audit»`) share one abstract base carrying `created_by`, `created_at`, `updated_by`, `updated_at`. Recurrence is a single RRULE string per `TaskDefinition`, parsed with `dateutil.rrule` — this is what buys "first Monday of the month" for free instead of hand-rolled interval/weekday fields.
+
+```mermaid
+classDiagram
+  class AuditableMixin {
+    <<abstract>>
+    +created_by
+    +created_at
+    +updated_by
+    +updated_at
+  }
+
+  class HouseholdMember {
+    +role
+    +color_hex
+  }
+
+  class TaskDefinition {
+    «audit»
+    +title
+    +description
+    +recurrence_rule: RRULE string
+    +default_assignee
+    +system_action: none|weekly_household_planning|weekly_meal_planning
+  }
+
+  class TaskInstance {
+    +scheduled_date
+    +assigned_to
+    +status: pending|done|snoozed
+    +completed_at
+  }
+
+  class TaskEvent {
+    +event_type: created|reassigned|snoozed|postponed|completed
+    +actor
+    +timestamp
+  }
+
+  class Availability {
+    +date
+    +status: home|away
+  }
+
+  class GoogleCalendarLink {
+    «audit»
+    +calendar_id
+    +sync_enabled
+    +oauth_token
+  }
+
+  class CalendarEvent {
+    <<read-only cache>>
+    +external_event_id
+    +title
+    +start_datetime
+    +end_datetime
+  }
+
+  AuditableMixin <|-- TaskDefinition
+  AuditableMixin <|-- GoogleCalendarLink
+  TaskDefinition "1" --> "*" TaskInstance : generates
+  TaskInstance "1" --> "*" TaskEvent
+  TaskInstance "*" --> "1" User : assigned_to
+  User "1" --> "*" Availability
+  User "1" --> "0..1" GoogleCalendarLink
+  GoogleCalendarLink "1" --> "*" CalendarEvent : synced one-way
+```
+
+| Decision | Modeled as |
+|---|---|
+| Color-coded weekly view | `HouseholdMember.color_hex`, set in Config; the weekly drag-and-drop UI colors each `TaskInstance` card by `assigned_to`'s color. |
+| Outlook-style recurrence | `TaskDefinition.recurrence_rule` stores an RFC 5545 RRULE string (e.g. `FREQ=MONTHLY;BYDAY=1MO` for "first Monday of the month"); `dateutil.rrule.rrulestr()` expands it into dates. |
+| Calendar overlay | `CalendarEvent` is a read-only, periodically-synced mirror of the linked Google Calendar, rendered alongside `TaskInstance`/`CookingPlanEntry` in the same weekly view — informational only, never written back to Google. |
+| Audit trail on config | `AuditableMixin` inherited by every config-editable model across all domains (see 2b/2c/2e too). |
+
+## 2b. Meal Planning & Recipes
+
+*(Kochplan · Rezepte)*
+
+The three recommendation buckets are a ranking query, not stored fields — computed per `MealTimeCategory` so "top 30% for dinner" and "top 30% for dessert" are independent.
+
+```mermaid
+classDiagram
+  class MealTimeCategory {
+    «audit»
+    +name
+    +sort_order
+    +is_required
+  }
+
+  class Recipe {
+    +title
+    +instructions
+    +default_servings
+    +source_type: text|photo|instagram
+    +source_reference
+    +last_cooked_date
+  }
+
+  class RecipeRating {
+    +rated_by
+    +score: 1-5
+  }
+
+  class Label {
+    «audit»
+    +name
+    +color_hex
+  }
+
+  class RecipeIngredient {
+    +quantity
+    +unit
+  }
+
+  class Ingredient {
+    «audit»
+    +name
+    +default_excluded_from_shopping_list
+  }
+
+  class UnitOfMeasure {
+    «audit»
+    +name
+    +abbreviation
+  }
+
+  class MealEvent {
+    +date_cooked
+    +servings_made
+  }
+
+  class CookingPlanEntry {
+    +date
+    +servings_needed
+  }
+
+  class CookingPlanConfig {
+    <<singleton, audit>>
+    +dishes_per_day
+    +top_rating_percentile: default 30
+    +uncooked_threshold_days: default 21
+  }
+
+  Recipe "*" --> "*" MealTimeCategory
+  Recipe "*" --> "*" Label
+  Recipe "1" --> "*" RecipeIngredient
+  RecipeIngredient "*" --> "1" Ingredient
+  RecipeIngredient "*" --> "1" UnitOfMeasure
+  Recipe "1" --> "*" RecipeRating
+  Recipe "1" --> "*" MealEvent : cooked as
+  MealEvent "1" --> "*" CookingPlanEntry : fulfills
+  CookingPlanEntry "*" --> "1" MealTimeCategory
+```
+
+| Decision | Modeled as |
+|---|---|
+| Craving / Top 30% / Not-cooked-21+ / Rest | Ranking query per `MealTimeCategory`, evaluated top-down and mutually exclusive: **1)** Craving = highest combined score of (rating percentile + neglect percentile), **2)** remaining recipes in top `top_rating_percentile`% by average `RecipeRating.score`, **3)** remaining recipes with `last_cooked_date` older than `uncooked_threshold_days`, **4)** everything else. Thresholds live on `CookingPlanConfig` so they're tunable. |
+| 1–5 star ratings, average shown | `RecipeRating` one row per (`recipe`, `rated_by`); UI shows each member's score plus the average. |
+| Labels, member-defined, searchable tab | `Label` (audited) with a plain M2M to `Recipe`; Cooking Plan gets a "browse by label" tab alongside the four ranked buckets. |
+| Photo / Instagram import | `Recipe.source_type`/`source_reference` fields reserved now, extraction pipeline deferred (see Phase 9). |
+
+## 2c. Shopping
+
+*(Einkaufsplan)*
+
+```mermaid
+classDiagram
+  class ShoppingList {
+    «audit»
+    +name
+    +is_favorite_for_cooking_plan
+  }
+  class ShoppingListItem {
+    +quantity
+    +unit
+    +is_completed
+    +added_by
+    +source: manual|cooking_plan
+  }
+  ShoppingList "1" --> "*" ShoppingListItem
+  ShoppingList "*" --> "*" User : visible_to
+  ShoppingListItem "*" --> "0..1" Ingredient
+  ShoppingListItem "*" --> "0..1" UnitOfMeasure
+```
+
+Unchanged from the earlier draft other than inheriting `AuditableMixin` on `ShoppingList`, since it's config-managed (visibility, favorite flag).
+
+## 2d. Packing Lists
+
+*(Urlaubspacklisten)*
+
+```mermaid
+classDiagram
+  class Trip {
+    +name
+    +start_date
+    +end_date
+  }
+  class TripParticipant {
+    +user
+  }
+  class PackingListItem {
+    +text
+    +is_packed
+    +from_default
+  }
+  class DefaultPackingItem {
+    «audit»
+    +text
+  }
+  Trip "1" --> "*" TripParticipant
+  TripParticipant "1" --> "*" PackingListItem
+  User "1" --> "*" DefaultPackingItem
+```
+
+Fully independent of every other domain — safe to build in any order.
+
+## 2e. Config, Analytics & Notifications
+
+*(Support Features)*
+
+```mermaid
+classDiagram
+  class NotificationType {
+    <<fixed set>>
+    +code: task_due_today|household_planning_due|cooking_plan_due
+    +label
+  }
+  class NotificationPreference {
+    +email_enabled
+    +push_enabled
+  }
+  class PushSubscription {
+    +device_label
+    +endpoint
+    +p256dh_key
+    +auth_key
+  }
+  User "1" --> "*" PushSubscription : one per device
+  User "1" --> "*" NotificationPreference
+  NotificationPreference "*" --> "1" NotificationType
+```
+
+| Decision | Modeled as |
+|---|---|
+| Clustered notification types | `NotificationType` is a small fixed set (task due today, household planning due, cooking plan due, ...) rather than one generic on/off switch. |
+| Per-type, per-channel toggle | `NotificationPreference(user, notification_type)` carries independent `email_enabled` / `push_enabled` booleans. |
+| Push to phone from the home-screen web app | Standard Web Push API: each installed instance (iPhone, Android) registers a `PushSubscription` with its own endpoint/keys. **Constraint:** Web Push requires a secure context (HTTPS) — the Pi currently serves plain HTTP, so this needs a TLS cert in front of Nginx before push can work at all. |
+| Email | Plain SMTP send, triggered by the same scheduled job that checks push. |
+| Delivery scheduling | Needs a periodic job on the Pi — a cron-triggered Django management command is the simplest fit for a Pi 3, no need for a full Celery+broker setup at this volume. |
+
+Analytics is unchanged — still pure queries, no new tables — but the new audit fields add a free extra: a "who changed this config item and when" history view becomes possible everywhere `AuditableMixin` is used.
+
+## 3. Cross-domain dependencies
+
+| From | To | Nature |
+|---|---|---|
+| Cooking Plan | Household Plan | Weekly meal planning is a `TaskDefinition` occurrence. |
+| Cooking Plan | Recipes | Needs structured ingredients + ratings + labels to power the four recommendation buckets. |
+| Cooking Plan | Shopping | Writes into the favorite (or chosen) `ShoppingList`. |
+| Household Plan | Google Calendar | One-way `CalendarEvent` overlay in the weekly view — read-only, no write-back. |
+| Notifications | Household Plan, Cooking Plan | Reads due `TaskInstance`/`CookingPlanEntry` rows; needs the scheduler + HTTPS decisions below regardless of trigger source. |
+| Everything config-editable | AuditableMixin | Shared base, touches almost every model — worth introducing in Phase 1 rather than retrofitting later. |
+| Analytics | Everything | Read-only, build last. |
+| Packing Lists | (none) | Fully independent. |
+
+## 4. Suggested build order
+
+1. **Task engine core** — `AuditableMixin` introduced here (used everywhere after), `TaskDefinition` with RRULE recurrence, `TaskInstance`/`TaskEvent`, reassignment/snooze/postpone, color-coded drag-and-drop weekly view, `HouseholdMember.color_hex`.
+2. **Recipes with structure** — `Ingredient`, `UnitOfMeasure`, `RecipeIngredient`, `RecipeRating`, `Label`, meal-time categories.
+3. **Shopping list depth** — multiple lists, favorite flag, visibility, quantities/units.
+4. **Cooking Plan proper** — weekly wizard, the four recommendation buckets, label search tab, send-to-shopping-list.
+5. **Home dashboard** — read-only aggregation once there's real data.
+6. **Packing Lists** — independent, can slot in anytime.
+7. **Config screens** — built alongside each domain as it lands.
+8. **Analytics** — pure queries over everything above.
+9. **Deferred bundle:** notifications (email + push, needs HTTPS on the Pi first), Google Calendar one-way sync, recipe import from photo/Instagram.
+
+## 5. Remaining open questions
+
+- **HTTPS on the Pi**: phone push notifications need a secure context — plain HTTP won't work for Web Push even over WireGuard. Worth deciding whether that's a self-signed cert (browsers warn on first visit) or a local CA / internal domain + Let's Encrypt DNS challenge, since it affects the home-screen install flow already in use.
+- **Craving-score formula**: proposed as an equal-weight average of rating percentile and neglect percentile per category — fine as a first version, or should rating count more than "haven't cooked it in a while"?
+- **Recipe import service**: deferred, so no decision needed yet — flagging that it'll eventually mean picking (and likely paying for) an OCR/transcription service, since the Pi can't run that kind of model locally.
