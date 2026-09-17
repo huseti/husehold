@@ -10,6 +10,7 @@ backend/media/
 
 # Node/React
 frontend/node_modules/
+frontend/.env
 frontend/.env.local
 frontend/build/
 frontend/dist/
@@ -25,3 +26,6 @@ frontend/.DS_Store
 
 # OS
 Thumbs.db
+
+# Claude Code
+CLAUDE.md

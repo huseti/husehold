@@ -1,8 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { authService } from '../services/api';
+import logoFull from '../assets/logo-full.png';
 
 export default function Login({ setIsAuthenticated }) {
+  const { t } = useTranslation();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -21,7 +24,7 @@ export default function Login({ setIsAuthenticated }) {
       setIsAuthenticated(true);
       navigate('/');
     } catch (err) {
-      setError('Invalid username or password');
+      setError(t('login.error'));
       console.error(err);
     } finally {
       setLoading(false);
@@ -31,10 +34,8 @@ export default function Login({ setIsAuthenticated }) {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="max-w-md w-full bg-white rounded-lg shadow-md p-8">
-        <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">
-          HUSEHOLD
-        </h2>
-        <p className="text-center text-gray-600 mb-8">Household Management</p>
+        <img src={logoFull} alt={t('common.appName')} className="mx-auto w-64 mb-4" />
+        <p className="text-center text-gray-600 mb-8">{t('login.subtitle')}</p>
 
         {error && (
           <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
@@ -45,7 +46,7 @@ export default function Login({ setIsAuthenticated }) {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Username
+              {t('login.username')}
             </label>
             <input
               type="text"
@@ -58,7 +59,7 @@ export default function Login({ setIsAuthenticated }) {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Password
+              {t('login.password')}
             </label>
             <input
               type="password"
@@ -74,7 +75,7 @@ export default function Login({ setIsAuthenticated }) {
             disabled={loading}
             className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 disabled:opacity-50 font-medium transition"
           >
-            {loading ? 'Logging in...' : 'Login'}
+            {loading ? t('login.loggingIn') : t('login.loginButton')}
           </button>
         </form>
       </div>

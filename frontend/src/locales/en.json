@@ -1,0 +1,59 @@
+{
+  "common": {
+    "appName": "HUSEHOLD",
+    "loading": "Loading...",
+    "logout": "Logout"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "shopping": "Shopping",
+    "recipes": "Recipes",
+    "cookingPlan": "Cooking Plan",
+    "tasks": "Tasks",
+    "settings": "Settings"
+  },
+  "login": {
+    "subtitle": "Household Management",
+    "username": "Username",
+    "password": "Password",
+    "loginButton": "Login",
+    "loggingIn": "Logging in...",
+    "error": "Invalid username or password"
+  },
+  "dashboard": {
+    "shoppingListTitle": "Shopping List",
+    "itemsToBuy_one": "{{count}} item to buy",
+    "itemsToBuy_other": "{{count}} items to buy",
+    "tasksTitle": "Tasks",
+    "tasksPending_one": "{{count}} task pending",
+    "tasksPending_other": "{{count}} tasks pending",
+    "viewAll": "View all →"
+  },
+  "shoppingList": {
+    "title": "Shopping List",
+    "addItemTitle": "Add Item",
+    "itemNamePlaceholder": "Item name",
+    "descriptionPlaceholder": "Description (optional)",
+    "addButton": "Add Item"
+  },
+  "recipes": {
+    "title": "Recipes",
+    "prepTime": "Prep time: {{minutes}} min",
+    "cookTime": "Cook time: {{minutes}} min",
+    "servings": "Servings: {{count}}"
+  },
+  "cookingPlan": {
+    "title": "Cooking Plan",
+    "comingSoon": "Coming soon..."
+  },
+  "tasks": {
+    "title": "Tasks"
+  },
+  "settings": {
+    "title": "Settings",
+    "comingSoon": "More settings coming soon...",
+    "language": "Language",
+    "german": "Deutsch",
+    "english": "English"
+  }
+}

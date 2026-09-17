@@ -208,6 +208,16 @@ npm install
 npm run build
 ```
 
+### 403 Forbidden from nginx
+
+If nginx returns 403 for the frontend even though the files exist, it's almost always a permissions issue: nginx runs as `www-data`, which needs *execute* permission on every directory in the path to the file (not just read permission on the file itself). Check with:
+
+```bash
+namei -l /path/to/frontend/dist/index.html
+```
+
+Also watch out for group membership: Linux applies the file's **group** permission bits to any user who is a member of that group — even if "other" permissions are more permissive. If `www-data` belongs to the directory's owning group, an overly restrictive group permission (e.g. `---`) will block access regardless of what "other" allows. Check with `id www-data`. `deploy.sh` already handles this for `frontend/dist/` on every deploy (`chmod -R g+rX`).
+
 ## Maintenance
 
 ### Backup database

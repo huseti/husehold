@@ -1,0 +1,59 @@
+{
+  "common": {
+    "appName": "HUSEHOLD",
+    "loading": "Wird geladen...",
+    "logout": "Abmelden"
+  },
+  "nav": {
+    "dashboard": "Übersicht",
+    "shopping": "Einkaufen",
+    "recipes": "Rezepte",
+    "cookingPlan": "Kochplan",
+    "tasks": "Aufgaben",
+    "settings": "Einstellungen"
+  },
+  "login": {
+    "subtitle": "Haushaltsverwaltung",
+    "username": "Benutzername",
+    "password": "Passwort",
+    "loginButton": "Anmelden",
+    "loggingIn": "Anmeldung läuft...",
+    "error": "Benutzername oder Passwort ist ungültig"
+  },
+  "dashboard": {
+    "shoppingListTitle": "Einkaufsliste",
+    "itemsToBuy_one": "{{count}} Artikel zu kaufen",
+    "itemsToBuy_other": "{{count}} Artikel zu kaufen",
+    "tasksTitle": "Aufgaben",
+    "tasksPending_one": "{{count}} offene Aufgabe",
+    "tasksPending_other": "{{count}} offene Aufgaben",
+    "viewAll": "Alle anzeigen →"
+  },
+  "shoppingList": {
+    "title": "Einkaufsliste",
+    "addItemTitle": "Artikel hinzufügen",
+    "itemNamePlaceholder": "Artikelname",
+    "descriptionPlaceholder": "Beschreibung (optional)",
+    "addButton": "Artikel hinzufügen"
+  },
+  "recipes": {
+    "title": "Rezepte",
+    "prepTime": "Vorbereitungszeit: {{minutes}} Min.",
+    "cookTime": "Kochzeit: {{minutes}} Min.",
+    "servings": "Portionen: {{count}}"
+  },
+  "cookingPlan": {
+    "title": "Kochplan",
+    "comingSoon": "Demnächst verfügbar..."
+  },
+  "tasks": {
+    "title": "Aufgaben"
+  },
+  "settings": {
+    "title": "Einstellungen",
+    "comingSoon": "Weitere Einstellungen folgen...",
+    "language": "Sprache",
+    "german": "Deutsch",
+    "english": "English"
+  }
+}
