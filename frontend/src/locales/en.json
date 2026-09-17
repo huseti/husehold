@@ -59,7 +59,38 @@
     "formStartsOn": "Starts on",
     "formRecurrenceRule": "Recurrence rule (RRULE)",
     "formDefaultAssignee": "Default assignee",
-    "addRecurringTask": "Add"
+    "addRecurringTask": "Add",
+    "recurrence": {
+      "every": "Every",
+      "days_one": "day",
+      "days_other": "days",
+      "weeks_one": "week",
+      "weeks_other": "weeks",
+      "months_one": "month",
+      "months_other": "months",
+      "theNth": "The",
+      "dayOfMonth": "Day",
+      "ordinal": {
+        "1": "1st",
+        "2": "2nd",
+        "3": "3rd",
+        "4": "4th",
+        "-1": "last"
+      },
+      "weekday": {
+        "mo": "Mon",
+        "tu": "Tue",
+        "we": "Wed",
+        "th": "Thu",
+        "fr": "Fri",
+        "sa": "Sat",
+        "su": "Sun"
+      },
+      "preview": "Rule: {{rule}}",
+      "useAdvanced": "Edit as raw rule",
+      "useSimple": "Use picker instead",
+      "rawLabel": "RRULE (advanced)"
+    }
   },
   "settings": {
     "title": "Settings",

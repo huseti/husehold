@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { taskDefinitionService, memberService } from '../services/api';
+import RecurrencePicker from './RecurrencePicker';
 
 const DEFAULT_FORM = {
   title: '',
@@ -56,49 +57,50 @@ export default function TaskDefinitionForm({ members, definitions, onSaved }) {
           ))}
         </ul>
 
-        <form onSubmit={handleSubmit} className="flex gap-2 flex-wrap items-end">
-          <div>
-            <label className="block text-xs text-gray-500">{t('tasks.formTitle')}</label>
-            <input
-              value={form.title}
-              onChange={(e) => setForm({ ...form, title: e.target.value })}
-              required
-              className="border rounded px-2 py-1 text-sm"
-            />
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <div className="flex gap-2 flex-wrap items-end">
+            <div>
+              <label className="block text-xs text-gray-500">{t('tasks.formTitle')}</label>
+              <input
+                value={form.title}
+                onChange={(e) => setForm({ ...form, title: e.target.value })}
+                required
+                className="border rounded px-2 py-1 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500">{t('tasks.formStartsOn')}</label>
+              <input
+                type="date"
+                value={form.starts_on}
+                onChange={(e) => setForm({ ...form, starts_on: e.target.value })}
+                required
+                className="border rounded px-2 py-1 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500">{t('tasks.formDefaultAssignee')}</label>
+              <select
+                value={form.default_assignee}
+                onChange={(e) => setForm({ ...form, default_assignee: e.target.value })}
+                className="border rounded px-2 py-1 text-sm"
+              >
+                <option value="">{t('tasks.unassigned')}</option>
+                {members.map((m) => (
+                  <option key={m.user.id} value={m.user.id}>{m.user.username}</option>
+                ))}
+              </select>
+            </div>
           </div>
+
           <div>
-            <label className="block text-xs text-gray-500">{t('tasks.formStartsOn')}</label>
-            <input
-              type="date"
-              value={form.starts_on}
-              onChange={(e) => setForm({ ...form, starts_on: e.target.value })}
-              required
-              className="border rounded px-2 py-1 text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500">{t('tasks.formRecurrenceRule')}</label>
-            <input
+            <label className="block text-xs text-gray-500 mb-1">{t('tasks.formRecurrenceRule')}</label>
+            <RecurrencePicker
               value={form.recurrence_rule}
-              onChange={(e) => setForm({ ...form, recurrence_rule: e.target.value })}
-              required
-              placeholder="FREQ=WEEKLY;BYDAY=MO"
-              className="border rounded px-2 py-1 text-sm w-56"
+              onChange={(rule) => setForm((f) => ({ ...f, recurrence_rule: rule }))}
             />
           </div>
-          <div>
-            <label className="block text-xs text-gray-500">{t('tasks.formDefaultAssignee')}</label>
-            <select
-              value={form.default_assignee}
-              onChange={(e) => setForm({ ...form, default_assignee: e.target.value })}
-              className="border rounded px-2 py-1 text-sm"
-            >
-              <option value="">{t('tasks.unassigned')}</option>
-              {members.map((m) => (
-                <option key={m.user.id} value={m.user.id}>{m.user.username}</option>
-              ))}
-            </select>
-          </div>
+
           <button type="submit" className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600">
             {t('tasks.addRecurringTask')}
           </button>

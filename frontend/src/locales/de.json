@@ -59,7 +59,38 @@
     "formStartsOn": "Beginnt am",
     "formRecurrenceRule": "Wiederholungsregel (RRULE)",
     "formDefaultAssignee": "Standardzuweisung",
-    "addRecurringTask": "Hinzufügen"
+    "addRecurringTask": "Hinzufügen",
+    "recurrence": {
+      "every": "Alle",
+      "days_one": "Tag",
+      "days_other": "Tage",
+      "weeks_one": "Woche",
+      "weeks_other": "Wochen",
+      "months_one": "Monat",
+      "months_other": "Monate",
+      "theNth": "Der",
+      "dayOfMonth": "Tag",
+      "ordinal": {
+        "1": "1.",
+        "2": "2.",
+        "3": "3.",
+        "4": "4.",
+        "-1": "letzte"
+      },
+      "weekday": {
+        "mo": "Mo",
+        "tu": "Di",
+        "we": "Mi",
+        "th": "Do",
+        "fr": "Fr",
+        "sa": "Sa",
+        "su": "So"
+      },
+      "preview": "Regel: {{rule}}",
+      "useAdvanced": "Als Rohregel bearbeiten",
+      "useSimple": "Auswahl verwenden",
+      "rawLabel": "RRULE (erweitert)"
+    }
   },
   "settings": {
     "title": "Einstellungen",
