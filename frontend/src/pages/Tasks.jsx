@@ -90,6 +90,11 @@ export default function Tasks() {
     setMode('calendar');
   };
 
+  const handleCancelPlanning = () => {
+    setWeekStart(getWeekStart(new Date()));
+    setMode('calendar');
+  };
+
   const handleDragEnd = async (event) => {
     const { active, over } = event;
     if (!over) return;
@@ -186,6 +191,9 @@ export default function Tasks() {
               </button>
               <button onClick={handleFinishPlanning} className="px-3 py-1 rounded bg-green-600 text-white hover:bg-green-700">
                 {t('weeklyPlanning.finish')}
+              </button>
+              <button onClick={handleCancelPlanning} className="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300">
+                {t('weeklyPlanning.cancel')}
               </button>
             </div>
           )}
