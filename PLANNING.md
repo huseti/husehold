@@ -415,7 +415,11 @@ See [PHASE1_PLAN.md](PHASE1_PLAN.md) for the concrete implementation plan for st
 6. **Packing Lists** — independent, can slot in anytime.
 7. **Config screens** — built alongside each domain as it lands.
 8. **Analytics** — pure queries over everything above.
-9. **Deferred bundle:** notifications (email + push, needs HTTPS on the Pi first), Google Calendar one-way sync, recipe import from photo/Instagram.
+9. **Deferred bundle:** Google Calendar one-way sync, recipe import from photo/Instagram. **Notifications built ahead of schedule** (see below) once HTTPS landed on the Pi.
+
+### Notifications -- built ahead of schedule
+
+Originally deferred to this phase, but built immediately after Phase 1 once HTTPS was set up on the Pi (self-signed cert, since there's no public domain for Let's Encrypt). Covers the two notification types that exist today -- `task_due_today` and `household_planning_due` -- via email (SMTP, through Brevo's free tier) and Web Push, both toggleable per user in Settings. Delivery is a `send_notifications` management command on a cron schedule (every 15 min on the Pi), not a background daemon, guarded against double-sends by `NotificationLog`. A `cooking_plan_due` type will need adding once Phase 4 (Cooking Plan) lands -- the model already supports adding types without a migration to the fixed set.
 
 ## 5. Decisions (round 3) and remaining open questions
 

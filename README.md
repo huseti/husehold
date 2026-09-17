@@ -84,7 +84,8 @@ Frontend runs at: `http://localhost:3000`
 - **Cooking Plan**: Schedule meals by date
 - **Dashboard**: welcome message, a KPI overview (shopping/recipes/meals/overdue tasks) with shortcuts, "my open household tasks" grouped by overdue/today/this-week, and a read-only weekly preview
 - **Account**: profile avatar (upload/preview/remove) via the navbar account menu, alongside Settings and Logout
-- **Settings**: household name and timezone (used for "today"/"overdue" comparisons, not the server's own timezone), language (German/English)
+- **Settings**: household name and timezone (used for "today"/"overdue" comparisons, not the server's own timezone), language (German/English), notification preferences
+- **Notifications**: email (SMTP) and Web Push, per-type/per-channel toggles, for tasks due today and weekly household planning due; delivered by a cron-driven management command, not a background daemon; test-email/test-push buttons in Settings for on-demand verification
 - **User Authentication**: JWT-based auth
 - **Responsive Design**: Works on mobile and desktop
 
@@ -100,6 +101,10 @@ Frontend runs at: `http://localhost:3000`
 - `GET/POST /api/task-instances/` - Task occurrences (`?start=&end=` generates+lists a date range); actions: `reassign/`, `snooze/`, `skip/`, `reopen/`, `postpone/`, `complete/`
 - `GET/PATCH /api/members/` - Household members (color, avatar); `GET /api/members/me/`; `DELETE /api/members/{id}/avatar/`
 - `GET/PATCH /api/household-settings/` - Household name, timezone (singleton)
+- `GET/PATCH /api/notification-preferences/` - Current user's per-type email/push toggles (rows auto-created on first access)
+- `GET/POST/DELETE /api/push-subscriptions/` - Current user's registered Web Push devices
+- `GET /api/vapid-public-key/` - Public VAPID key for the frontend's `pushManager.subscribe()`
+- `POST /api/notifications/test-email/`, `POST /api/notifications/test-push/` - Send a one-off test notification to the current user (used by the Settings page buttons)
 
 ## 🐧 Raspberry Pi Deployment
 
@@ -110,10 +115,10 @@ Quick summary:
 2. Clone repository
 3. Setup backend (virtualenv, migrations, superuser)
 4. Build frontend
-5. Configure Gunicorn + Nginx
-6. Enable auto-deployment via git hook
+5. Configure Gunicorn + Nginx with HTTPS (self-signed cert — required for Web Push)
+6. Schedule `send_notifications` via cron
 
-Access at: `http://<pi-ip>` (or `http://<pi-hostname>.local`)
+Access at: `https://<pi-ip>` (self-signed cert — browser warns once per device, accept permanently)
 
 ## 📝 Database Models
 
@@ -125,6 +130,9 @@ Access at: `http://<pi-ip>` (or `http://<pi-hostname>.local`)
 - **HouseholdTaskDefinition**: recurring task template (RRULE recurrence, icon, assignment mode, optional system_action like the weekly planning reminder)
 - **HouseholdTaskInstance**: one occurrence — either generated from a definition, or standalone (one-off, `definition=None`); tracks `occurrence_date` (immutable, what generation keys on) separately from `scheduled_date` (mutable, what dragging/postponing changes) to avoid regenerating duplicates
 - **HouseholdTaskEvent**: audit trail per instance (created/reassigned/snoozed/skipped/postponed/completed/reopened)
+- **NotificationPreference**: per-user, per-type email/push toggles
+- **PushSubscription**: one row per browser/device registered for Web Push
+- **NotificationLog**: records a sent (task instance, user, type, channel) combination so the cron command never double-sends
 
 ## 🔧 Development
 
@@ -159,13 +167,18 @@ This builds the frontend locally, backs up the Pi's database, pulls the backend 
 
 ## ⚙️ Configuration
 
-Environment variables (create `.env` in backend/):
+Environment variables (create `.env` in backend/, see `.env.example` for the full list):
 ```
 DEBUG=True
 SECRET_KEY=your-secret-key-here
 DATABASE_URL=sqlite:///db.sqlite3
 ALLOWED_HOSTS=localhost,127.0.0.1
 CORS_ALLOWED_ORIGINS=http://localhost:3000
+
+# Notifications -- optional, see DEPLOYMENT.md
+EMAIL_HOST=...
+VAPID_PUBLIC_KEY=...
+VAPID_PRIVATE_KEY=...
 ```
 
 ## 📚 Learn More
