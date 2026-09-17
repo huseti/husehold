@@ -81,6 +81,7 @@ export const memberService = {
     formData.append('avatar', file);
     return api.patch(`/members/${id}/`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
   },
+  deleteAvatar: (id) => api.delete(`/members/${id}/avatar/`),
 };
 
 export const householdSettingsService = {

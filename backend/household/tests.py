@@ -102,6 +102,17 @@ class HouseholdMemberAvatarTests(TestCase):
         self.member.refresh_from_db()
         self.assertTrue(self.member.avatar)
 
+    def test_delete_avatar_clears_it_back_to_default(self):
+        self.client.patch(f'/api/members/{self.member.id}/', {'avatar': self._tiny_png()}, format='multipart')
+        self.member.refresh_from_db()
+        self.assertTrue(self.member.avatar)
+
+        response = self.client.delete(f'/api/members/{self.member.id}/avatar/')
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.member.refresh_from_db()
+        self.assertFalse(self.member.avatar)
+
     def test_me_endpoint_returns_own_member_record(self):
         response = self.client.get('/api/members/me/')
 

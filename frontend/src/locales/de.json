@@ -4,7 +4,9 @@
     "loading": "Wird geladen...",
     "logout": "Abmelden",
     "editImage": "Bild bearbeiten",
-    "systemSettings": "Systemeinstellungen"
+    "systemSettings": "Systemeinstellungen",
+    "removeImage": "Foto entfernen",
+    "uploadNewPhoto": "Neues Foto hochladen"
   },
   "nav": {
     "dashboard": "Übersicht",

@@ -67,6 +67,12 @@ class HouseholdMemberViewSet(viewsets.ModelViewSet):
             return Response(status=status.HTTP_404_NOT_FOUND)
         return Response(HouseholdMemberSerializer(member, context={'request': request}).data)
 
+    @action(detail=True, methods=['delete'], url_path='avatar')
+    def delete_avatar(self, request, pk=None):
+        member = self.get_object()
+        member.avatar.delete(save=True)
+        return Response(HouseholdMemberSerializer(member, context={'request': request}).data)
+
 class ShoppingListItemViewSet(viewsets.ModelViewSet):
     queryset = ShoppingListItem.objects.all()
     serializer_class = ShoppingListItemSerializer

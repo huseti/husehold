@@ -4,7 +4,9 @@
     "loading": "Loading...",
     "logout": "Log off",
     "editImage": "Edit Image",
-    "systemSettings": "System Settings"
+    "systemSettings": "System Settings",
+    "removeImage": "Remove photo",
+    "uploadNewPhoto": "Upload new photo"
   },
   "nav": {
     "dashboard": "Dashboard",

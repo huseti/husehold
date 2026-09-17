@@ -2,13 +2,14 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { memberService } from '../services/api';
+import AvatarPreviewModal from './AvatarPreviewModal';
 
 export default function AccountMenu() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [member, setMember] = useState(null);
   const [open, setOpen] = useState(false);
-  const fileInputRef = useRef(null);
+  const [showPreview, setShowPreview] = useState(false);
   const menuRef = useRef(null);
 
   useEffect(() => {
@@ -30,16 +31,8 @@ export default function AccountMenu() {
   };
 
   const handleEditImageClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file || !member) return;
-    const res = await memberService.uploadAvatar(member.id, file);
-    setMember(res.data);
+    setShowPreview(true);
     setOpen(false);
-    e.target.value = '';
   };
 
   const initials = member?.user?.username?.[0]?.toUpperCase() || '?';
@@ -83,13 +76,13 @@ export default function AccountMenu() {
         </div>
       )}
 
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={handleFileChange}
-      />
+      {showPreview && member && (
+        <AvatarPreviewModal
+          member={member}
+          onClose={() => setShowPreview(false)}
+          onChanged={setMember}
+        />
+      )}
     </div>
   );
 }
