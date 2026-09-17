@@ -9,3 +9,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <App />
   </React.StrictMode>,
 )
+
+// Registered unconditionally on load (harmless no-op if push is never used) so
+// it's already active by the time the user opts into notifications in Settings.
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}

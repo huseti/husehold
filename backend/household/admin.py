@@ -2,6 +2,7 @@
 from .models import (
     HouseholdMember, HouseholdSettings, ShoppingListItem, Recipe, CookingPlan,
     HouseholdTaskDefinition, HouseholdTaskInstance, HouseholdTaskEvent,
+    NotificationPreference, PushSubscription, NotificationLog,
 )
 
 @admin.register(HouseholdMember)
@@ -47,3 +48,18 @@ class HouseholdTaskInstanceAdmin(admin.ModelAdmin):
     list_display = ('__str__', 'scheduled_date', 'occurrence_date', 'is_in_backlog', 'assigned_to', 'status', 'completed_at', 'created_by', 'created_at')
     list_filter = ('status', 'is_in_backlog', 'scheduled_date')
     inlines = [HouseholdTaskEventInline]
+
+@admin.register(NotificationPreference)
+class NotificationPreferenceAdmin(admin.ModelAdmin):
+    list_display = ('user', 'notification_type', 'email_enabled', 'push_enabled')
+    list_filter = ('notification_type', 'email_enabled', 'push_enabled')
+
+@admin.register(PushSubscription)
+class PushSubscriptionAdmin(admin.ModelAdmin):
+    list_display = ('user', 'device_label', 'endpoint', 'created_at')
+    search_fields = ('device_label', 'endpoint')
+
+@admin.register(NotificationLog)
+class NotificationLogAdmin(admin.ModelAdmin):
+    list_display = ('task_instance', 'user', 'notification_type', 'channel', 'sent_at')
+    list_filter = ('notification_type', 'channel', 'sent_at')

@@ -204,6 +204,20 @@
     "householdName": "Household name",
     "timezone": "Timezone",
     "timezoneHint": "Used for \"today\"/\"overdue\" and, later, reminder times -- not necessarily the server's own timezone.",
-    "saved": "Saved"
+    "saved": "Saved",
+    "notifications": "Notifications",
+    "notificationType": "Type",
+    "emailChannel": "Email",
+    "pushChannel": "Push",
+    "notificationTypes": {
+      "task_due_today": "Task due today",
+      "household_planning_due": "Weekly household planning due"
+    },
+    "enablePushOnDevice": "Enable push notifications on this device",
+    "pushEnabling": "Enabling...",
+    "pushEnabledOnDevice": "Push notifications are enabled on this device.",
+    "pushNotSupported": "This browser doesn't support push notifications.",
+    "pushPermissionDenied": "Notification permission was denied in the browser.",
+    "pushEnableFailed": "Couldn't enable push notifications. Try again."
   }
 }

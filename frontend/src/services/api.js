@@ -90,6 +90,26 @@ export const householdSettingsService = {
   update: (data) => api.patch('/household-settings/', data),
 };
 
+export const notificationPreferenceService = {
+  getAll: () => api.get('/notification-preferences/'),
+  update: (prefs) => api.patch('/notification-preferences/', prefs),
+};
+
+export const pushSubscriptionService = {
+  getVapidPublicKey: () => api.get('/vapid-public-key/'),
+  // subscription.toJSON() already gives keys as base64url strings, matching
+  // what pywebpush expects server-side -- no manual re-encoding needed.
+  subscribe: (subscription, deviceLabel) => {
+    const json = subscription.toJSON();
+    return api.post('/push-subscriptions/', {
+      endpoint: json.endpoint,
+      p256dh_key: json.keys.p256dh,
+      auth_key: json.keys.auth,
+      device_label: deviceLabel,
+    });
+  },
+};
+
 export const cookingPlanService = {
   getAll: () => api.get('/cooking-plans/'),
   create: (data) => api.post('/cooking-plans/', data),

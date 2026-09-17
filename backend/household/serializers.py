@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from .models import (
     HouseholdMember, HouseholdSettings, ShoppingListItem, Recipe, CookingPlan,
     HouseholdTaskDefinition, HouseholdTaskInstance, HouseholdTaskEvent,
+    NotificationPreference, PushSubscription,
 )
 
 class UserSerializer(serializers.ModelSerializer):
@@ -50,6 +51,18 @@ class CookingPlanSerializer(serializers.ModelSerializer):
     class Meta:
         model = CookingPlan
         fields = ('id', 'date', 'meal_type', 'recipe', 'recipe_title', 'notes', 'created_by', 'created_by_username', 'created_at')
+
+class NotificationPreferenceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = NotificationPreference
+        fields = ('id', 'notification_type', 'email_enabled', 'push_enabled')
+        read_only_fields = ('id', 'notification_type')
+
+class PushSubscriptionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PushSubscription
+        fields = ('id', 'device_label', 'endpoint', 'p256dh_key', 'auth_key', 'created_at')
+        read_only_fields = ('id', 'created_at')
 
 class HouseholdTaskEventSerializer(serializers.ModelSerializer):
     actor_username = serializers.CharField(source='actor.username', read_only=True)

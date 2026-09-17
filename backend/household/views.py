@@ -7,14 +7,17 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.contrib.auth.models import User
+from django.conf import settings as django_settings
 from .models import (
     HouseholdMember, HouseholdSettings, ShoppingListItem, Recipe, CookingPlan,
     HouseholdTaskDefinition, HouseholdTaskInstance, HouseholdTaskEvent,
+    NotificationPreference, PushSubscription,
 )
 from .serializers import (
     UserSerializer, HouseholdMemberSerializer, HouseholdSettingsSerializer, ShoppingListItemSerializer,
     RecipeSerializer, CookingPlanSerializer,
     HouseholdTaskDefinitionSerializer, HouseholdTaskInstanceSerializer,
+    NotificationPreferenceSerializer, PushSubscriptionSerializer,
 )
 from .services.task_generation import generate_instances_for_range, monday_of_week_as_datetime
 
@@ -44,6 +47,68 @@ class HouseholdSettingsView(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save(updated_by=request.user)
         return Response(serializer.data)
+
+class NotificationPreferencesView(APIView):
+    """All fixed notification types for the current user, each with its
+    email/push toggles -- missing rows are created on the fly (defaulting
+    both channels on) rather than requiring a seed migration whenever a new
+    type is added to NotificationPreference.NOTIFICATION_TYPE_CHOICES."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        existing = {
+            pref.notification_type: pref
+            for pref in NotificationPreference.objects.filter(user=request.user)
+        }
+        for type_code, _ in NotificationPreference.NOTIFICATION_TYPE_CHOICES:
+            if type_code not in existing:
+                existing[type_code] = NotificationPreference.objects.create(
+                    user=request.user, notification_type=type_code,
+                )
+        ordered = [existing[code] for code, _ in NotificationPreference.NOTIFICATION_TYPE_CHOICES]
+        return Response(NotificationPreferenceSerializer(ordered, many=True).data)
+
+    def patch(self, request):
+        """Body: [{ notification_type, email_enabled, push_enabled }, ...] --
+        updates each by type, ignoring any type not already present for this user."""
+        for item in request.data:
+            NotificationPreference.objects.filter(
+                user=request.user, notification_type=item.get('notification_type'),
+            ).update(
+                email_enabled=item.get('email_enabled', True),
+                push_enabled=item.get('push_enabled', True),
+            )
+        return self.get(request)
+
+class PushSubscriptionViewSet(viewsets.ModelViewSet):
+    """A device registers itself here after granting browser push permission
+    (see frontend Settings page + public/sw.js). Scoped to the current user
+    only -- there's no admin/cross-user view of subscriptions."""
+    serializer_class = PushSubscriptionSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return PushSubscription.objects.filter(user=self.request.user)
+
+    def create(self, request, *args, **kwargs):
+        # Re-subscribing the same browser sends the same endpoint again --
+        # update its keys in place instead of erroring on the unique constraint.
+        existing = PushSubscription.objects.filter(endpoint=request.data.get('endpoint')).first()
+        if existing:
+            serializer = self.get_serializer(existing, data=request.data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            serializer.save(user=request.user)
+            return Response(serializer.data)
+        return super().create(request, *args, **kwargs)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+class VapidPublicKeyView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        return Response({'public_key': django_settings.VAPID_PUBLIC_KEY})
 
 class UserViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = User.objects.all()

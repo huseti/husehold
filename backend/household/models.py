@@ -224,6 +224,69 @@ class HouseholdTaskInstance(models.Model):
         return f"{title} - {self.scheduled_date}"
 
 
+class NotificationPreference(models.Model):
+    """Per-user, per-type opt-in for each delivery channel. Rows are created
+    on demand (get_or_create) the first time a type is looked up for a user,
+    defaulting both channels to on, rather than seeding them eagerly -- see
+    household.services.notifications."""
+    NOTIFICATION_TYPE_CHOICES = [
+        ('task_due_today', 'Task due today'),
+        ('household_planning_due', 'Weekly household planning due'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notification_preferences')
+    notification_type = models.CharField(max_length=30, choices=NOTIFICATION_TYPE_CHOICES)
+    email_enabled = models.BooleanField(default=True)
+    push_enabled = models.BooleanField(default=True)
+
+    class Meta:
+        unique_together = ('user', 'notification_type')
+        ordering = ['notification_type']
+
+    def __str__(self):
+        return f"{self.user.username} - {self.notification_type}"
+
+
+class PushSubscription(models.Model):
+    """One row per browser/device that has granted push permission and
+    registered via the Web Push API (see frontend public/sw.js). endpoint is
+    unique per browser install, so re-subscribing the same device just
+    updates its keys instead of creating a duplicate."""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='push_subscriptions')
+    device_label = models.CharField(max_length=100, blank=True)
+    endpoint = models.URLField(max_length=500, unique=True)
+    p256dh_key = models.CharField(max_length=200)
+    auth_key = models.CharField(max_length=200)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.user.username} - {self.device_label or self.endpoint[:40]}"
+
+
+class NotificationLog(models.Model):
+    """Records that a specific (task_instance, user, type, channel)
+    notification has already gone out, so the periodic cron command
+    (send_notifications) never double-sends across runs."""
+    CHANNEL_CHOICES = [('email', 'Email'), ('push', 'Push')]
+
+    task_instance = models.ForeignKey(
+        'HouseholdTaskInstance', on_delete=models.CASCADE, related_name='notification_logs',
+    )
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notification_logs')
+    notification_type = models.CharField(max_length=30, choices=NotificationPreference.NOTIFICATION_TYPE_CHOICES)
+    channel = models.CharField(max_length=10, choices=CHANNEL_CHOICES)
+    sent_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('task_instance', 'user', 'notification_type', 'channel')
+
+    def __str__(self):
+        return f"{self.notification_type}/{self.channel} -> {self.user.username} for instance {self.task_instance_id}"
+
+
 class HouseholdTaskEvent(models.Model):
     EVENT_TYPE_CHOICES = [
         ('created', 'Created'),

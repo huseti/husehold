@@ -93,9 +93,20 @@ sudo systemctl enable gunicorn
 sudo systemctl start gunicorn
 ```
 
-### 7. Configure Nginx
+### 7. Configure Nginx (with HTTPS)
 
-Create `/etc/nginx/sites-available/husehold`:
+Web Push notifications require a secure context, so the Pi terminates HTTPS with a self-signed cert (no public domain here, so Let's Encrypt isn't an option -- a self-signed cert is fine on a LAN-only device; browsers show a one-time warning per device that can be accepted permanently).
+
+Generate the cert once:
+```bash
+sudo mkdir -p /etc/nginx/ssl
+sudo openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+  -keyout /etc/nginx/ssl/husehold-selfsigned.key \
+  -out /etc/nginx/ssl/husehold-selfsigned.crt \
+  -subj "/CN=<pi-ip>"
+```
+
+Create `/etc/nginx/sites-available/husehold` (adjust the paths to match your actual app user's home directory):
 
 ```nginx
 upstream gunicorn {
@@ -106,6 +117,16 @@ server {
     listen 80 default_server;
     listen [::]:80 default_server;
     server_name _;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl default_server;
+    listen [::]:443 ssl default_server;
+    server_name _;
+
+    ssl_certificate /etc/nginx/ssl/husehold-selfsigned.crt;
+    ssl_certificate_key /etc/nginx/ssl/husehold-selfsigned.key;
 
     # Frontend static files
     location / {
@@ -146,6 +167,28 @@ sudo nginx -t
 sudo systemctl restart nginx
 ```
 
+If a firewall (`ufw`) is active, make sure 443 is allowed from your LAN in addition to 80:
+```bash
+sudo ufw allow from <your-lan-subnet> to any port 443 proto tcp
+```
+
+### 8. Notifications setup
+
+Notifications (email + push) are sent by a Django management command, not a background daemon -- schedule it with cron:
+
+```bash
+crontab -e
+```
+
+Add (runs every 15 minutes):
+```
+*/15 * * * * cd /home/husehold/husehold/backend && venv/bin/python manage.py send_notifications >> /home/husehold/husehold/backend/notifications.log 2>&1
+```
+
+Required one-time setup in `backend/.env` on the Pi (see `.env.example`):
+- `EMAIL_HOST`/`EMAIL_PORT`/`EMAIL_HOST_USER`/`EMAIL_HOST_PASSWORD`/`EMAIL_USE_TLS`/`DEFAULT_FROM_EMAIL` -- SMTP credentials for sending email. Leaving `EMAIL_HOST` unset falls back to printing emails to the console instead of erroring.
+- `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`VAPID_ADMIN_EMAIL` -- generate once with `python manage.py generate_vapid_keys` and never regenerate afterwards (it would invalidate every device's existing push subscription).
+
 ## Deployment Workflow
 
 The frontend is **built on your laptop**, not on the Pi. A Raspberry Pi 3 only has 1GB RAM, and Vite's bundler can use 300-500MB+ during a build — on top of Django, Gunicorn, and Nginx already running, that risks swap thrashing or the build getting OOM-killed. Building locally is fast and keeps the Pi free to just serve files.
@@ -180,9 +223,11 @@ If your SSH username or Pi IP differs from the defaults, override them:
 ## Access the Application
 
 Open your browser and navigate to:
-- Frontend: `http://<pi-ip>`
-- Admin: `http://<pi-ip>/admin`
-- API: `http://<pi-ip>/api`
+- Frontend: `https://<pi-ip>`
+- Admin: `https://<pi-ip>/admin`
+- API: `https://<pi-ip>/api`
+
+Since the cert is self-signed, the browser will warn on first visit per device -- accept/proceed once, it won't ask again on that device.
 
 ## Troubleshooting
 
@@ -238,6 +283,6 @@ npm update
 
 - Change the Django SECRET_KEY in `.env`
 - Keep Raspberry Pi OS updated: `sudo apt update && sudo apt upgrade`
-- Consider using HTTPS with Let's Encrypt (certbot)
+- HTTPS is handled via a self-signed cert (see Nginx setup above) rather than Let's Encrypt, since the Pi has no public domain -- Let's Encrypt requires one
 - Restrict SSH access to known IPs
 - Use strong passwords for Django superuser
