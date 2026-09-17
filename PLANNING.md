@@ -1,6 +1,6 @@
 # Feature Plan
 
-Domain model for the next phase of Husehold, covering household planning, cooking plan, shopping, recipes, packing lists, and supporting features (config, analytics, notifications). See [CLAUDE.md](CLAUDE.md) *(gitignored, local only)* for day-to-day dev/deploy context, and [README.md](README.md)/[DEPLOYMENT.md](DEPLOYMENT.md) for setup.
+Domain model for the next phase of Husehold, covering household planning, cooking plan, shopping, recipes, packing lists, vouchers, and supporting features (config, analytics, notifications). See [CLAUDE.md](CLAUDE.md) *(gitignored, local only)* for day-to-day dev/deploy context, and [README.md](README.md)/[DEPLOYMENT.md](DEPLOYMENT.md) for setup.
 
 Current state: this is a target model, not a migration plan. The existing `backend/household/models.py` (flat `ShoppingListItem`, `Recipe`, `CookingPlan`, `HouseholdTask`) will be substantially restructured to reach this — see [Suggested build order](#4-suggested-build-order) for how that's phased.
 
@@ -67,6 +67,17 @@ graph TD
     UC_t4[Browse past trips]
   end
 
+  subgraph Vouch["Vouchers"]
+    UC_v1[Add a voucher -- from whom,<br/>value, where valid, expiry]
+    UC_v2[Log a partial redemption --<br/>records remaining balance]
+    UC_v3[Browse active vouchers,<br/>sorted by soonest-expiring]
+    UC_v4[View archived -- fully used --<br/>vouchers, grayed out]
+  end
+
+  subgraph Analytics["Analytics"]
+    UC_an1[View household stats --<br/>tasks, meals, spending over time]
+  end
+
   subgraph Admin_Sec["Admin only"]
     UC_a1[Manage user accounts]
     UC_a2[Database access]
@@ -112,6 +123,11 @@ graph TD
   Member --> UC_t2
   Member --> UC_t3
   Member --> UC_t4
+  Member --> UC_v1
+  Member --> UC_v2
+  Member --> UC_v3
+  Member --> UC_v4
+  Member --> UC_an1
   Member --> UC_cfg1
   Member --> UC_cfg2
   Member --> UC_cfg3
@@ -207,7 +223,7 @@ classDiagram
 | Color-coded weekly view | `HouseholdMember.color_hex`, set in Config; the weekly drag-and-drop UI colors each `HouseholdTaskInstance` card by `assigned_to`'s color. |
 | Outlook-style recurrence | `HouseholdTaskDefinition.recurrence_rule` stores an RFC 5545 RRULE string (e.g. `FREQ=MONTHLY;BYDAY=1MO` for "first Monday of the month"); `dateutil.rrule.rrulestr()` expands it into dates. |
 | Calendar overlay | `CalendarEvent` is a read-only, periodically-synced mirror of the linked Google Calendar, rendered alongside `HouseholdTaskInstance`/`CookingPlanEntry` in the same weekly view — informational only, never written back to Google. |
-| Audit trail on config | `AuditableMixin` inherited by every config-editable model across all domains (see 2b/2c/2e too). |
+| Audit trail on config | `AuditableMixin` inherited by every config-editable model across all domains (see 2b/2c/2e/2f too). |
 
 ## 2b. Meal Planning & Recipes
 
@@ -354,7 +370,48 @@ classDiagram
 
 Fully independent of every other domain — safe to build in any order.
 
-## 2e. Config, Analytics & Notifications
+## 2e. Vouchers
+
+*(Gutscheine)*
+
+A standalone tracker, unrelated to shopping/cooking — mainly for gifts from friends/family: store vouchers, but also non-monetary presents like a dinner invitation that have no numeric value. Vouchers get redeemed partially over time rather than in one go, so each redemption is logged rather than just decrementing a number — the remaining balance has a history instead of only a current snapshot.
+
+```mermaid
+classDiagram
+  class Voucher {
+    «audit»
+    +title
+    +received_from
+    +location
+    +total_value: nullable
+    +remaining_balance: nullable
+    +valid_until
+    +is_archived
+  }
+
+  class VoucherRedemption {
+    +redeemed_on
+    +amount_used
+    +remaining_after
+    +logged_by
+  }
+
+  Voucher "1" --> "*" VoucherRedemption
+```
+
+| Decision | Modeled as |
+|---|---|
+| Title | `Voucher.title` — short free-text label (e.g. "Christmas voucher from Mom", "Dinner at Lisa & Jan's"), shown as the card heading. |
+| From whom | `Voucher.received_from` — free text, since gifters aren't household members with accounts. |
+| Location it's valid for | `Voucher.location` — store/restaurant/site the voucher can be redeemed at. |
+| Value can be blank | `Voucher.total_value`/`remaining_balance` are nullable — a monetary store voucher has a value, but a non-monetary gift (e.g. a dinner invitation) just leaves both blank and tracks title/from/location/expiry only. |
+| Partial use tracked over time | `VoucherRedemption` logs each redemption (`amount_used`) with a `remaining_after` snapshot; `Voucher.remaining_balance` is kept in sync as the current total, so the UI doesn't need to replay the log to show a balance. Only meaningful when `total_value` is set — a valueless gift just gets marked used/archived directly. |
+| List sorted by validity | Active vouchers list sorted by `valid_until` ascending — soonest-expiring first. |
+| Fully used vouchers archived | Once `remaining_balance` reaches 0, `Voucher.is_archived` is set (automatically, on the redemption that empties it) and the card renders grayed-out in an "Archive" section instead of the active list. |
+
+Fully independent of every other domain — safe to build in any order, same as Packing Lists.
+
+## 2f. Config, Analytics & Notifications
 
 *(Support Features)*
 
@@ -400,22 +457,28 @@ Analytics is unchanged — still pure queries, no new tables — but the new aud
 | Household Plan | Google Calendar | One-way `CalendarEvent` overlay in the weekly view — read-only, no write-back. |
 | Notifications | Household Plan, Cooking Plan | Reads due `HouseholdTaskInstance`/`CookingPlanEntry` rows; needs the scheduler + HTTPS decisions below regardless of trigger source. |
 | Everything config-editable | AuditableMixin | Shared base, touches almost every model — worth introducing in Phase 1 rather than retrofitting later. |
-| Analytics | Everything | Read-only, build last. |
+| Analytics | Everything, including Vouchers | Read-only, build last. |
 | Packing Lists | (none) | Fully independent. |
+| Vouchers | (none) | Fully independent. |
 
 ## 4. Suggested build order
 
-See [PHASE1_PLAN.md](PHASE1_PLAN.md) for the concrete implementation plan for step 1.
+See [PHASE1_PLAN.md](PHASE1_PLAN.md) for the concrete implementation plan for step 1 (Task engine core — already shipped and deployed).
 
-1. **Task engine core** — `AuditableMixin` introduced here (used everywhere after), `HouseholdTaskDefinition` with RRULE recurrence, `HouseholdTaskInstance`/`HouseholdTaskEvent`, reassignment/snooze/postpone, color-coded drag-and-drop weekly view, `HouseholdMember.color_hex`.
+0. **Vouchers** — independent, no dependency on anything else in the model (see section 3). Jumps the queue ahead of every step below: it's the smallest, self-contained domain still left to build, so it's the very next thing to pick up.
+1. **Task engine core** *(shipped)* — `AuditableMixin` introduced here (used everywhere after), `HouseholdTaskDefinition` with RRULE recurrence, `HouseholdTaskInstance`/`HouseholdTaskEvent`, reassignment/snooze/postpone, color-coded drag-and-drop weekly view, `HouseholdMember.color_hex`.
 2. **Recipes with structure** — `Ingredient`, `UnitOfMeasure`, `RecipeIngredient`, `RecipeRating`, `Label`, meal-time categories.
 3. **Shopping list depth** — multiple lists, favorite flag, visibility, quantities/units.
 4. **Cooking Plan proper** — weekly wizard, the four recommendation buckets, label search tab, send-to-shopping-list.
 5. **Home dashboard** — read-only aggregation once there's real data.
 6. **Packing Lists** — independent, can slot in anytime.
 7. **Config screens** — built alongside each domain as it lands.
-8. **Analytics** — pure queries over everything above.
+8. **Analytics** — pure queries over everything above, including Vouchers.
 9. **Deferred bundle:** Google Calendar one-way sync, recipe import from photo/Instagram. **Notifications built ahead of schedule** (see below) once HTTPS landed on the Pi.
+
+### Reassessment after adding Vouchers (2026-09-18)
+
+Packing Lists and Analytics were already scoped in the plan (2d and 2f respectively) — the frontend's empty template tabs for those just need backend models to catch up. Vouchers was net-new and is now modeled in 2e, expanded to cover non-monetary gifts (title, from-whom, location, optional value). It has no cross-domain dependencies (see section 3) and is now the smallest fully-unbuilt domain, so it's called out as **step 0** — ahead of the numbered order — as the next thing to work on, without renumbering the already-shipped Task Engine (step 1, per [PHASE1_PLAN.md](PHASE1_PLAN.md)) or the phases after it.
 
 ### Notifications -- built ahead of schedule
 
