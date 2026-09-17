@@ -336,16 +336,27 @@ class TaskInstanceActionTests(TestCase):
             scheduled_date=date(2026, 9, 14), assigned_to=self.user,
         )
 
-    def test_snooze_pushes_to_next_week_backlog_without_changing_status(self):
+    def test_snooze_freezes_original_in_place_and_creates_open_copy_in_backlog(self):
         response = self.client.post(f'/api/task-instances/{self.instance.id}/snooze/')
 
         self.assertEqual(response.status_code, 200)
         self.instance.refresh_from_db()
-        self.assertEqual(self.instance.status, 'pending')
-        self.assertTrue(self.instance.is_in_backlog)
-        self.assertEqual(self.instance.scheduled_date, date(2026, 9, 21))  # next Monday
-        self.assertEqual(self.instance.occurrence_date, date(2026, 9, 14))  # unchanged
+        # Original stays exactly where it was, just marked snoozed.
+        self.assertEqual(self.instance.status, 'snoozed')
+        self.assertFalse(self.instance.is_in_backlog)
+        self.assertEqual(self.instance.scheduled_date, date(2026, 9, 14))
+        self.assertEqual(self.instance.occurrence_date, date(2026, 9, 14))
         self.assertEqual(self.instance.events.filter(event_type='snoozed', actor=self.user).count(), 1)
+
+        # A separate, fully-open copy lands in next week's backlog.
+        copy = HouseholdTaskInstance.objects.exclude(id=self.instance.id).get()
+        self.assertIsNone(copy.definition)
+        self.assertEqual(copy.standalone_title, 'Take out trash')
+        self.assertEqual(copy.status, 'pending')
+        self.assertTrue(copy.is_in_backlog)
+        self.assertEqual(copy.scheduled_date, date(2026, 9, 21))
+        self.assertEqual(copy.assigned_to, self.instance.assigned_to)
+        self.assertEqual(copy.events.filter(event_type='snoozed').count(), 1)
 
     def test_skip_sets_status_and_logs_event(self):
         response = self.client.post(f'/api/task-instances/{self.instance.id}/skip/')
@@ -375,15 +386,15 @@ class TaskInstanceActionTests(TestCase):
         self.assertEqual(self.instance.status, 'pending')
         self.assertIsNone(self.instance.completed_at)
 
-    def test_reopen_undoes_snooze_restoring_natural_day(self):
+    def test_reopen_undoes_snooze_on_the_frozen_original(self):
         self.client.post(f'/api/task-instances/{self.instance.id}/snooze/')
 
         response = self.client.post(f'/api/task-instances/{self.instance.id}/reopen/')
 
         self.assertEqual(response.status_code, 200)
         self.instance.refresh_from_db()
+        self.assertEqual(self.instance.status, 'pending')
         self.assertFalse(self.instance.is_in_backlog)
-        self.assertEqual(self.instance.scheduled_date, self.instance.occurrence_date)
         self.assertEqual(self.instance.scheduled_date, date(2026, 9, 14))
 
     def test_reassign_changes_assignee_and_logs_event(self):

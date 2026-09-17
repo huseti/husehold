@@ -165,15 +165,31 @@ class HouseholdTaskInstanceViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def snooze(self, request, pk=None):
-        """Push this occurrence into next week's backlog -- it keeps
-        existing (same row, same identity) rather than being recreated, and
-        occurrence_date is untouched so the recurrence engine won't
-        regenerate a duplicate at its original slot."""
+        """Freezes this occurrence in place -- status=snoozed, it stays on
+        its original day as a greyed-out marker -- and creates a separate,
+        fully-open copy in next week's backlog carrying the same title/
+        icon/assignee. The copy is detached from any recurring definition
+        (definition=None) so it can never collide with that definition's
+        own next natural occurrence; a 'snoozed' event on the copy lets the
+        frontend show it was carried over without treating it as resolved."""
         instance = self.get_object()
-        instance.scheduled_date = _next_week_monday(instance.scheduled_date)
-        instance.is_in_backlog = True
+        instance.status = 'snoozed'
         instance.save()
         HouseholdTaskEvent.objects.create(task_instance=instance, event_type='snoozed', actor=request.user)
+
+        title = instance.definition.title if instance.definition else instance.standalone_title
+        icon = instance.definition.icon if instance.definition else instance.standalone_icon
+        next_date = _next_week_monday(instance.scheduled_date)
+        copy = HouseholdTaskInstance.objects.create(
+            standalone_title=title,
+            standalone_icon=icon,
+            occurrence_date=next_date,
+            scheduled_date=next_date,
+            is_in_backlog=True,
+            assigned_to=instance.assigned_to,
+        )
+        HouseholdTaskEvent.objects.create(task_instance=copy, event_type='snoozed', actor=request.user)
+
         return Response(HouseholdTaskInstanceSerializer(instance).data)
 
     @action(detail=True, methods=['post'])

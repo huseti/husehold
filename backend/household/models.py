@@ -154,6 +154,7 @@ class HouseholdTaskInstance(models.Model):
         ('pending', 'Pending'),
         ('done', 'Done'),
         ('skipped', 'Skipped'),
+        ('snoozed', 'Snoozed'),
     ]
 
     # Nullable so a one-off task (created via the "+" button, not from any

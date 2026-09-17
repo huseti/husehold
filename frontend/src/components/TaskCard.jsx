@@ -17,9 +17,13 @@ export default function TaskCard({
 
   const isDone = instance.status === 'done';
   const isSkipped = instance.status === 'skipped';
-  const wasSnoozed = instance.events?.some((e) => e.event_type === 'snoozed');
-  const isSnoozedInBacklog = instance.is_in_backlog && wasSnoozed && instance.status === 'pending';
-  const isResolved = isDone || isSkipped || isSnoozedInBacklog;
+  const isSnoozedFrozen = instance.status === 'snoozed'; // the original -- stays on its day, greyed out
+  const isResolved = isDone || isSkipped || isSnoozedFrozen;
+
+  // The open copy snooze creates in next week's backlog -- a normal,
+  // fully-interactive item, just tagged with where it came from.
+  const isSnoozedCopy = instance.is_in_backlog && instance.status === 'pending'
+    && instance.events?.some((e) => e.event_type === 'snoozed');
 
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: instance.id,
@@ -33,7 +37,7 @@ export default function TaskCard({
 
   const needsAttention = attentionHighlight && !isResolved && !instance.assigned_to;
 
-  const stateLabel = isDone ? t('tasks.done') : isSkipped ? t('tasks.skipped') : isSnoozedInBacklog ? t('tasks.snoozed') : null;
+  const stateLabel = isDone ? t('tasks.done') : isSkipped ? t('tasks.skipped') : isSnoozedFrozen ? t('tasks.snoozed') : null;
 
   return (
     <div
@@ -48,6 +52,7 @@ export default function TaskCard({
         <TaskIcon icon={instance.icon} className={`flex-shrink-0 ${isResolved ? 'text-gray-400' : 'text-gray-500'}`} />
         <span className={isDone ? 'line-through' : ''}>{getDisplayTitle(instance, t)}</span>
         {stateLabel && <span className="text-gray-400 ml-1">({stateLabel})</span>}
+        {isSnoozedCopy && <span className="text-gray-400 font-normal ml-1">({t('tasks.snoozed')})</span>}
         {needsAttention && <span className="text-xs text-red-500 ml-1" title={t('weeklyPlanning.needsAttention')}>⚠</span>}
       </div>
       <div className={`text-gray-500 ${isResolved ? 'text-[11px]' : 'text-xs'}`}>
