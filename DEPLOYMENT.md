@@ -172,6 +172,36 @@ If a firewall (`ufw`) is active, make sure 443 is allowed from your LAN in addit
 sudo ufw allow from <your-lan-subnet> to any port 443 proto tcp
 ```
 
+### 7b. Optional: a real trusted certificate via free dynamic DNS
+
+The self-signed cert above works everywhere, but some browsers/devices refuse to let you click through an untrusted-certificate warning at all (e.g. some managed/locked-down phones, or stricter browser policies). If you hit that, you can get a real, publicly-trusted certificate for a free dynamic-DNS hostname (e.g. from [duckdns.org](https://www.duckdns.org)) — this does **not** require exposing the Pi to the public internet.
+
+The trick: DNS-01 challenges (used by Let's Encrypt) only require proving you control the DNS record, not that the hostname resolves to a real, publicly reachable address. So you register a free subdomain (e.g. `<your-name>.duckdns.org`), point its DNS record at your Pi's *private* LAN IP, and let clients on your home network/VPN resolve it there — nothing is port-forwarded, and the firewall rules above stay unchanged.
+
+Steps:
+1. Register a free subdomain with a dynamic DNS provider that has a simple update API (DuckDNS is a good option). Set its IP to your Pi's LAN IP.
+2. Install certbot: `sudo apt install -y certbot`
+3. Write an auth-hook script that updates the provider's TXT record for the DNS-01 challenge (check your provider's docs — most have a one-line `curl` call for this), e.g. `/usr/local/bin/dns-auth-hook.sh`, made executable and root-only (`chmod 700`) since it embeds your provider API token — **never commit this script or its token to the repo**.
+4. Request the cert:
+   ```bash
+   sudo certbot certonly --manual --preferred-challenges dns \
+     --manual-auth-hook /usr/local/bin/dns-auth-hook.sh \
+     -d <your-subdomain> --agree-tos -m <your-email> --no-eff-email
+   ```
+5. Add a second `server { listen 443 ssl; server_name <your-subdomain>; ... }` block to the nginx config above (same `location` blocks as the existing one), pointing `ssl_certificate`/`ssl_certificate_key` at `/etc/letsencrypt/live/<your-subdomain>/fullchain.pem` / `privkey.pem`. Keep the original self-signed `default_server` block as-is, so plain-IP access still works for other devices.
+6. Add `<your-subdomain>` to `ALLOWED_HOSTS` and `https://<your-subdomain>` to `CORS_ALLOWED_ORIGINS` in `.env` — otherwise the static frontend loads but API calls (login, admin) get rejected by Django's host-header check.
+7. Set up auto-renewal: certbot's systemd timer (`certbot.timer`, installed automatically) handles this unattended as long as the auth-hook is non-interactive. Certbot doesn't reload nginx after renewing on its own though — add a deploy-hook so the new cert actually gets picked up:
+   ```bash
+   sudo tee /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh > /dev/null << 'EOF'
+   #!/bin/bash
+   systemctl reload nginx
+   EOF
+   sudo chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
+   ```
+   Verify the whole flow with `sudo certbot renew --dry-run`.
+
+Note: the hostname itself becomes publicly visible (via Certificate Transparency logs) once a cert is issued for it — that's just the name string, not a security exposure, since nothing is port-forwarded and reachability is still governed entirely by your firewall rules.
+
 ### 8. Notifications setup
 
 Notifications (email + push) are sent by a Django management command, not a background daemon -- schedule it with cron:
