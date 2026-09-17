@@ -2,7 +2,9 @@
   "common": {
     "appName": "HUSEHOLD",
     "loading": "Loading...",
-    "logout": "Logout"
+    "logout": "Log off",
+    "editImage": "Edit Image",
+    "systemSettings": "System Settings"
   },
   "nav": {
     "dashboard": "Dashboard",

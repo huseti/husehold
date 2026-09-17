@@ -73,7 +73,13 @@ export const taskInstanceService = {
 
 export const memberService = {
   getAll: () => api.get('/members/'),
+  getMe: () => api.get('/members/me/'),
   update: (id, data) => api.patch(`/members/${id}/`, data),
+  uploadAvatar: (id, file) => {
+    const formData = new FormData();
+    formData.append('avatar', file);
+    return api.patch(`/members/${id}/`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+  },
 };
 
 export const householdSettingsService = {

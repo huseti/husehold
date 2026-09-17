@@ -13,6 +13,7 @@ class HouseholdMember(models.Model):
         max_length=7, default='#5b7a5e',
         help_text="Used to color this member's cards in the weekly household plan view.",
     )
+    avatar = models.ImageField(upload_to='avatars/', null=True, blank=True)
     joined_date = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

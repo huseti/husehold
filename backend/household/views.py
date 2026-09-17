@@ -60,6 +60,13 @@ class HouseholdMemberViewSet(viewsets.ModelViewSet):
     serializer_class = HouseholdMemberSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    @action(detail=False, methods=['get'])
+    def me(self, request):
+        member = HouseholdMember.objects.filter(user=request.user).first()
+        if member is None:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        return Response(HouseholdMemberSerializer(member, context={'request': request}).data)
+
 class ShoppingListItemViewSet(viewsets.ModelViewSet):
     queryset = ShoppingListItem.objects.all()
     serializer_class = ShoppingListItemSerializer

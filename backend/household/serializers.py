@@ -15,7 +15,7 @@ class HouseholdMemberSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = HouseholdMember
-        fields = ('id', 'user', 'role', 'color_hex', 'joined_date')
+        fields = ('id', 'user', 'role', 'color_hex', 'avatar', 'joined_date')
 
 class HouseholdSettingsSerializer(serializers.ModelSerializer):
     class Meta:

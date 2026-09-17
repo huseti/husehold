@@ -1,7 +1,8 @@
+import tempfile
 from datetime import date
 
 from django.contrib.auth.models import User
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 
 from .models import HouseholdMember, HouseholdSettings, HouseholdTaskDefinition, HouseholdTaskInstance, HouseholdTaskEvent
@@ -28,6 +29,46 @@ class HouseholdSettingsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['household_name'], 'The Smiths')
         self.assertEqual(HouseholdSettings.objects.count(), 1)
+
+
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+class HouseholdMemberAvatarTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='tim', password='pw')
+        self.member = HouseholdMember.objects.create(user=self.user, role='member')
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+
+    def _tiny_png(self):
+        import io
+        from PIL import Image
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        buffer = io.BytesIO()
+        Image.new('RGB', (2, 2), color='red').save(buffer, format='PNG')
+        return SimpleUploadedFile('avatar.png', buffer.getvalue(), content_type='image/png')
+
+    def test_upload_avatar_via_patch(self):
+        response = self.client.patch(f'/api/members/{self.member.id}/', {'avatar': self._tiny_png()}, format='multipart')
+
+        self.assertEqual(response.status_code, 200, response.data)
+        self.member.refresh_from_db()
+        self.assertTrue(self.member.avatar)
+
+    def test_me_endpoint_returns_own_member_record(self):
+        response = self.client.get('/api/members/me/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['id'], self.member.id)
+
+    def test_me_endpoint_404_without_member_record(self):
+        other = User.objects.create_user(username='ghost', password='pw')
+        client = APIClient()
+        client.force_authenticate(user=other)
+
+        response = client.get('/api/members/me/')
+
+        self.assertEqual(response.status_code, 404)
 
 
 class TaskGenerationTests(TestCase):

@@ -2,7 +2,9 @@
   "common": {
     "appName": "HUSEHOLD",
     "loading": "Wird geladen...",
-    "logout": "Abmelden"
+    "logout": "Abmelden",
+    "editImage": "Bild bearbeiten",
+    "systemSettings": "Systemeinstellungen"
   },
   "nav": {
     "dashboard": "Übersicht",
