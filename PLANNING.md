@@ -133,7 +133,7 @@ Dashed = deferred to the last build phase (recipe photo/Instagram import, Google
 
 *(Haushaltsplan)*
 
-All config-editable entities (marked `«audit»`) share one abstract base carrying `created_by`, `created_at`, `updated_by`, `updated_at`. Recurrence is a single RRULE string per `TaskDefinition`, parsed with `dateutil.rrule` — this is what buys "first Monday of the month" for free instead of hand-rolled interval/weekday fields.
+All config-editable entities (marked `«audit»`) share one abstract base carrying `created_by`, `created_at`, `updated_by`, `updated_at`. Recurrence is a single RRULE string per `HouseholdTaskDefinition`, parsed with `dateutil.rrule` — this is what buys "first Monday of the month" for free instead of hand-rolled interval/weekday fields.
 
 ```mermaid
 classDiagram
@@ -150,7 +150,7 @@ classDiagram
     +color_hex
   }
 
-  class TaskDefinition {
+  class HouseholdTaskDefinition {
     «audit»
     +title
     +description
@@ -159,14 +159,14 @@ classDiagram
     +system_action: none|weekly_household_planning|weekly_meal_planning
   }
 
-  class TaskInstance {
+  class HouseholdTaskInstance {
     +scheduled_date
     +assigned_to
     +status: pending|done|snoozed
     +completed_at
   }
 
-  class TaskEvent {
+  class HouseholdTaskEvent {
     +event_type: created|reassigned|snoozed|postponed|completed
     +actor
     +timestamp
@@ -192,11 +192,11 @@ classDiagram
     +end_datetime
   }
 
-  AuditableMixin <|-- TaskDefinition
+  AuditableMixin <|-- HouseholdTaskDefinition
   AuditableMixin <|-- GoogleCalendarLink
-  TaskDefinition "1" --> "*" TaskInstance : generates
-  TaskInstance "1" --> "*" TaskEvent
-  TaskInstance "*" --> "1" User : assigned_to
+  HouseholdTaskDefinition "1" --> "*" HouseholdTaskInstance : generates
+  HouseholdTaskInstance "1" --> "*" HouseholdTaskEvent
+  HouseholdTaskInstance "*" --> "1" User : assigned_to
   User "1" --> "*" Availability
   User "1" --> "0..1" GoogleCalendarLink
   GoogleCalendarLink "1" --> "*" CalendarEvent : synced one-way
@@ -204,9 +204,9 @@ classDiagram
 
 | Decision | Modeled as |
 |---|---|
-| Color-coded weekly view | `HouseholdMember.color_hex`, set in Config; the weekly drag-and-drop UI colors each `TaskInstance` card by `assigned_to`'s color. |
-| Outlook-style recurrence | `TaskDefinition.recurrence_rule` stores an RFC 5545 RRULE string (e.g. `FREQ=MONTHLY;BYDAY=1MO` for "first Monday of the month"); `dateutil.rrule.rrulestr()` expands it into dates. |
-| Calendar overlay | `CalendarEvent` is a read-only, periodically-synced mirror of the linked Google Calendar, rendered alongside `TaskInstance`/`CookingPlanEntry` in the same weekly view — informational only, never written back to Google. |
+| Color-coded weekly view | `HouseholdMember.color_hex`, set in Config; the weekly drag-and-drop UI colors each `HouseholdTaskInstance` card by `assigned_to`'s color. |
+| Outlook-style recurrence | `HouseholdTaskDefinition.recurrence_rule` stores an RFC 5545 RRULE string (e.g. `FREQ=MONTHLY;BYDAY=1MO` for "first Monday of the month"); `dateutil.rrule.rrulestr()` expands it into dates. |
+| Calendar overlay | `CalendarEvent` is a read-only, periodically-synced mirror of the linked Google Calendar, rendered alongside `HouseholdTaskInstance`/`CookingPlanEntry` in the same weekly view — informational only, never written back to Google. |
 | Audit trail on config | `AuditableMixin` inherited by every config-editable model across all domains (see 2b/2c/2e too). |
 
 ## 2b. Meal Planning & Recipes
@@ -394,11 +394,11 @@ Analytics is unchanged — still pure queries, no new tables — but the new aud
 
 | From | To | Nature |
 |---|---|---|
-| Cooking Plan | Household Plan | Weekly meal planning is a `TaskDefinition` occurrence. |
+| Cooking Plan | Household Plan | Weekly meal planning is a `HouseholdTaskDefinition` occurrence. |
 | Cooking Plan | Recipes | Needs structured ingredients + ratings + labels to power the four recommendation buckets. |
 | Cooking Plan | Shopping | Writes into the favorite (or chosen) `ShoppingList`. |
 | Household Plan | Google Calendar | One-way `CalendarEvent` overlay in the weekly view — read-only, no write-back. |
-| Notifications | Household Plan, Cooking Plan | Reads due `TaskInstance`/`CookingPlanEntry` rows; needs the scheduler + HTTPS decisions below regardless of trigger source. |
+| Notifications | Household Plan, Cooking Plan | Reads due `HouseholdTaskInstance`/`CookingPlanEntry` rows; needs the scheduler + HTTPS decisions below regardless of trigger source. |
 | Everything config-editable | AuditableMixin | Shared base, touches almost every model — worth introducing in Phase 1 rather than retrofitting later. |
 | Analytics | Everything | Read-only, build last. |
 | Packing Lists | (none) | Fully independent. |
@@ -407,7 +407,7 @@ Analytics is unchanged — still pure queries, no new tables — but the new aud
 
 See [PHASE1_PLAN.md](PHASE1_PLAN.md) for the concrete implementation plan for step 1.
 
-1. **Task engine core** — `AuditableMixin` introduced here (used everywhere after), `TaskDefinition` with RRULE recurrence, `TaskInstance`/`TaskEvent`, reassignment/snooze/postpone, color-coded drag-and-drop weekly view, `HouseholdMember.color_hex`.
+1. **Task engine core** — `AuditableMixin` introduced here (used everywhere after), `HouseholdTaskDefinition` with RRULE recurrence, `HouseholdTaskInstance`/`HouseholdTaskEvent`, reassignment/snooze/postpone, color-coded drag-and-drop weekly view, `HouseholdMember.color_hex`.
 2. **Recipes with structure** — `Ingredient`, `UnitOfMeasure`, `RecipeIngredient`, `RecipeRating`, `Label`, meal-time categories.
 3. **Shopping list depth** — multiple lists, favorite flag, visibility, quantities/units.
 4. **Cooking Plan proper** — weekly wizard, the four recommendation buckets, label search tab, send-to-shopping-list.
