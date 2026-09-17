@@ -180,10 +180,12 @@ Notifications (email + push) are sent by a Django management command, not a back
 crontab -e
 ```
 
-Add (runs every 15 minutes):
+Add (runs every 15 minutes -- adjust the path if your app user/directory differs):
 ```
 */15 * * * * cd /home/husehold/husehold/backend && venv/bin/python manage.py send_notifications >> /home/husehold/husehold/backend/notifications.log 2>&1
 ```
+
+(On this project's actual Pi, the app user is `admin`, not `husehold` -- see [CLAUDE.md](CLAUDE.md).)
 
 Required one-time setup in `backend/.env` on the Pi (see `.env.example`):
 - `EMAIL_HOST`/`EMAIL_PORT`/`EMAIL_HOST_USER`/`EMAIL_HOST_PASSWORD`/`EMAIL_USE_TLS`/`DEFAULT_FROM_EMAIL` -- SMTP credentials for sending email. Leaving `EMAIL_HOST` unset falls back to printing emails to the console instead of erroring.
