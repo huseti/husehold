@@ -1,7 +1,7 @@
 ﻿from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
-    UserViewSet, HouseholdMemberViewSet, ShoppingListItemViewSet,
+    UserViewSet, HouseholdMemberViewSet, HouseholdSettingsView, ShoppingListItemViewSet,
     RecipeViewSet, CookingPlanViewSet,
     HouseholdTaskDefinitionViewSet, HouseholdTaskInstanceViewSet,
 )
@@ -16,5 +16,6 @@ router.register(r'task-definitions', HouseholdTaskDefinitionViewSet, basename='t
 router.register(r'task-instances', HouseholdTaskInstanceViewSet, basename='task-instance')
 
 urlpatterns = [
+    path('household-settings/', HouseholdSettingsView.as_view(), name='household-settings'),
     path('', include(router.urls)),
 ]

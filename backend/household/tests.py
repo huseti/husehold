@@ -4,8 +4,30 @@ from django.contrib.auth.models import User
 from django.test import TestCase
 from rest_framework.test import APIClient
 
-from .models import HouseholdMember, HouseholdTaskDefinition, HouseholdTaskInstance, HouseholdTaskEvent
+from .models import HouseholdMember, HouseholdSettings, HouseholdTaskDefinition, HouseholdTaskInstance, HouseholdTaskEvent
 from .services.task_generation import generate_instances_for_range
+
+
+class HouseholdSettingsTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='tim', password='pw')
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+
+    def test_get_creates_default_on_first_access(self):
+        response = self.client.get('/api/household-settings/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['household_name'], 'Our Household')
+        self.assertEqual(HouseholdSettings.objects.count(), 1)
+
+    def test_patch_updates_name_and_reuses_singleton(self):
+        self.client.get('/api/household-settings/')
+        response = self.client.patch('/api/household-settings/', {'household_name': 'The Smiths'})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['household_name'], 'The Smiths')
+        self.assertEqual(HouseholdSettings.objects.count(), 1)
 
 
 class TaskGenerationTests(TestCase):
@@ -180,6 +202,22 @@ class TaskInstanceListEndpointTests(TestCase):
         results = response.data.get('results', response.data)
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0]['scheduled_date'], '2026-09-14')
+
+    def test_instance_exposes_definition_system_action(self):
+        """The frontend needs this to override a system task's displayed
+        title/icon with a translated label instead of the raw stored text."""
+        HouseholdTaskDefinition.objects.create(
+            title='Weekly Household Planning',
+            starts_on=date(2026, 9, 13),
+            recurrence_rule='FREQ=WEEKLY;BYDAY=SU',
+            system_action='weekly_household_planning',
+        )
+
+        response = self.client.get('/api/task-instances/', {'start': '2026-09-13', 'end': '2026-09-20'})
+
+        results = response.data.get('results', response.data)
+        planning_row = next(r for r in results if r['system_action'] == 'weekly_household_planning')
+        self.assertIsNotNone(planning_row)
 
 
 class TaskInstanceActionTests(TestCase):

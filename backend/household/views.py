@@ -5,13 +5,14 @@ from django.utils.dateparse import parse_date
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from django.contrib.auth.models import User
 from .models import (
-    HouseholdMember, ShoppingListItem, Recipe, CookingPlan,
+    HouseholdMember, HouseholdSettings, ShoppingListItem, Recipe, CookingPlan,
     HouseholdTaskDefinition, HouseholdTaskInstance, HouseholdTaskEvent,
 )
 from .serializers import (
-    UserSerializer, HouseholdMemberSerializer, ShoppingListItemSerializer,
+    UserSerializer, HouseholdMemberSerializer, HouseholdSettingsSerializer, ShoppingListItemSerializer,
     RecipeSerializer, CookingPlanSerializer,
     HouseholdTaskDefinitionSerializer, HouseholdTaskInstanceSerializer,
 )
@@ -27,6 +28,22 @@ def _next_week_monday(from_date):
     push an instance into next week's backlog regardless of which day of
     the current week it's snoozed from."""
     return _monday_of_week(from_date) + timedelta(days=7)
+
+class HouseholdSettingsView(APIView):
+    """Singleton (pk=1) -- created on first access. No list/create/delete;
+    just get the current settings or patch them."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        settings_obj, _ = HouseholdSettings.objects.get_or_create(pk=1)
+        return Response(HouseholdSettingsSerializer(settings_obj).data)
+
+    def patch(self, request):
+        settings_obj, _ = HouseholdSettings.objects.get_or_create(pk=1)
+        serializer = HouseholdSettingsSerializer(settings_obj, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(updated_by=request.user)
+        return Response(serializer.data)
 
 class UserViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = User.objects.all()

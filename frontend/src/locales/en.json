@@ -29,10 +29,24 @@
     "tasksPending_other": "{{count}} tasks pending",
     "viewAll": "View all →",
     "weekOverview": "This Week",
+    "welcome": "Welcome, {{name}}! Here's what's coming up in {{household}}.",
     "myOpenTasks": "My open household tasks",
     "noOpenTasks": "Nothing open — nice.",
+    "overdue": "Overdue",
+    "dueToday": "Today",
     "mealsComingSoon": "Meals row — coming with the Cooking Plan.",
-    "calendarComingSoon": "Calendar entries row — coming with Google Calendar sync."
+    "calendarComingSoon": "Calendar entries row — coming with Google Calendar sync.",
+    "overview": {
+      "title": "Overview",
+      "shopping_one": "{{count}} article to shop",
+      "shopping_other": "{{count}} articles to shop",
+      "recipes_one": "{{count}} recipe maintained",
+      "recipes_other": "{{count}} recipes maintained",
+      "meals_one": "{{count}} planned meal",
+      "meals_other": "{{count}} planned meals",
+      "overdueTasks_one": "{{count}} overdue task",
+      "overdueTasks_other": "{{count}} overdue tasks"
+    }
   },
   "shoppingList": {
     "title": "Shopping List",
@@ -159,13 +173,19 @@
     "notSetUp": "Not set up yet",
     "finish": "Finish Planning",
     "finishConfirm_one": "{{count}} task for next week still has no day or no person assigned. Finish planning anyway?",
-    "finishConfirm_other": "{{count}} tasks for next week still have no day or no person assigned. Finish planning anyway?"
+    "finishConfirm_other": "{{count}} tasks for next week still have no day or no person assigned. Finish planning anyway?",
+    "onlyThisOrNextWeek": "Weekly planning is only available for the current or next week — use the arrows to get there first.",
+    "carriedOver": "Not yet finalized (carried over)",
+    "newThisWeek": "New this week",
+    "needsAttention": "Needs attention — no one assigned"
   },
   "settings": {
     "title": "Settings",
     "comingSoon": "More settings coming soon...",
     "language": "Language",
     "german": "Deutsch",
-    "english": "English"
+    "english": "English",
+    "householdName": "Household name",
+    "saved": "Saved"
   }
 }

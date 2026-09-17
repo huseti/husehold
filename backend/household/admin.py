@@ -1,6 +1,6 @@
 ﻿from django.contrib import admin
 from .models import (
-    HouseholdMember, ShoppingListItem, Recipe, CookingPlan,
+    HouseholdMember, HouseholdSettings, ShoppingListItem, Recipe, CookingPlan,
     HouseholdTaskDefinition, HouseholdTaskInstance, HouseholdTaskEvent,
 )
 
@@ -8,6 +8,10 @@ from .models import (
 class HouseholdMemberAdmin(admin.ModelAdmin):
     list_display = ('user', 'role', 'color_hex', 'joined_date')
     list_filter = ('role', 'joined_date')
+
+@admin.register(HouseholdSettings)
+class HouseholdSettingsAdmin(admin.ModelAdmin):
+    list_display = ('household_name', 'updated_by', 'updated_at')
 
 @admin.register(ShoppingListItem)
 class ShoppingListItemAdmin(admin.ModelAdmin):

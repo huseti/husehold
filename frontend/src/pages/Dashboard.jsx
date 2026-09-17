@@ -1,32 +1,49 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { shoppingService, taskInstanceService, authService } from '../services/api';
+import {
+  shoppingService, recipeService, cookingPlanService, taskInstanceService, authService, householdSettingsService,
+} from '../services/api';
 import Navbar from '../components/Navbar';
 import WeekPreview from '../components/WeekPreview';
+import OverviewPanel from '../components/OverviewPanel';
 import TaskIcon from '../components/icons/taskIcons';
+import { getDisplayTitle } from '../utils/taskDisplay';
 import { getWeekStart, toISODate, addDays } from '../utils/weekDates';
+
+const OVERDUE_LOOKBACK_DAYS = 30;
 
 export default function Dashboard() {
   const { t } = useTranslation();
   const [shopping, setShopping] = useState([]);
+  const [recipeCount, setRecipeCount] = useState(0);
+  const [mealCount, setMealCount] = useState(0);
   const [tasks, setTasks] = useState([]);
-  const [currentUserId, setCurrentUserId] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [householdName, setHouseholdName] = useState('');
   const [loading, setLoading] = useState(true);
 
   const weekStart = getWeekStart(new Date());
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  const todayISO = toISODate(new Date());
 
   const loadData = useCallback(async () => {
     try {
-      const [shoppingRes, tasksRes, meRes] = await Promise.all([
+      const fetchStart = addDays(weekStart, -OVERDUE_LOOKBACK_DAYS);
+      const [shoppingRes, recipesRes, mealsRes, tasksRes, meRes, settingsRes] = await Promise.all([
         shoppingService.getAll(),
-        taskInstanceService.getRange(toISODate(weekStart), toISODate(weekDays[6])),
+        recipeService.getAll(),
+        cookingPlanService.getAll(),
+        taskInstanceService.getRange(toISODate(fetchStart), toISODate(weekDays[6])),
         authService.getMe(),
+        householdSettingsService.get(),
       ]);
       setShopping(shoppingRes.data.results || []);
+      setRecipeCount(recipesRes.data.count ?? (recipesRes.data.results || recipesRes.data || []).length);
+      setMealCount(mealsRes.data.count ?? (mealsRes.data.results || mealsRes.data || []).length);
       setTasks(tasksRes.data.results || tasksRes.data || []);
-      setCurrentUserId(meRes.data.id);
+      setCurrentUser(meRes.data);
+      setHouseholdName(settingsRes.data.household_name);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -43,6 +60,11 @@ export default function Dashboard() {
     loadData();
   };
 
+  const handleSkip = async (id) => {
+    await taskInstanceService.skip(id);
+    loadData();
+  };
+
   const handleSnooze = async (id) => {
     await taskInstanceService.snooze(id);
     loadData();
@@ -53,39 +75,61 @@ export default function Dashboard() {
   }
 
   const incompleteShopping = shopping.filter(item => !item.is_completed);
+
   const myOpenTasks = tasks
-    .filter((task) => task.assigned_to === currentUserId && task.status === 'pending')
+    .filter((task) => task.assigned_to === currentUser?.id && task.status === 'pending' && !task.is_in_backlog)
     .sort((a, b) => a.scheduled_date.localeCompare(b.scheduled_date));
+  const overdueTasks = myOpenTasks.filter((task) => task.scheduled_date < todayISO);
+  const todayTasks = myOpenTasks.filter((task) => task.scheduled_date === todayISO);
+  const thisWeekTasks = myOpenTasks.filter((task) => task.scheduled_date > todayISO);
+
+  const householdOverdueCount = tasks.filter(
+    (task) => task.status === 'pending' && !task.is_in_backlog && task.scheduled_date < todayISO,
+  ).length;
+
+  const renderTaskRow = (task, { overdue = false, today = false } = {}) => (
+    <li
+      key={task.id}
+      className={`flex items-center gap-2 border-l-4 pl-2 py-1 ${overdue ? 'bg-red-50' : ''}`}
+      style={{ borderColor: task.assigned_to_color || '#9ca3af' }}
+    >
+      <TaskIcon icon={task.icon} className="text-gray-500 flex-shrink-0" />
+      <span className={`flex-1 text-sm ${overdue ? 'text-red-700 font-medium' : 'text-gray-700'}`}>
+        {getDisplayTitle(task, t)}
+        {overdue && <span className="ml-2 text-xs uppercase tracking-wide">{t('dashboard.overdue')}</span>}
+        {today && <span className="ml-2 text-xs text-blue-600 uppercase tracking-wide">{t('dashboard.dueToday')}</span>}
+      </span>
+      <button
+        onClick={() => handleComplete(task.id)}
+        className="text-xs px-2 py-0.5 rounded bg-green-100 text-green-700 hover:bg-green-200"
+      >
+        {t('tasks.complete')}
+      </button>
+      <button
+        onClick={() => handleSkip(task.id)}
+        className="text-xs px-2 py-0.5 rounded bg-orange-100 text-orange-700 hover:bg-orange-200"
+      >
+        {t('tasks.skip')}
+      </button>
+      <button
+        onClick={() => handleSnooze(task.id)}
+        className="text-xs px-2 py-0.5 rounded bg-yellow-100 text-yellow-700 hover:bg-yellow-200"
+      >
+        {t('tasks.snooze')}
+      </button>
+    </li>
+  );
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
 
       <main className="max-w-7xl mx-auto px-4 py-8 space-y-8">
-        <WeekPreview weekDays={weekDays} instances={tasks} />
+        <h1 className="text-2xl font-bold text-gray-800">
+          {t('dashboard.welcome', { name: currentUser?.first_name || currentUser?.username, household: householdName })}
+        </h1>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Shopping Summary */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-semibold mb-4">{t('dashboard.shoppingListTitle')}</h2>
-            <p className="text-gray-600 mb-4">
-              {t('dashboard.itemsToBuy', { count: incompleteShopping.length })}
-            </p>
-            <ul className="space-y-2">
-              {incompleteShopping.slice(0, 5).map(item => (
-                <li key={item.id} className="text-gray-700">
-                  • {item.title}
-                </li>
-              ))}
-            </ul>
-            <Link
-              to="/shopping"
-              className="mt-4 inline-block text-blue-500 hover:text-blue-700 font-medium"
-            >
-              {t('dashboard.viewAll')}
-            </Link>
-          </div>
-
           {/* My Open Household Tasks */}
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-xl font-semibold mb-4">{t('dashboard.myOpenTasks')}</h2>
@@ -93,28 +137,9 @@ export default function Dashboard() {
               <p className="text-gray-400 text-sm">{t('dashboard.noOpenTasks')}</p>
             ) : (
               <ul className="space-y-2">
-                {myOpenTasks.map((task) => (
-                  <li
-                    key={task.id}
-                    className="flex items-center gap-2 border-l-4 pl-2 py-1"
-                    style={{ borderColor: task.assigned_to_color || '#9ca3af' }}
-                  >
-                    <TaskIcon icon={task.icon} className="text-gray-500 flex-shrink-0" />
-                    <span className="flex-1 text-gray-700 text-sm">{task.title}</span>
-                    <button
-                      onClick={() => handleComplete(task.id)}
-                      className="text-xs px-2 py-0.5 rounded bg-green-100 text-green-700 hover:bg-green-200"
-                    >
-                      {t('tasks.complete')}
-                    </button>
-                    <button
-                      onClick={() => handleSnooze(task.id)}
-                      className="text-xs px-2 py-0.5 rounded bg-yellow-100 text-yellow-700 hover:bg-yellow-200"
-                    >
-                      {t('tasks.snooze')}
-                    </button>
-                  </li>
-                ))}
+                {overdueTasks.map((task) => renderTaskRow(task, { overdue: true }))}
+                {todayTasks.map((task) => renderTaskRow(task, { today: true }))}
+                {thisWeekTasks.map((task) => renderTaskRow(task))}
               </ul>
             )}
             <Link
@@ -124,7 +149,17 @@ export default function Dashboard() {
               {t('dashboard.viewAll')}
             </Link>
           </div>
+
+          {/* Overview KPIs */}
+          <OverviewPanel
+            shoppingCount={incompleteShopping.length}
+            recipeCount={recipeCount}
+            mealCount={mealCount}
+            overdueCount={householdOverdueCount}
+          />
         </div>
+
+        <WeekPreview weekDays={weekDays} instances={tasks} />
       </main>
     </div>
   );

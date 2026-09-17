@@ -1,7 +1,7 @@
 ﻿from rest_framework import serializers
 from django.contrib.auth.models import User
 from .models import (
-    HouseholdMember, ShoppingListItem, Recipe, CookingPlan,
+    HouseholdMember, HouseholdSettings, ShoppingListItem, Recipe, CookingPlan,
     HouseholdTaskDefinition, HouseholdTaskInstance, HouseholdTaskEvent,
 )
 
@@ -16,6 +16,12 @@ class HouseholdMemberSerializer(serializers.ModelSerializer):
     class Meta:
         model = HouseholdMember
         fields = ('id', 'user', 'role', 'color_hex', 'joined_date')
+
+class HouseholdSettingsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HouseholdSettings
+        fields = ('id', 'household_name', 'updated_at')
+        read_only_fields = ('updated_at',)
 
 class ShoppingListItemSerializer(serializers.ModelSerializer):
     created_by_username = serializers.CharField(source='created_by.username', read_only=True)
@@ -77,6 +83,7 @@ class HouseholdTaskInstanceSerializer(serializers.ModelSerializer):
     icon = serializers.SerializerMethodField()
     definition_title = serializers.CharField(source='definition.title', read_only=True, default=None)
     definition_icon = serializers.CharField(source='definition.icon', read_only=True, default=None)
+    system_action = serializers.CharField(source='definition.system_action', read_only=True, default='none')
     assigned_to_username = serializers.CharField(source='assigned_to.username', read_only=True, default=None)
     assigned_to_color = serializers.CharField(source='assigned_to.householdmember.color_hex', read_only=True, default=None)
     events = HouseholdTaskEventSerializer(many=True, read_only=True)
@@ -84,7 +91,7 @@ class HouseholdTaskInstanceSerializer(serializers.ModelSerializer):
     class Meta:
         model = HouseholdTaskInstance
         fields = (
-            'id', 'definition', 'definition_title', 'definition_icon',
+            'id', 'definition', 'definition_title', 'definition_icon', 'system_action',
             'standalone_title', 'standalone_icon', 'title', 'icon',
             'scheduled_date', 'occurrence_date', 'is_in_backlog', 'assigned_to',
             'assigned_to_username', 'assigned_to_color', 'status', 'completed_at',

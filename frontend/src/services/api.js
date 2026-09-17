@@ -76,6 +76,11 @@ export const memberService = {
   update: (id, data) => api.patch(`/members/${id}/`, data),
 };
 
+export const householdSettingsService = {
+  get: () => api.get('/household-settings/'),
+  update: (data) => api.patch('/household-settings/', data),
+};
+
 export const cookingPlanService = {
   getAll: () => api.get('/cooking-plans/'),
   create: (data) => api.post('/cooking-plans/', data),

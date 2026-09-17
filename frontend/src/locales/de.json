@@ -29,10 +29,24 @@
     "tasksPending_other": "{{count}} offene Aufgaben",
     "viewAll": "Alle anzeigen →",
     "weekOverview": "Diese Woche",
+    "welcome": "Willkommen, {{name}}! Das steht in {{household}} an.",
     "myOpenTasks": "Meine offenen Haushaltsaufgaben",
     "noOpenTasks": "Nichts offen — sehr gut.",
+    "overdue": "Überfällig",
+    "dueToday": "Heute",
     "mealsComingSoon": "Mahlzeiten-Zeile — kommt mit dem Kochplan.",
-    "calendarComingSoon": "Kalendereinträge-Zeile — kommt mit der Google-Kalender-Synchronisierung."
+    "calendarComingSoon": "Kalendereinträge-Zeile — kommt mit der Google-Kalender-Synchronisierung.",
+    "overview": {
+      "title": "Übersicht",
+      "shopping_one": "{{count}} Artikel zu kaufen",
+      "shopping_other": "{{count}} Artikel zu kaufen",
+      "recipes_one": "{{count}} Rezept gepflegt",
+      "recipes_other": "{{count}} Rezepte gepflegt",
+      "meals_one": "{{count}} geplante Mahlzeit",
+      "meals_other": "{{count}} geplante Mahlzeiten",
+      "overdueTasks_one": "{{count}} überfällige Aufgabe",
+      "overdueTasks_other": "{{count}} überfällige Aufgaben"
+    }
   },
   "shoppingList": {
     "title": "Einkaufsliste",
@@ -59,11 +73,11 @@
     "complete": "Erledigt",
     "skip": "Überspringen",
     "skipped": "übersprungen",
-    "snooze": "Verschieben",
-    "backlog": "Rückstand — noch kein Tag",
+    "snooze": "Snooze",
+    "backlog": "Backlog — noch kein Tag",
     "backlogEmpty": "Nichts hier — ziehe eine Aufgabe hierher oder füge eine ohne Tag hinzu.",
-    "backlogCount_one": "{{count}} Aufgabe im Rückstand",
-    "backlogCount_other": "{{count}} Aufgaben im Rückstand",
+    "backlogCount_one": "{{count}} Aufgabe im Backlog",
+    "backlogCount_other": "{{count}} Aufgaben im Backlog",
     "addSingleTask": "Einzelne Aufgabe hinzufügen",
     "formDay": "Tag",
     "manageRecurringTasks": "Wiederkehrende Aufgaben verwalten",
@@ -132,7 +146,7 @@
         "su": "So"
       },
       "hasPreferredDay": "Hat einen bevorzugten Wochentag",
-      "noPreferredDayHint": "Kein bevorzugter Tag — landet jedes Mal im Rückstand und kann auf den passenden Tag der Woche gezogen werden.",
+      "noPreferredDayHint": "Kein bevorzugter Tag — landet jedes Mal im Backlog und kann auf den passenden Tag der Woche gezogen werden.",
       "summary": {
         "daily_one": "Jeden Tag",
         "daily_other": "Alle {{count}} Tage",
@@ -159,13 +173,19 @@
     "notSetUp": "Noch nicht eingerichtet",
     "finish": "Planung abschließen",
     "finishConfirm_one": "{{count}} Aufgabe für nächste Woche hat noch keinen Tag oder keine Person zugewiesen. Trotzdem abschließen?",
-    "finishConfirm_other": "{{count}} Aufgaben für nächste Woche haben noch keinen Tag oder keine Person zugewiesen. Trotzdem abschließen?"
+    "finishConfirm_other": "{{count}} Aufgaben für nächste Woche haben noch keinen Tag oder keine Person zugewiesen. Trotzdem abschließen?",
+    "onlyThisOrNextWeek": "Die Wochenplanung ist nur für die aktuelle oder die nächste Woche verfügbar — navigiere mit den Pfeilen dorthin.",
+    "carriedOver": "Noch nicht abgeschlossen (übertragen)",
+    "newThisWeek": "Neu diese Woche",
+    "needsAttention": "Braucht Aufmerksamkeit — niemand zugewiesen"
   },
   "settings": {
     "title": "Einstellungen",
     "comingSoon": "Weitere Einstellungen folgen...",
     "language": "Sprache",
     "german": "Deutsch",
-    "english": "English"
+    "english": "English",
+    "householdName": "Name des Haushalts",
+    "saved": "Gespeichert"
   }
 }

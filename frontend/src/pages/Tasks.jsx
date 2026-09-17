@@ -17,19 +17,27 @@ export default function Tasks() {
   const [loading, setLoading] = useState(true);
   const [showAddSingle, setShowAddSingle] = useState(false);
 
+  const thisWeekStart = getWeekStart(new Date());
+  const nextWeekStart = addDays(thisWeekStart, 7);
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   const weekEnd = weekDays[6];
+  const canPlanThisWeek = toISODate(weekStart) === toISODate(thisWeekStart) || toISODate(weekStart) === toISODate(nextWeekStart);
 
   const loadWeek = useCallback(async () => {
     try {
-      const response = await taskInstanceService.getRange(toISODate(weekStart), toISODate(weekEnd));
+      // Planning mode fetches from the start of the *actual* current week
+      // (not just the week being planned) so carried-over backlog items
+      // from an earlier, still-open week show up as their own bucket.
+      const fetchStart = mode === 'planning' ? thisWeekStart : weekStart;
+      const response = await taskInstanceService.getRange(toISODate(fetchStart), toISODate(weekEnd));
       setInstances(response.data.results || response.data || []);
     } catch (error) {
       console.error('Error loading task instances:', error);
     } finally {
       setLoading(false);
     }
-  }, [weekStart]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weekStart, mode]);
 
   const loadMembers = async () => {
     try {
@@ -66,9 +74,7 @@ export default function Tasks() {
   };
 
   const handleStartPlanning = () => {
-    // Plans whichever week is currently open on the calendar -- the "next
-    // calendar week by default" behavior belongs only to the automatic
-    // weekly planning reminder (WeeklyPlanningConfig), not this button.
+    if (!canPlanThisWeek) return;
     setMode('planning');
   };
 
@@ -90,7 +96,7 @@ export default function Tasks() {
     const instance = instances.find((i) => i.id === active.id);
     if (!instance) return;
     try {
-      if (over.id === 'backlog') {
+      if (over.id === 'backlog' || over.id === 'backlog-a' || over.id === 'backlog-b') {
         if (!instance.is_in_backlog) await taskInstanceService.moveToBacklog(instance.id);
       } else if (instance.scheduled_date !== over.id || instance.is_in_backlog) {
         await taskInstanceService.postpone(instance.id, over.id);
@@ -149,7 +155,12 @@ export default function Tasks() {
               >
                 +
               </button>
-              <button onClick={handleStartPlanning} className="px-3 py-1 rounded bg-green-600 text-white hover:bg-green-700">
+              <button
+                onClick={handleStartPlanning}
+                disabled={!canPlanThisWeek}
+                title={canPlanThisWeek ? undefined : t('weeklyPlanning.onlyThisOrNextWeek')}
+                className={`px-3 py-1 rounded text-white ${canPlanThisWeek ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-300 cursor-not-allowed'}`}
+              >
                 {t('weeklyPlanning.startNow')}
               </button>
               <button onClick={() => setMode('config')} className="px-3 py-1 rounded bg-blue-500 text-white hover:bg-blue-600">
@@ -215,6 +226,7 @@ export default function Tasks() {
               onSnooze={handleSnooze}
               onReassign={handleReassign}
               onDragEnd={handleDragEnd}
+              planningWeekStart={mode === 'planning' ? weekStart : undefined}
             />
           </>
         )}

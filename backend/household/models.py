@@ -18,6 +18,14 @@ class HouseholdMember(models.Model):
     def __str__(self):
         return f"{self.user.username} ({self.role})"
 
+class HouseholdSettings(AuditableMixin):
+    """Singleton (always pk=1) -- household-wide settings like its display
+    name, editable from Settings by any member."""
+    household_name = models.CharField(max_length=100, default='Our Household')
+
+    def __str__(self):
+        return self.household_name
+
 class ShoppingListItem(models.Model):
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)

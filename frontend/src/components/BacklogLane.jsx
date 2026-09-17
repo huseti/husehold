@@ -4,17 +4,21 @@ import TaskCard from './TaskCard';
 
 // A droppable "no day yet" lane, rendered above the weekday grid. Tasks
 // without a preferred weekday (recurring or one-off) land here until
-// dragged onto an actual day.
-export default function BacklogLane({ instances, members, onComplete, onSkip, onSnooze, onReassign }) {
+// dragged onto an actual day. droppableId/title let planning mode render
+// two separate buckets (carried-over vs. new) instead of one generic lane.
+export default function BacklogLane({
+  instances, members, onComplete, onSkip, onSnooze, onReassign,
+  droppableId = 'backlog', title, attentionHighlight = false,
+}) {
   const { t } = useTranslation();
-  const { setNodeRef, isOver } = useDroppable({ id: 'backlog' });
+  const { setNodeRef, isOver } = useDroppable({ id: droppableId });
 
   return (
     <div
       ref={setNodeRef}
       className={`rounded-lg border p-3 mb-3 ${isOver ? 'bg-blue-50 border-blue-300' : 'bg-amber-50 border-amber-200'}`}
     >
-      <div className="text-sm font-semibold mb-2 text-amber-800">{t('tasks.backlog')}</div>
+      <div className="text-sm font-semibold mb-2 text-amber-800">{title || t('tasks.backlog')}</div>
       {instances.length === 0 ? (
         <p className="text-xs text-amber-700/70">{t('tasks.backlogEmpty')}</p>
       ) : (
@@ -28,6 +32,7 @@ export default function BacklogLane({ instances, members, onComplete, onSkip, on
               onSkip={onSkip}
               onSnooze={onSnooze}
               onReassign={onReassign}
+              attentionHighlight={attentionHighlight}
             />
           ))}
         </div>

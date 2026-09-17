@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import TaskIcon from './icons/taskIcons';
 import { toISODate } from '../utils/weekDates';
+import { getDisplayTitle } from '../utils/taskDisplay';
 
 // Read-only weekly overview for the Dashboard -- household tasks now, with
 // a row reserved for meals and one for synced calendar entries once those
@@ -31,7 +32,7 @@ export default function WeekPreview({ weekDays, instances }) {
                   >
                     <TaskIcon icon={instance.icon} className="text-gray-400 flex-shrink-0" />
                     <span className={instance.status === 'done' ? 'line-through text-gray-400' : ''}>
-                      {instance.title}
+                      {getDisplayTitle(instance, t)}
                     </span>
                   </div>
                 ))}
