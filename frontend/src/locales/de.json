@@ -9,7 +9,7 @@
     "shopping": "Einkaufen",
     "recipes": "Rezepte",
     "cookingPlan": "Kochplan",
-    "tasks": "Aufgaben",
+    "tasks": "Haushaltsplan",
     "settings": "Einstellungen"
   },
   "login": {
@@ -47,7 +47,19 @@
     "comingSoon": "Demnächst verfügbar..."
   },
   "tasks": {
-    "title": "Aufgaben"
+    "title": "Haushaltsplan",
+    "noTasks": "Keine Aufgaben",
+    "unassigned": "Nicht zugewiesen",
+    "complete": "Erledigt",
+    "snooze": "Überspringen",
+    "manageRecurringTasks": "Wiederkehrende Aufgaben verwalten",
+    "memberColors": "Mitgliederfarben",
+    "recurringTasks": "Wiederkehrende Aufgaben",
+    "formTitle": "Titel",
+    "formStartsOn": "Beginnt am",
+    "formRecurrenceRule": "Wiederholungsregel (RRULE)",
+    "formDefaultAssignee": "Standardzuweisung",
+    "addRecurringTask": "Hinzufügen"
   },
   "settings": {
     "title": "Einstellungen",

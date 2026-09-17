@@ -10,6 +10,7 @@
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx"
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.1.0",
     "axios": "^1.4.0",
     "i18next": "^26.4.2",
     "react": "^18.2.0",

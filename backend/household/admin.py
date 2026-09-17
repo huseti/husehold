@@ -1,9 +1,12 @@
 ﻿from django.contrib import admin
-from .models import HouseholdMember, ShoppingListItem, Recipe, CookingPlan, HouseholdTask
+from .models import (
+    HouseholdMember, ShoppingListItem, Recipe, CookingPlan,
+    HouseholdTaskDefinition, HouseholdTaskInstance, HouseholdTaskEvent,
+)
 
 @admin.register(HouseholdMember)
 class HouseholdMemberAdmin(admin.ModelAdmin):
-    list_display = ('user', 'role', 'joined_date')
+    list_display = ('user', 'role', 'color_hex', 'joined_date')
     list_filter = ('role', 'joined_date')
 
 @admin.register(ShoppingListItem)
@@ -23,8 +26,20 @@ class CookingPlanAdmin(admin.ModelAdmin):
     list_display = ('date', 'meal_type', 'recipe', 'created_by')
     list_filter = ('date', 'meal_type')
 
-@admin.register(HouseholdTask)
-class HouseholdTaskAdmin(admin.ModelAdmin):
-    list_display = ('title', 'priority', 'is_completed', 'assigned_to', 'due_date')
-    list_filter = ('priority', 'is_completed', 'due_date')
+class HouseholdTaskEventInline(admin.TabularInline):
+    model = HouseholdTaskEvent
+    extra = 0
+    readonly_fields = ('event_type', 'actor', 'timestamp', 'note')
+    can_delete = False
+
+@admin.register(HouseholdTaskDefinition)
+class HouseholdTaskDefinitionAdmin(admin.ModelAdmin):
+    list_display = ('title', 'recurrence_rule', 'default_assignee', 'system_action', 'updated_by', 'updated_at')
+    list_filter = ('system_action',)
     search_fields = ('title',)
+
+@admin.register(HouseholdTaskInstance)
+class HouseholdTaskInstanceAdmin(admin.ModelAdmin):
+    list_display = ('definition', 'scheduled_date', 'assigned_to', 'status', 'completed_at')
+    list_filter = ('status', 'scheduled_date')
+    inlines = [HouseholdTaskEventInline]

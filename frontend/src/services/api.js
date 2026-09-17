@@ -52,12 +52,24 @@ export const recipeService = {
   delete: (id) => api.delete(`/recipes/${id}/`),
 };
 
-export const taskService = {
-  getAll: () => api.get('/tasks/'),
-  create: (data) => api.post('/tasks/', data),
-  update: (id, data) => api.patch(`/tasks/${id}/`, data),
-  delete: (id) => api.delete(`/tasks/${id}/`),
-  toggle: (id) => api.post('/tasks/toggle_completed/', { id }),
+export const taskDefinitionService = {
+  getAll: () => api.get('/task-definitions/'),
+  create: (data) => api.post('/task-definitions/', data),
+  update: (id, data) => api.patch(`/task-definitions/${id}/`, data),
+  delete: (id) => api.delete(`/task-definitions/${id}/`),
+};
+
+export const taskInstanceService = {
+  getRange: (start, end) => api.get('/task-instances/', { params: { start, end } }),
+  reassign: (id, assignedTo) => api.post(`/task-instances/${id}/reassign/`, { assigned_to: assignedTo }),
+  snooze: (id) => api.post(`/task-instances/${id}/snooze/`),
+  postpone: (id, scheduledDate) => api.post(`/task-instances/${id}/postpone/`, { scheduled_date: scheduledDate }),
+  complete: (id) => api.post(`/task-instances/${id}/complete/`),
+};
+
+export const memberService = {
+  getAll: () => api.get('/members/'),
+  update: (id, data) => api.patch(`/members/${id}/`, data),
 };
 
 export const cookingPlanService = {

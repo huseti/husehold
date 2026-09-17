@@ -9,7 +9,7 @@
     "shopping": "Shopping",
     "recipes": "Recipes",
     "cookingPlan": "Cooking Plan",
-    "tasks": "Tasks",
+    "tasks": "Household Plan",
     "settings": "Settings"
   },
   "login": {
@@ -47,7 +47,19 @@
     "comingSoon": "Coming soon..."
   },
   "tasks": {
-    "title": "Tasks"
+    "title": "Household Plan",
+    "noTasks": "No tasks",
+    "unassigned": "Unassigned",
+    "complete": "Done",
+    "snooze": "Snooze",
+    "manageRecurringTasks": "Manage recurring tasks",
+    "memberColors": "Member colors",
+    "recurringTasks": "Recurring tasks",
+    "formTitle": "Title",
+    "formStartsOn": "Starts on",
+    "formRecurrenceRule": "Recurrence rule (RRULE)",
+    "formDefaultAssignee": "Default assignee",
+    "addRecurringTask": "Add"
   },
   "settings": {
     "title": "Settings",

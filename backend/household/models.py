@@ -1,12 +1,18 @@
 ﻿from django.db import models
 from django.contrib.auth.models import User
 
+from .mixins import AuditableMixin
+
 class HouseholdMember(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     role = models.CharField(max_length=50, choices=[
         ('admin', 'Admin'),
         ('member', 'Member'),
     ], default='member')
+    color_hex = models.CharField(
+        max_length=7, default='#5b7a5e',
+        help_text="Used to color this member's cards in the weekly household plan view.",
+    )
     joined_date = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -63,25 +69,76 @@ class CookingPlan(models.Model):
     def __str__(self):
         return f"{self.date} - {self.meal_type}"
 
-class HouseholdTask(models.Model):
-    PRIORITY_CHOICES = [
-        ('low', 'Low'),
-        ('medium', 'Medium'),
-        ('high', 'High'),
+class HouseholdTaskDefinition(AuditableMixin):
+    """A recurring task template. Expanded into HouseholdTaskInstance rows by
+    household.services.task_generation, using recurrence_rule as an RFC 5545
+    RRULE string (see dateutil.rrule.rrulestr) rather than bespoke interval
+    fields -- this is what makes "first Monday of the month" free to support.
+    """
+    SYSTEM_ACTION_CHOICES = [
+        ('none', 'None'),
+        ('weekly_household_planning', 'Weekly household planning'),
+        ('weekly_meal_planning', 'Weekly meal planning'),
     ]
-    
+
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)
-    priority = models.CharField(max_length=10, choices=PRIORITY_CHOICES, default='medium')
-    is_completed = models.BooleanField(default=False)
-    assigned_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='tasks')
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='created_tasks')
-    due_date = models.DateField(null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    starts_on = models.DateField(help_text="Anchor date the recurrence rule is expanded from.")
+    recurrence_rule = models.CharField(
+        max_length=500,
+        help_text="RFC 5545 RRULE string, e.g. FREQ=WEEKLY;BYDAY=MO or FREQ=MONTHLY;BYDAY=1MO",
+    )
+    default_assignee = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name='default_assigned_task_definitions',
+    )
+    system_action = models.CharField(max_length=30, choices=SYSTEM_ACTION_CHOICES, default='none')
 
     class Meta:
-        ordering = ['-priority', 'due_date']
+        ordering = ['title']
 
     def __str__(self):
         return self.title
+
+
+class HouseholdTaskInstance(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('done', 'Done'),
+        ('snoozed', 'Snoozed'),
+    ]
+
+    definition = models.ForeignKey(HouseholdTaskDefinition, on_delete=models.CASCADE, related_name='instances')
+    scheduled_date = models.DateField()
+    assigned_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='task_instances')
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
+    completed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['scheduled_date']
+        unique_together = ('definition', 'scheduled_date')
+
+    def __str__(self):
+        return f"{self.definition.title} - {self.scheduled_date}"
+
+
+class HouseholdTaskEvent(models.Model):
+    EVENT_TYPE_CHOICES = [
+        ('created', 'Created'),
+        ('reassigned', 'Reassigned'),
+        ('snoozed', 'Snoozed'),
+        ('postponed', 'Postponed'),
+        ('completed', 'Completed'),
+    ]
+
+    task_instance = models.ForeignKey(HouseholdTaskInstance, on_delete=models.CASCADE, related_name='events')
+    event_type = models.CharField(max_length=15, choices=EVENT_TYPE_CHOICES)
+    actor = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    note = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        ordering = ['-timestamp']
+
+    def __str__(self):
+        return f"{self.task_instance} - {self.event_type}"

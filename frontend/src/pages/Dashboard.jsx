@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { shoppingService, taskService } from '../services/api';
+import { shoppingService, taskInstanceService } from '../services/api';
 import Navbar from '../components/Navbar';
 
 export default function Dashboard() {
@@ -16,12 +16,15 @@ export default function Dashboard() {
 
   const loadData = async () => {
     try {
+      const today = new Date().toISOString().slice(0, 10);
+      const weekAhead = new Date();
+      weekAhead.setDate(weekAhead.getDate() + 6);
       const [shoppingRes, tasksRes] = await Promise.all([
         shoppingService.getAll(),
-        taskService.getAll(),
+        taskInstanceService.getRange(today, weekAhead.toISOString().slice(0, 10)),
       ]);
       setShopping(shoppingRes.data.results || []);
-      setTasks(tasksRes.data.results || []);
+      setTasks(tasksRes.data.results || tasksRes.data || []);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -34,7 +37,7 @@ export default function Dashboard() {
   }
 
   const incompleteShopping = shopping.filter(item => !item.is_completed);
-  const incompleteTasks = tasks.filter(task => !task.is_completed);
+  const incompleteTasks = tasks.filter(task => task.status === 'pending');
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -72,7 +75,7 @@ export default function Dashboard() {
             <ul className="space-y-2">
               {incompleteTasks.slice(0, 5).map(task => (
                 <li key={task.id} className="text-gray-700">
-                  • {task.title}
+                  • {task.definition_title}
                 </li>
               ))}
             </ul>

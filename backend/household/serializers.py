@@ -1,6 +1,9 @@
 ﻿from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import HouseholdMember, ShoppingListItem, Recipe, CookingPlan, HouseholdTask
+from .models import (
+    HouseholdMember, ShoppingListItem, Recipe, CookingPlan,
+    HouseholdTaskDefinition, HouseholdTaskInstance, HouseholdTaskEvent,
+)
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -12,7 +15,7 @@ class HouseholdMemberSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = HouseholdMember
-        fields = ('id', 'user', 'role', 'joined_date')
+        fields = ('id', 'user', 'role', 'color_hex', 'joined_date')
 
 class ShoppingListItemSerializer(serializers.ModelSerializer):
     created_by_username = serializers.CharField(source='created_by.username', read_only=True)
@@ -36,10 +39,37 @@ class CookingPlanSerializer(serializers.ModelSerializer):
         model = CookingPlan
         fields = ('id', 'date', 'meal_type', 'recipe', 'recipe_title', 'notes', 'created_by', 'created_by_username', 'created_at')
 
-class HouseholdTaskSerializer(serializers.ModelSerializer):
-    assigned_to_username = serializers.CharField(source='assigned_to.username', read_only=True)
-    created_by_username = serializers.CharField(source='created_by.username', read_only=True)
+class HouseholdTaskEventSerializer(serializers.ModelSerializer):
+    actor_username = serializers.CharField(source='actor.username', read_only=True)
 
     class Meta:
-        model = HouseholdTask
-        fields = ('id', 'title', 'description', 'priority', 'is_completed', 'assigned_to', 'assigned_to_username', 'created_by', 'created_by_username', 'due_date', 'created_at', 'updated_at')
+        model = HouseholdTaskEvent
+        fields = ('id', 'event_type', 'actor', 'actor_username', 'timestamp', 'note')
+
+class HouseholdTaskDefinitionSerializer(serializers.ModelSerializer):
+    created_by_username = serializers.CharField(source='created_by.username', read_only=True)
+    updated_by_username = serializers.CharField(source='updated_by.username', read_only=True)
+
+    class Meta:
+        model = HouseholdTaskDefinition
+        fields = (
+            'id', 'title', 'description', 'starts_on', 'recurrence_rule',
+            'default_assignee', 'system_action',
+            'created_by', 'created_by_username', 'created_at',
+            'updated_by', 'updated_by_username', 'updated_at',
+        )
+        read_only_fields = ('created_by', 'updated_by')
+
+class HouseholdTaskInstanceSerializer(serializers.ModelSerializer):
+    definition_title = serializers.CharField(source='definition.title', read_only=True)
+    assigned_to_username = serializers.CharField(source='assigned_to.username', read_only=True)
+    assigned_to_color = serializers.CharField(source='assigned_to.householdmember.color_hex', read_only=True, default=None)
+    events = HouseholdTaskEventSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = HouseholdTaskInstance
+        fields = (
+            'id', 'definition', 'definition_title', 'scheduled_date', 'assigned_to',
+            'assigned_to_username', 'assigned_to_color', 'status', 'completed_at',
+            'created_at', 'events',
+        )
