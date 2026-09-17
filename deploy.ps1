@@ -14,6 +14,14 @@ Push-Location "$root\frontend"
 npm run build
 Pop-Location
 
+Write-Host "==> Backing up database..." -ForegroundColor Cyan
+$backupDir = "$root\backups"
+New-Item -ItemType Directory -Force -Path $backupDir | Out-Null
+$timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+scp "${PiHost}:${PiPath}/backend/db.sqlite3" "$backupDir\db-$timestamp.sqlite3"
+
+Get-ChildItem "$backupDir\db-*.sqlite3" | Sort-Object Name -Descending | Select-Object -Skip 5 | Remove-Item
+
 Write-Host "==> Pulling latest code on Pi..." -ForegroundColor Cyan
 ssh $PiHost "cd $PiPath && git pull origin main"
 

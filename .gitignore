@@ -29,3 +29,6 @@ Thumbs.db
 
 # Claude Code
 CLAUDE.md
+
+# Database backups (contain real household data)
+backups/
