@@ -183,11 +183,13 @@ class HouseholdTaskInstanceViewSet(viewsets.ModelViewSet):
         copy = HouseholdTaskInstance.objects.create(
             standalone_title=title,
             standalone_icon=icon,
+            system_action=instance.system_action,
             occurrence_date=next_date,
             scheduled_date=next_date,
             is_in_backlog=True,
             assigned_to=instance.assigned_to,
             created_at=monday_of_week_as_datetime(next_date),
+            origin_instance=instance,
         )
         HouseholdTaskEvent.objects.create(task_instance=copy, event_type='snoozed', actor=request.user)
 
@@ -243,10 +245,14 @@ class HouseholdTaskInstanceViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def reopen(self, request, pk=None):
-        """Undo done/skipped/snoozed -- back to a plain open item. A
-        snoozed (backlogged) instance is restored to its natural day
-        (occurrence_date) rather than staying in the backlog."""
+        """Undo done/skipped/snoozed -- back to a plain open item. Undoing a
+        snooze also removes the copy it created in next week's backlog, as
+        long as that copy hasn't been touched since (still pending and
+        still sitting in the backlog) -- otherwise it'd be left behind
+        forever, which is exactly the bug this fixes."""
         instance = self.get_object()
+        if instance.status == 'snoozed':
+            instance.snoozed_copies.filter(status='pending', is_in_backlog=True).delete()
         instance.status = 'pending'
         instance.completed_at = None
         if instance.is_in_backlog:

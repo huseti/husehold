@@ -166,6 +166,21 @@ class HouseholdTaskInstance(models.Model):
     )
     standalone_title = models.CharField(max_length=200, blank=True)
     standalone_icon = models.CharField(max_length=20, choices=HouseholdTaskDefinition.ICON_CHOICES, blank=True)
+    # Copied from definition.system_action at creation time (by generation
+    # or by the snooze copy below) rather than looked up live through
+    # definition -- a snooze copy has definition=None, so without its own
+    # copy of this the frontend couldn't tell a snoozed "weekly planning"
+    # task apart from a plain standalone one, and would show its raw stored
+    # (English) title instead of translating it.
+    system_action = models.CharField(
+        max_length=30, choices=HouseholdTaskDefinition.SYSTEM_ACTION_CHOICES, default='none',
+    )
+    # Set only on a snooze copy, pointing back at the instance it was
+    # snoozed from -- lets reopen() clean up the copy if the original
+    # snooze gets undone, instead of leaving an orphaned copy behind.
+    origin_instance = models.ForeignKey(
+        'self', on_delete=models.SET_NULL, null=True, blank=True, related_name='snoozed_copies',
+    )
 
     # occurrence_date is the date the recurrence rule actually computed for
     # this occurrence, and never changes -- it's what get_or_create() in

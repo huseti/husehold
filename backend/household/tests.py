@@ -407,6 +407,48 @@ class TaskInstanceActionTests(TestCase):
         # from the DB normalized to UTC, so .date() alone would reflect the
         # UTC calendar day, not the day it was actually set to.
         self.assertEqual(dj_timezone.localtime(copy.created_at).date(), date(2026, 9, 21))
+        self.assertEqual(copy.system_action, self.instance.system_action)
+        self.assertEqual(copy.origin_instance, self.instance)
+
+    def test_snooze_copy_of_a_system_task_carries_its_system_action(self):
+        """Regression test: a snoozed system task (e.g. weekly planning)
+        must still be recognized as that system task after being snoozed,
+        so the frontend translates its title instead of showing the raw
+        stored (English) text -- system_action lives on the copy itself
+        now, since the copy has no definition to look it up through."""
+        definition = HouseholdTaskDefinition.objects.create(
+            title='Weekly Household Planning',
+            starts_on=date(2026, 9, 13),
+            recurrence_rule='FREQ=WEEKLY;BYDAY=SU',
+            system_action='weekly_household_planning',
+        )
+        instance = HouseholdTaskInstance.objects.create(
+            definition=definition, occurrence_date=date(2026, 9, 13), scheduled_date=date(2026, 9, 13),
+            system_action=definition.system_action,
+        )
+
+        self.client.post(f'/api/task-instances/{instance.id}/snooze/')
+
+        copy = HouseholdTaskInstance.objects.get(origin_instance=instance)
+        self.assertEqual(copy.system_action, 'weekly_household_planning')
+
+    def test_reopen_after_snooze_deletes_the_untouched_copy(self):
+        self.client.post(f'/api/task-instances/{self.instance.id}/snooze/')
+        copy = HouseholdTaskInstance.objects.get(origin_instance=self.instance)
+
+        self.client.post(f'/api/task-instances/{self.instance.id}/reopen/')
+
+        self.assertFalse(HouseholdTaskInstance.objects.filter(id=copy.id).exists())
+
+    def test_reopen_after_snooze_keeps_a_copy_thats_already_been_acted_on(self):
+        self.client.post(f'/api/task-instances/{self.instance.id}/snooze/')
+        copy = HouseholdTaskInstance.objects.get(origin_instance=self.instance)
+        copy.status = 'done'
+        copy.save()
+
+        self.client.post(f'/api/task-instances/{self.instance.id}/reopen/')
+
+        self.assertTrue(HouseholdTaskInstance.objects.filter(id=copy.id).exists())
 
     def test_skip_sets_status_and_logs_event(self):
         response = self.client.post(f'/api/task-instances/{self.instance.id}/skip/')

@@ -73,6 +73,7 @@ def generate_instances_for_range(start_date, end_date):
                     'assigned_to': _resolve_assignee(definition),
                     'is_in_backlog': not definition.has_preferred_day,
                     'created_at': monday_of_week_as_datetime(occurrence_date),
+                    'system_action': definition.system_action,
                 },
             )
             if was_created:
