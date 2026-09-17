@@ -66,7 +66,9 @@ export default function Tasks() {
   };
 
   const handleStartPlanning = () => {
-    setWeekStart(getWeekStart(addDays(new Date(), 7))); // next week
+    // Plans whichever week is currently open on the calendar -- the "next
+    // calendar week by default" behavior belongs only to the automatic
+    // weekly planning reminder (WeeklyPlanningConfig), not this button.
     setMode('planning');
   };
 
