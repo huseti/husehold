@@ -34,8 +34,8 @@ class HouseholdTaskEventInline(admin.TabularInline):
 
 @admin.register(HouseholdTaskDefinition)
 class HouseholdTaskDefinitionAdmin(admin.ModelAdmin):
-    list_display = ('title', 'recurrence_rule', 'default_assignee', 'system_action', 'updated_by', 'updated_at')
-    list_filter = ('system_action',)
+    list_display = ('title', 'icon', 'recurrence_rule', 'default_assignee', 'system_action', 'updated_by', 'updated_at')
+    list_filter = ('system_action', 'icon')
     search_fields = ('title',)
 
 @admin.register(HouseholdTaskInstance)

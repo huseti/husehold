@@ -1,5 +1,6 @@
 import { useDraggable } from '@dnd-kit/core';
 import { useTranslation } from 'react-i18next';
+import TaskIcon from './icons/taskIcons';
 
 export default function TaskCard({ instance, members, onComplete, onSnooze, onReassign }) {
   const { t } = useTranslation();
@@ -19,7 +20,8 @@ export default function TaskCard({ instance, members, onComplete, onSnooze, onRe
       style={{ ...style, borderLeftColor: color, opacity: isDragging ? 0.5 : 1 }}
       className={`border-l-4 rounded shadow-sm p-2 bg-gray-50 text-sm ${isDone ? 'opacity-60' : ''} ${isSnoozed ? 'opacity-50' : ''}`}
     >
-      <div {...listeners} {...attributes} className="cursor-grab font-medium">
+      <div {...listeners} {...attributes} className="cursor-grab font-medium flex items-center gap-1.5">
+        <TaskIcon icon={instance.definition_icon} className="text-gray-500 flex-shrink-0" />
         {instance.definition_title}
       </div>
       <div className="text-xs text-gray-500 mb-1">{instance.assigned_to_username || t('tasks.unassigned')}</div>

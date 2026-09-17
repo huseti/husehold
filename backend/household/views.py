@@ -75,6 +75,22 @@ class HouseholdTaskDefinitionViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         serializer.save(updated_by=self.request.user)
 
+    def destroy(self, request, *args, **kwargs):
+        definition = self.get_object()
+        instance_count = definition.instances.count()
+        confirmed = request.query_params.get('confirm') == 'true'
+        if instance_count > 0 and not confirmed:
+            return Response(
+                {
+                    'requires_confirmation': True,
+                    'instance_count': instance_count,
+                    'detail': f'This recurring task has {instance_count} scheduled occurrence(s). '
+                              'Pass ?confirm=true to delete it and all of them.',
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+        return super().destroy(request, *args, **kwargs)
+
 class HouseholdTaskInstanceViewSet(viewsets.ModelViewSet):
     queryset = HouseholdTaskInstance.objects.all()
     serializer_class = HouseholdTaskInstanceSerializer

@@ -124,3 +124,40 @@ class TaskInstanceActionTests(TestCase):
         response = anonymous_client.post(f'/api/task-instances/{self.instance.id}/complete/')
 
         self.assertEqual(response.status_code, 401)
+
+
+class TaskDefinitionDeletionTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='tim', password='pw')
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+        self.definition = HouseholdTaskDefinition.objects.create(
+            title='Take out trash',
+            starts_on=date(2026, 9, 14),
+            recurrence_rule='FREQ=WEEKLY;BYDAY=MO',
+        )
+
+    def test_delete_without_instances_succeeds_immediately(self):
+        response = self.client.delete(f'/api/task-definitions/{self.definition.id}/')
+
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(HouseholdTaskDefinition.objects.filter(id=self.definition.id).exists())
+
+    def test_delete_with_instances_requires_confirmation(self):
+        HouseholdTaskInstance.objects.create(definition=self.definition, scheduled_date=date(2026, 9, 14))
+
+        response = self.client.delete(f'/api/task-definitions/{self.definition.id}/')
+
+        self.assertEqual(response.status_code, 409)
+        self.assertTrue(response.data['requires_confirmation'])
+        self.assertEqual(response.data['instance_count'], 1)
+        self.assertTrue(HouseholdTaskDefinition.objects.filter(id=self.definition.id).exists())
+
+    def test_delete_with_confirm_flag_removes_definition_and_instances(self):
+        instance = HouseholdTaskInstance.objects.create(definition=self.definition, scheduled_date=date(2026, 9, 14))
+
+        response = self.client.delete(f'/api/task-definitions/{self.definition.id}/?confirm=true')
+
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(HouseholdTaskDefinition.objects.filter(id=self.definition.id).exists())
+        self.assertFalse(HouseholdTaskInstance.objects.filter(id=instance.id).exists())

@@ -81,8 +81,27 @@ class HouseholdTaskDefinition(AuditableMixin):
         ('weekly_meal_planning', 'Weekly meal planning'),
     ]
 
+    # Flat, single-color icon set for the weekly view -- keep additions in
+    # this same style (simple silhouette, no gradients/multi-color) rather
+    # than mixing icon styles.
+    ICON_CHOICES = [
+        ('cleaning', 'Cleaning'),
+        ('trash', 'Trash'),
+        ('coffee', 'Coffee'),
+        ('laundry', 'Laundry'),
+        ('dishes', 'Dishes'),
+        ('vacuum', 'Vacuum'),
+        ('shopping', 'Shopping'),
+        ('plant', 'Plant'),
+        ('pet', 'Pet'),
+        ('tool', 'Repair'),
+        ('bed', 'Bed'),
+        ('other', 'Other'),
+    ]
+
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)
+    icon = models.CharField(max_length=20, choices=ICON_CHOICES, default='other')
     starts_on = models.DateField(help_text="Anchor date the recurrence rule is expanded from.")
     recurrence_rule = models.CharField(
         max_length=500,

@@ -56,7 +56,8 @@ export const taskDefinitionService = {
   getAll: () => api.get('/task-definitions/'),
   create: (data) => api.post('/task-definitions/', data),
   update: (id, data) => api.patch(`/task-definitions/${id}/`, data),
-  delete: (id) => api.delete(`/task-definitions/${id}/`),
+  delete: (id, confirm = false) =>
+    api.delete(`/task-definitions/${id}/`, confirm ? { params: { confirm: true } } : undefined),
 };
 
 export const taskInstanceService = {
