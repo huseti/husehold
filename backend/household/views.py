@@ -1,4 +1,5 @@
 ﻿from datetime import timedelta
+from decimal import Decimal, InvalidOperation
 
 from django.utils import timezone
 from django.utils.dateparse import parse_date
@@ -11,13 +12,14 @@ from django.conf import settings as django_settings
 from .models import (
     HouseholdMember, HouseholdSettings, ShoppingListItem, Recipe, CookingPlan,
     HouseholdTaskDefinition, HouseholdTaskInstance, HouseholdTaskEvent,
-    NotificationPreference, PushSubscription,
+    NotificationPreference, PushSubscription, Voucher, VoucherRedemption,
 )
 from .serializers import (
     UserSerializer, HouseholdMemberSerializer, HouseholdSettingsSerializer, ShoppingListItemSerializer,
     RecipeSerializer, CookingPlanSerializer,
     HouseholdTaskDefinitionSerializer, HouseholdTaskInstanceSerializer,
     NotificationPreferenceSerializer, PushSubscriptionSerializer,
+    VoucherSerializer,
 )
 from .services.task_generation import generate_instances_for_range, monday_of_week_as_datetime
 
@@ -197,6 +199,70 @@ class CookingPlanViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
+
+class VoucherViewSet(viewsets.ModelViewSet):
+    queryset = Voucher.objects.all()
+    serializer_class = VoucherSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        serializer.save(
+            created_by=self.request.user, updated_by=self.request.user,
+            remaining_balance=serializer.validated_data.get('total_value'),
+        )
+
+    def perform_update(self, serializer):
+        # The frontend only lets total_value be edited before the first
+        # redemption (when remaining_balance == total_value already), so
+        # keep them in sync here too rather than leaving a stale balance
+        # behind after an edit.
+        extra = {'updated_by': self.request.user}
+        if 'total_value' in serializer.validated_data:
+            extra['remaining_balance'] = serializer.validated_data['total_value']
+        serializer.save(**extra)
+
+    @action(detail=True, methods=['post'])
+    def redeem(self, request, pk=None):
+        """Logs a VoucherRedemption. For a valued voucher, amount_used is
+        required and decrements remaining_balance, auto-archiving once it
+        reaches 0. For a valueless voucher (a gift with no total_value),
+        there's no balance to decrement -- logging any redemption at all
+        marks it used and archives it immediately."""
+        voucher = self.get_object()
+
+        if voucher.total_value is not None:
+            try:
+                amount_used = Decimal(str(request.data.get('amount_used')))
+            except (InvalidOperation, TypeError):
+                return Response({'detail': 'amount_used is required for a valued voucher.'}, status=status.HTTP_400_BAD_REQUEST)
+            if amount_used <= 0 or amount_used > voucher.remaining_balance:
+                return Response(
+                    {'detail': 'Amount must be greater than 0 and not exceed the remaining balance.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            voucher.remaining_balance -= amount_used
+            remaining_after = voucher.remaining_balance
+            if voucher.remaining_balance <= 0:
+                voucher.is_archived = True
+        else:
+            amount_used = None
+            remaining_after = None
+            voucher.is_archived = True
+
+        voucher.save()
+        VoucherRedemption.objects.create(
+            voucher=voucher, amount_used=amount_used, remaining_after=remaining_after, logged_by=request.user,
+        )
+        return Response(VoucherSerializer(voucher).data)
+
+    @action(detail=True, methods=['post'], url_path='toggle-archived')
+    def toggle_archived(self, request, pk=None):
+        """Manual archive/unarchive -- e.g. filing away an expired-but-unused
+        voucher, or undoing an accidental redeem."""
+        voucher = self.get_object()
+        voucher.is_archived = not voucher.is_archived
+        voucher.save()
+        return Response(VoucherSerializer(voucher).data)
 
 class HouseholdTaskDefinitionViewSet(viewsets.ModelViewSet):
     queryset = HouseholdTaskDefinition.objects.all()

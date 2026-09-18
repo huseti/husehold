@@ -14,6 +14,7 @@
     "recipes": "Rezepte",
     "cookingPlan": "Kochplan",
     "tasks": "Haushaltsplan",
+    "vouchers": "Gutscheine",
     "settings": "Einstellungen"
   },
   "login": {
@@ -49,7 +50,9 @@
       "meals_one": "{{count}} geplante Mahlzeit",
       "meals_other": "{{count}} geplante Mahlzeiten",
       "overdueTasks_one": "{{count}} überfällige Aufgabe",
-      "overdueTasks_other": "{{count}} überfällige Aufgaben"
+      "overdueTasks_other": "{{count}} überfällige Aufgaben",
+      "expiringVouchers_one": "{{count}} Gutschein läuft in den nächsten 6 Monaten ab",
+      "expiringVouchers_other": "{{count}} Gutscheine laufen in den nächsten 6 Monaten ab"
     }
   },
   "shoppingList": {
@@ -173,6 +176,51 @@
         "noPreferredDay": "{{every}} (kein bevorzugter Tag)"
       }
     }
+  },
+  "vouchers": {
+    "title": "Gutscheine",
+    "addTitle": "Gutschein hinzufügen",
+    "formTitle": "Titel",
+    "formTitlePlaceholder": "z. B. Weihnachtsgutschein von Mama",
+    "formReceivedFrom": "Von",
+    "formReceivedFromPlaceholder": "Wer hat ihn dir geschenkt",
+    "formLocation": "Gültig bei",
+    "formLocationPlaceholder": "Geschäft, Restaurant, Website...",
+    "formHasValue": "Hat einen Geldwert",
+    "formTotalValue": "Wert",
+    "formCurrency": "Währung",
+    "formValidUntil": "Gültig bis",
+    "formValidUntilOptional": "Gültig bis (optional)",
+    "addButton": "Hinzufügen",
+    "active": "Aktiv",
+    "archived": "Archiv",
+    "noActiveVouchers": "Noch keine Gutscheine — füge oben einen hinzu.",
+    "noArchivedVouchers": "Noch nichts archiviert.",
+    "expiresOn": "Läuft ab am {{date}}",
+    "expired": "Abgelaufen am {{date}}",
+    "expiringSoon": "Läuft in den nächsten 6 Monaten ab",
+    "noExpiry": "Kein Ablaufdatum",
+    "remainingOf": "{{remaining}} von {{total}} {{currency}} übrig",
+    "noValue": "Kein Geldwert",
+    "redeem": "Einlösung protokollieren",
+    "markUsed": "Als benutzt markieren",
+    "edit": "Bearbeiten",
+    "editSave": "Speichern",
+    "editCancel": "Abbrechen",
+    "valueLockedAfterRedemption": "Der Wert kann nicht mehr geändert werden, sobald eine Einlösung protokolliert wurde.",
+    "unarchive": "Aus Archiv holen",
+    "archive": "Archivieren",
+    "delete": "Löschen",
+    "confirmDelete": "\"{{title}}\" löschen?",
+    "redeemAmount": "Verwendeter Betrag",
+    "redeemSubmit": "Eintragen",
+    "redeemCancel": "Abbrechen",
+    "redeemInvalidAmount": "Gib einen Betrag zwischen 0 und dem verbleibenden Guthaben ein.",
+    "history": "Einlösungsverlauf",
+    "noHistory": "Noch keine Einlösungen protokolliert.",
+    "historyEntry": "{{amount}} verwendet am {{date}} von {{name}} -- {{remaining}} übrig",
+    "historyEntryNoValue": "Benutzt am {{date}} von {{name}}",
+    "createdInfo": "Hinzugefügt am {{date}} von {{name}}"
   },
   "weeklyPlanning": {
     "title": "Wöchentliche Haushaltsplanung",

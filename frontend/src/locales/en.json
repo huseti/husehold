@@ -14,6 +14,7 @@
     "recipes": "Recipes",
     "cookingPlan": "Cooking Plan",
     "tasks": "Household Plan",
+    "vouchers": "Vouchers",
     "settings": "Settings"
   },
   "login": {
@@ -49,7 +50,9 @@
       "meals_one": "{{count}} planned meal",
       "meals_other": "{{count}} planned meals",
       "overdueTasks_one": "{{count}} overdue task",
-      "overdueTasks_other": "{{count}} overdue tasks"
+      "overdueTasks_other": "{{count}} overdue tasks",
+      "expiringVouchers_one": "{{count}} coupon is about to expire in the next 6 months",
+      "expiringVouchers_other": "{{count}} coupons are about to expire in the next 6 months"
     }
   },
   "shoppingList": {
@@ -173,6 +176,51 @@
         "noPreferredDay": "{{every}} (no preferred day)"
       }
     }
+  },
+  "vouchers": {
+    "title": "Vouchers",
+    "addTitle": "Add Voucher",
+    "formTitle": "Title",
+    "formTitlePlaceholder": "e.g. Christmas voucher from Mom",
+    "formReceivedFrom": "From",
+    "formReceivedFromPlaceholder": "Who gave it to you",
+    "formLocation": "Valid at",
+    "formLocationPlaceholder": "Store, restaurant, site...",
+    "formHasValue": "Has a monetary value",
+    "formTotalValue": "Value",
+    "formCurrency": "Currency",
+    "formValidUntil": "Valid until",
+    "formValidUntilOptional": "Valid until (optional)",
+    "addButton": "Add",
+    "active": "Active",
+    "archived": "Archive",
+    "noActiveVouchers": "No vouchers yet -- add one above.",
+    "noArchivedVouchers": "Nothing archived yet.",
+    "expiresOn": "Expires {{date}}",
+    "expired": "Expired {{date}}",
+    "expiringSoon": "Expiring within 6 months",
+    "noExpiry": "No expiry",
+    "remainingOf": "{{remaining}} of {{total}} {{currency}} left",
+    "noValue": "No monetary value",
+    "redeem": "Log redemption",
+    "markUsed": "Mark used",
+    "edit": "Edit",
+    "editSave": "Save",
+    "editCancel": "Cancel",
+    "valueLockedAfterRedemption": "Value can no longer be edited once a redemption has been logged.",
+    "unarchive": "Unarchive",
+    "archive": "Archive",
+    "delete": "Delete",
+    "confirmDelete": "Delete \"{{title}}\"?",
+    "redeemAmount": "Amount used",
+    "redeemSubmit": "Log",
+    "redeemCancel": "Cancel",
+    "redeemInvalidAmount": "Enter an amount between 0 and the remaining balance.",
+    "history": "Redemption history",
+    "noHistory": "No redemptions logged yet.",
+    "historyEntry": "{{amount}} used on {{date}} by {{name}} -- {{remaining}} left",
+    "historyEntryNoValue": "Used on {{date}} by {{name}}",
+    "createdInfo": "Added {{date}} by {{name}}"
   },
   "weeklyPlanning": {
     "title": "Weekly Household Planning",

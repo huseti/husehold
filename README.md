@@ -86,6 +86,7 @@ Frontend runs at: `http://localhost:3000`
 - **Account**: profile avatar (upload/preview/remove) via the navbar account menu, alongside Settings and Logout
 - **Settings**: household name and timezone (used for "today"/"overdue" comparisons, not the server's own timezone), language (German/English), notification preferences
 - **Notifications**: email (SMTP) and Web Push, per-type/per-channel toggles, for tasks due today and weekly household planning due; delivered by a cron-driven management command, not a background daemon; test-email/test-push buttons in Settings for on-demand verification
+- **Vouchers**: track gift/store vouchers (monetary, redeemed down over time with a logged history) and non-monetary gifts (e.g. a dinner invitation, marked used in one go); soonest-expiring first, auto-archived once fully used or manually archived, with an "expiring soon" (next 6 months) indicator on each card and a household-overview count; inline editing (value/currency locked once a redemption has been logged)
 - **User Authentication**: JWT-based auth
 - **Responsive Design**: Works on mobile and desktop
 
@@ -105,6 +106,7 @@ Frontend runs at: `http://localhost:3000`
 - `GET/POST/DELETE /api/push-subscriptions/` - Current user's registered Web Push devices
 - `GET /api/vapid-public-key/` - Public VAPID key for the frontend's `pushManager.subscribe()`
 - `POST /api/notifications/test-email/`, `POST /api/notifications/test-push/` - Send a one-off test notification to the current user (used by the Settings page buttons)
+- `GET/POST/PATCH/DELETE /api/vouchers/` - Vouchers; actions: `redeem/` (logs a `VoucherRedemption`, auto-archives once the balance hits 0 or for a non-monetary voucher), `toggle-archived/` (manual archive/unarchive)
 
 ## 🐧 Raspberry Pi Deployment
 
@@ -133,6 +135,8 @@ Access at: `https://<pi-ip>` (self-signed cert — browser warns once per device
 - **NotificationPreference**: per-user, per-type email/push toggles
 - **PushSubscription**: one row per browser/device registered for Web Push
 - **NotificationLog**: records a sent (task instance, user, type, channel) combination so the cron command never double-sends
+- **Voucher**: gift/store voucher — title, from, location, optional currency/value, expiry, archived flag
+- **VoucherRedemption**: one logged use of a voucher — amount used and remaining balance snapshot (both blank for a non-monetary voucher's single "mark used" entry), who logged it
 
 ## 🔧 Development
 

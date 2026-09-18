@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 // KPI summary for each tab, each with a shortcut to its details page. New
 // tabs (e.g. a future packing-list "X planned trips") slot in as another
 // row here.
-export default function OverviewPanel({ shoppingCount, recipeCount, mealCount, overdueCount }) {
+export default function OverviewPanel({ shoppingCount, recipeCount, mealCount, overdueCount, expiringVoucherCount }) {
   const { t } = useTranslation();
 
   const rows = [
@@ -12,6 +12,7 @@ export default function OverviewPanel({ shoppingCount, recipeCount, mealCount, o
     { label: t('dashboard.overview.recipes', { count: recipeCount }), to: '/recipes' },
     { label: t('dashboard.overview.meals', { count: mealCount }), to: '/cooking-plan' },
     { label: t('dashboard.overview.overdueTasks', { count: overdueCount }), to: '/tasks' },
+    { label: t('dashboard.overview.expiringVouchers', { count: expiringVoucherCount }), to: '/vouchers' },
   ];
 
   return (

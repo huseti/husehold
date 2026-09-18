@@ -2,7 +2,7 @@
 from .models import (
     HouseholdMember, HouseholdSettings, ShoppingListItem, Recipe, CookingPlan,
     HouseholdTaskDefinition, HouseholdTaskInstance, HouseholdTaskEvent,
-    NotificationPreference, PushSubscription, NotificationLog,
+    NotificationPreference, PushSubscription, NotificationLog, Voucher, VoucherRedemption,
 )
 
 @admin.register(HouseholdMember)
@@ -30,6 +30,19 @@ class RecipeAdmin(admin.ModelAdmin):
 class CookingPlanAdmin(admin.ModelAdmin):
     list_display = ('date', 'meal_type', 'recipe', 'created_by')
     list_filter = ('date', 'meal_type')
+
+class VoucherRedemptionInline(admin.TabularInline):
+    model = VoucherRedemption
+    extra = 0
+    readonly_fields = ('redeemed_on', 'amount_used', 'remaining_after', 'logged_by')
+    can_delete = False
+
+@admin.register(Voucher)
+class VoucherAdmin(admin.ModelAdmin):
+    list_display = ('title', 'received_from', 'location', 'total_value', 'remaining_balance', 'valid_until', 'is_archived')
+    list_filter = ('is_archived', 'valid_until')
+    search_fields = ('title', 'received_from', 'location')
+    inlines = [VoucherRedemptionInline]
 
 class HouseholdTaskEventInline(admin.TabularInline):
     model = HouseholdTaskEvent

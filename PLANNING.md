@@ -465,7 +465,7 @@ Analytics is unchanged — still pure queries, no new tables — but the new aud
 
 See [PHASE1_PLAN.md](PHASE1_PLAN.md) for the concrete implementation plan for step 1 (Task engine core — already shipped and deployed).
 
-0. **Vouchers** — independent, no dependency on anything else in the model (see section 3). Jumps the queue ahead of every step below: it's the smallest, self-contained domain still left to build, so it's the very next thing to pick up.
+0. **Vouchers** *(shipped)* — `Voucher`/`VoucherRedemption`, redemption slider, expiring-soon indicator (6-month lookahead, also surfaced as a count in the dashboard overview panel), inline editing (value locked once a redemption is logged), manual archive/unarchive.
 1. **Task engine core** *(shipped)* — `AuditableMixin` introduced here (used everywhere after), `HouseholdTaskDefinition` with RRULE recurrence, `HouseholdTaskInstance`/`HouseholdTaskEvent`, reassignment/snooze/postpone, color-coded drag-and-drop weekly view, `HouseholdMember.color_hex`.
 2. **Recipes with structure** — `Ingredient`, `UnitOfMeasure`, `RecipeIngredient`, `RecipeRating`, `Label`, meal-time categories.
 3. **Shopping list depth** — multiple lists, favorite flag, visibility, quantities/units.

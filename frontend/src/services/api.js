@@ -115,6 +115,15 @@ export const pushSubscriptionService = {
   },
 };
 
+export const voucherService = {
+  getAll: () => api.get('/vouchers/'),
+  create: (data) => api.post('/vouchers/', data),
+  update: (id, data) => api.patch(`/vouchers/${id}/`, data),
+  delete: (id) => api.delete(`/vouchers/${id}/`),
+  redeem: (id, amountUsed) => api.post(`/vouchers/${id}/redeem/`, { amount_used: amountUsed }),
+  toggleArchived: (id) => api.post(`/vouchers/${id}/toggle-archived/`),
+};
+
 export const cookingPlanService = {
   getAll: () => api.get('/cooking-plans/'),
   create: (data) => api.post('/cooking-plans/', data),

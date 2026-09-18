@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   shoppingService, recipeService, cookingPlanService, taskInstanceService, authService, householdSettingsService,
+  voucherService,
 } from '../services/api';
 import Navbar from '../components/Navbar';
 import WeekPreview from '../components/WeekPreview';
@@ -10,6 +11,7 @@ import OverviewPanel from '../components/OverviewPanel';
 import TaskIcon from '../components/icons/taskIcons';
 import { getDisplayTitle, canSnoozeInstance } from '../utils/taskDisplay';
 import { getWeekStart, toISODate, addDays, parseISODate } from '../utils/weekDates';
+import { isExpiringSoon } from '../utils/voucherDisplay';
 
 const OVERDUE_LOOKBACK_DAYS = 30;
 
@@ -20,6 +22,7 @@ export default function Dashboard() {
   const [recipeCount, setRecipeCount] = useState(0);
   const [mealCount, setMealCount] = useState(0);
   const [tasks, setTasks] = useState([]);
+  const [vouchers, setVouchers] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
   const [householdName, setHouseholdName] = useState('');
   const [loading, setLoading] = useState(true);
@@ -31,13 +34,14 @@ export default function Dashboard() {
   const loadData = useCallback(async () => {
     try {
       const fetchStart = addDays(weekStart, -OVERDUE_LOOKBACK_DAYS);
-      const [shoppingRes, recipesRes, mealsRes, tasksRes, meRes, settingsRes] = await Promise.all([
+      const [shoppingRes, recipesRes, mealsRes, tasksRes, meRes, settingsRes, vouchersRes] = await Promise.all([
         shoppingService.getAll(),
         recipeService.getAll(),
         cookingPlanService.getAll(),
         taskInstanceService.getRange(toISODate(fetchStart), toISODate(weekDays[6])),
         authService.getMe(),
         householdSettingsService.get(),
+        voucherService.getAll(),
       ]);
       setShopping(shoppingRes.data.results || []);
       setRecipeCount(recipesRes.data.count ?? (recipesRes.data.results || recipesRes.data || []).length);
@@ -45,6 +49,7 @@ export default function Dashboard() {
       setTasks(tasksRes.data.results || tasksRes.data || []);
       setCurrentUser(meRes.data);
       setHouseholdName(settingsRes.data.household_name);
+      setVouchers(vouchersRes.data.results || []);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -83,6 +88,8 @@ export default function Dashboard() {
   const overdueTasks = myOpenTasks.filter((task) => task.scheduled_date < todayISO);
   const todayTasks = myOpenTasks.filter((task) => task.scheduled_date === todayISO);
   const thisWeekTasks = myOpenTasks.filter((task) => task.scheduled_date > todayISO);
+
+  const expiringVoucherCount = vouchers.filter(isExpiringSoon).length;
 
   const householdOverdueCount = tasks.filter(
     (task) => task.status === 'pending' && !task.is_in_backlog && task.scheduled_date < todayISO,
@@ -175,6 +182,7 @@ export default function Dashboard() {
             recipeCount={recipeCount}
             mealCount={mealCount}
             overdueCount={householdOverdueCount}
+            expiringVoucherCount={expiringVoucherCount}
           />
         </div>
 

@@ -2,7 +2,7 @@
 from rest_framework.routers import DefaultRouter
 from .views import (
     UserViewSet, HouseholdMemberViewSet, HouseholdSettingsView, ShoppingListItemViewSet,
-    RecipeViewSet, CookingPlanViewSet,
+    RecipeViewSet, CookingPlanViewSet, VoucherViewSet,
     HouseholdTaskDefinitionViewSet, HouseholdTaskInstanceViewSet,
     NotificationPreferencesView, PushSubscriptionViewSet, VapidPublicKeyView,
     TestEmailNotificationView, TestPushNotificationView,
@@ -14,6 +14,7 @@ router.register(r'members', HouseholdMemberViewSet)
 router.register(r'shopping', ShoppingListItemViewSet, basename='shopping')
 router.register(r'recipes', RecipeViewSet, basename='recipe')
 router.register(r'cooking-plans', CookingPlanViewSet, basename='cooking-plan')
+router.register(r'vouchers', VoucherViewSet, basename='voucher')
 router.register(r'task-definitions', HouseholdTaskDefinitionViewSet, basename='task-definition')
 router.register(r'task-instances', HouseholdTaskInstanceViewSet, basename='task-instance')
 router.register(r'push-subscriptions', PushSubscriptionViewSet, basename='push-subscription')

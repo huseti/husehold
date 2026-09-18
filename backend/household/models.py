@@ -224,6 +224,47 @@ class HouseholdTaskInstance(models.Model):
         return f"{title} - {self.scheduled_date}"
 
 
+class Voucher(AuditableMixin):
+    """A gift/store voucher -- monetary (total_value set, redeemed down to 0
+    over time via VoucherRedemption) or non-monetary (total_value left blank,
+    e.g. a dinner invitation -- just used once and archived). Independent of
+    every other domain, see PLANNING.md 2e."""
+    title = models.CharField(max_length=200)
+    received_from = models.CharField(max_length=200, blank=True)
+    location = models.CharField(max_length=200, blank=True)
+    currency = models.CharField(max_length=3, default='EUR')
+    total_value = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
+    # Kept in sync by VoucherViewSet.redeem() as redemptions are logged, so
+    # the UI can show a current balance without replaying the redemption log.
+    remaining_balance = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
+    valid_until = models.DateField(null=True, blank=True)
+    # Set automatically once remaining_balance hits 0 (or immediately, for a
+    # non-monetary voucher's single redemption) -- see VoucherViewSet.redeem().
+    is_archived = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['valid_until']
+
+    def __str__(self):
+        return self.title
+
+
+class VoucherRedemption(models.Model):
+    voucher = models.ForeignKey(Voucher, on_delete=models.CASCADE, related_name='redemptions')
+    redeemed_on = models.DateField(default=timezone.localdate)
+    # Both blank for a non-monetary voucher's single "mark used" entry --
+    # there's no balance to log a before/after snapshot of.
+    amount_used = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
+    remaining_after = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
+    logged_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+
+    class Meta:
+        ordering = ['-redeemed_on', '-id']
+
+    def __str__(self):
+        return f"{self.voucher.title} - {self.redeemed_on}"
+
+
 class NotificationPreference(models.Model):
     """Per-user, per-type opt-in for each delivery channel. Rows are created
     on demand (get_or_create) the first time a type is looked up for a user,
