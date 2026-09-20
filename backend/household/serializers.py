@@ -140,7 +140,7 @@ class PurchaseRecordSerializer(serializers.ModelSerializer):
     class Meta:
         model = PurchaseRecord
         fields = (
-            'id', 'title', 'quantity', 'unit', 'ingredient', 'list_name',
+            'id', 'title', 'quantity', 'unit', 'ingredient', 'shopping_list', 'list_name',
             'purchased_on', 'purchased_by', 'purchased_by_username',
         )
         read_only_fields = fields

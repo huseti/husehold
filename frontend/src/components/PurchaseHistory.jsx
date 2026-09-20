@@ -18,7 +18,7 @@ function startDate(days) {
 
 // Read-only shopping history: what we buy most, and what was bought when.
 // Records are written by ticking items off on the list (see PurchaseRecord).
-export default function PurchaseHistory({ units, targetListName, onReAdd }) {
+export default function PurchaseHistory({ units, listId, listName, onReAdd }) {
   const { t, i18n } = useTranslation();
   const [period, setPeriod] = useState('month');
   const [search, setSearch] = useState('');
@@ -30,6 +30,7 @@ export default function PurchaseHistory({ units, targetListName, onReAdd }) {
   useEffect(() => {
     const timer = setTimeout(async () => {
       const params = {
+        list: listId,
         start: startDate(PERIODS.find((p) => p.key === period).days),
         q: search.trim() || undefined,
       };
@@ -47,7 +48,7 @@ export default function PurchaseHistory({ units, targetListName, onReAdd }) {
       }
     }, search ? 250 : 0);
     return () => clearTimeout(timer);
-  }, [period, search]);
+  }, [period, search, listId]);
 
   const formatDate = (iso) => new Date(`${iso}T00:00:00`).toLocaleDateString(i18n.language);
   const quantityText = (quantity, unitId) => {
@@ -58,7 +59,7 @@ export default function PurchaseHistory({ units, targetListName, onReAdd }) {
   const handleReAdd = async (entry) => {
     try {
       await onReAdd(entry);
-      setNotice(t('shoppingList.reAdded', { title: entry.title, list: targetListName }));
+      setNotice(t('shoppingList.reAdded', { title: entry.title, list: listName }));
     } catch (error) {
       console.error('Error re-adding item:', error);
     }
@@ -87,6 +88,8 @@ export default function PurchaseHistory({ units, targetListName, onReAdd }) {
         </select>
       </div>
 
+      <p className="text-sm text-gray-500 mb-4">{t('shoppingList.historyFor', { list: listName })}</p>
+
       {notice && <p className="text-sm text-green-600 mb-4">{notice}</p>}
       {loading && <p className="text-gray-500">{t('common.loading')}</p>}
 
@@ -101,11 +104,9 @@ export default function PurchaseHistory({ units, targetListName, onReAdd }) {
                 <span className="flex-1 min-w-32 font-medium">{entry.title}</span>
                 <span className="text-sm text-gray-600">{t('shoppingList.boughtTimes', { count: entry.count })}</span>
                 <span className="text-sm text-gray-400">{t('shoppingList.lastBought', { date: formatDate(entry.last_purchased) })}</span>
-                {targetListName && (
-                  <button onClick={() => handleReAdd(entry)} className="text-sm text-blue-600 hover:underline">
-                    + {t('shoppingList.reAdd')}
-                  </button>
-                )}
+                <button onClick={() => handleReAdd(entry)} className="text-sm text-blue-600 hover:underline">
+                  + {t('shoppingList.reAdd')}
+                </button>
               </div>
             ))}
           </div>
@@ -127,7 +128,7 @@ export default function PurchaseHistory({ units, targetListName, onReAdd }) {
                         {record.title}
                       </span>
                       <span className="text-xs text-gray-400">
-                        {[record.purchased_by_username, record.list_name].filter(Boolean).join(' · ')}
+                        {record.purchased_by_username}
                       </span>
                     </li>
                   ))}

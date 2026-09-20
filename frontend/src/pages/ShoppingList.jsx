@@ -214,7 +214,11 @@ export default function ShoppingList() {
         </div>
 
         {view === 'history' ? (
-          <PurchaseHistory units={units} targetListName={selected?.name} onReAdd={handleReAdd} />
+          selected ? (
+            <PurchaseHistory key={selected.id} units={units} listId={selected.id} listName={selected.name} onReAdd={handleReAdd} />
+          ) : (
+            <p className="text-gray-500">{t('shoppingList.noLists')}</p>
+          )
         ) : (
           <>
           {!selected && <p className="text-gray-500">{t('shoppingList.noLists')}</p>}

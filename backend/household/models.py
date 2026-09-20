@@ -250,6 +250,9 @@ class PurchaseRecord(models.Model):
     quantity = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
     unit = models.ForeignKey(UnitOfMeasure, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
     ingredient = models.ForeignKey(Ingredient, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    # The list is what history is browsed by; list_name is a snapshot for
+    # display if the list is later renamed or deleted (shopping_list -> NULL).
+    shopping_list = models.ForeignKey(ShoppingList, on_delete=models.SET_NULL, null=True, blank=True, related_name='purchase_records')
     list_name = models.CharField(max_length=100, blank=True)
     purchased_on = models.DateField(default=timezone.localdate)
     purchased_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')

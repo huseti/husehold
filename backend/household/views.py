@@ -219,7 +219,7 @@ class ShoppingListItemViewSet(viewsets.ModelViewSet):
         if item.is_completed and not was_completed:
             PurchaseRecord.objects.create(
                 title=item.title, quantity=item.quantity, unit=item.unit, ingredient=item.ingredient,
-                list_name=item.shopping_list.name, purchased_by=self.request.user, item=item,
+                shopping_list=item.shopping_list, list_name=item.shopping_list.name, purchased_by=self.request.user, item=item,
             )
         elif was_completed and not item.is_completed:
             item.purchase_records.all().delete()
@@ -253,7 +253,7 @@ class ShoppingListItemViewSet(viewsets.ModelViewSet):
         return Response(ShoppingListItemSerializer(item, context={'request': request}).data)
 
 class PurchaseRecordViewSet(viewsets.ReadOnlyModelViewSet):
-    """Shopping history. Filter with ?q= (name), ?start=&end= (inclusive).
+    """Shopping history. Filter with ?list=<id>, ?q= (name), ?start=&end= (inclusive).
     Records are created/removed by ticking items off, never edited directly."""
     serializer_class = PurchaseRecordSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -261,6 +261,8 @@ class PurchaseRecordViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         queryset = PurchaseRecord.objects.select_related('purchased_by')
         params = self.request.query_params
+        if params.get('list'):
+            queryset = queryset.filter(shopping_list_id=params['list'])
         if params.get('q'):
             queryset = queryset.filter(title__icontains=params['q'])
         if params.get('start'):

@@ -84,7 +84,8 @@
     "boughtTimes": "{{count}}× bought",
     "lastBought": "last on {{date}}",
     "reAdd": "Add again",
-    "reAdded": "\"{{title}}\" added to \"{{list}}\"."
+    "reAdded": "\"{{title}}\" added to \"{{list}}\".",
+    "historyFor": "History of \"{{list}}\" — pick another list above to see its history."
   },
   "recipes": {
     "title": "Recipes",

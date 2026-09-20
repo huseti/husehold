@@ -982,3 +982,40 @@ class PurchaseHistoryTests(TestCase):
         response = self.client.post('/api/purchases/', {'title': 'x'}, format='json')
 
         self.assertEqual(response.status_code, 405)
+
+
+class PurchaseHistoryPerListTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='tim', password='pw')
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+        self.groceries = ShoppingList.objects.first()
+        self.hardware = ShoppingList.objects.create(name='Baumarkt')
+
+    def _buy(self, shopping_list, title):
+        item = ShoppingListItem.objects.create(shopping_list=shopping_list, title=title, created_by=self.user)
+        self.client.post('/api/shopping/toggle_completed/', {'id': item.id}, format='json')
+
+    def test_records_carry_their_list_and_can_be_filtered(self):
+        self._buy(self.groceries, 'Milch')
+        self._buy(self.hardware, 'Schrauben')
+        self._buy(self.groceries, 'Milch')
+
+        groceries = self.client.get(f'/api/purchases/?list={self.groceries.id}').data['results']
+        hardware = self.client.get(f'/api/purchases/?list={self.hardware.id}').data['results']
+        summary = self.client.get(f'/api/purchases/summary/?list={self.groceries.id}').data
+
+        self.assertEqual([r['title'] for r in groceries], ['Milch', 'Milch'])
+        self.assertEqual([r['title'] for r in hardware], ['Schrauben'])
+        self.assertEqual([(e['title'], e['count']) for e in summary], [('Milch', 2)])
+
+    def test_history_outlives_the_list_but_is_no_longer_reachable_by_it(self):
+        self._buy(self.hardware, 'Schrauben')
+        list_id = self.hardware.id
+
+        self.hardware.delete()
+
+        record = PurchaseRecord.objects.get()
+        self.assertIsNone(record.shopping_list)
+        self.assertEqual(record.list_name, 'Baumarkt')
+        self.assertEqual(self.client.get(f'/api/purchases/?list={list_id}').data['results'], [])
