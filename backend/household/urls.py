@@ -2,7 +2,8 @@
 from rest_framework.routers import DefaultRouter
 from .views import (
     UserViewSet, HouseholdMemberViewSet, HouseholdSettingsView, ShoppingListItemViewSet,
-    RecipeViewSet, CookingPlanViewSet, VoucherViewSet,
+    RecipeViewSet, CookingPlanViewSet, VoucherViewSet, ShoppingListViewSet,
+    UnitOfMeasureViewSet, IngredientViewSet, LabelViewSet, MealTimeCategoryViewSet, MealEventViewSet,
     HouseholdTaskDefinitionViewSet, HouseholdTaskInstanceViewSet,
     NotificationPreferencesView, PushSubscriptionViewSet, VapidPublicKeyView,
     TestEmailNotificationView, TestPushNotificationView,
@@ -12,7 +13,13 @@ router = DefaultRouter()
 router.register(r'users', UserViewSet)
 router.register(r'members', HouseholdMemberViewSet)
 router.register(r'shopping', ShoppingListItemViewSet, basename='shopping')
+router.register(r'shopping-lists', ShoppingListViewSet, basename='shopping-list')
 router.register(r'recipes', RecipeViewSet, basename='recipe')
+router.register(r'meal-events', MealEventViewSet, basename='meal-event')
+router.register(r'units', UnitOfMeasureViewSet, basename='unit')
+router.register(r'ingredients', IngredientViewSet, basename='ingredient')
+router.register(r'labels', LabelViewSet, basename='label')
+router.register(r'meal-categories', MealTimeCategoryViewSet, basename='meal-category')
 router.register(r'cooking-plans', CookingPlanViewSet, basename='cooking-plan')
 router.register(r'vouchers', VoucherViewSet, basename='voucher')
 router.register(r'task-definitions', HouseholdTaskDefinitionViewSet, basename='task-definition')

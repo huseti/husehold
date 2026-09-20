@@ -9,14 +9,19 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.contrib.auth.models import User
 from django.conf import settings as django_settings
+from django.db.models import ProtectedError, Q
 from .models import (
-    HouseholdMember, HouseholdSettings, ShoppingListItem, Recipe, CookingPlan,
+    HouseholdMember, HouseholdSettings, ShoppingList, ShoppingListItem, Recipe, CookingPlan,
     HouseholdTaskDefinition, HouseholdTaskInstance, HouseholdTaskEvent,
     NotificationPreference, PushSubscription, Voucher, VoucherRedemption,
+    UnitOfMeasure, Ingredient, Label, MealTimeCategory, RecipeRating, MealEvent,
 )
 from .serializers import (
-    UserSerializer, HouseholdMemberSerializer, HouseholdSettingsSerializer, ShoppingListItemSerializer,
+    UserSerializer, HouseholdMemberSerializer, HouseholdSettingsSerializer,
+    ShoppingListSerializer, ShoppingListItemSerializer,
     RecipeSerializer, CookingPlanSerializer,
+    UnitOfMeasureSerializer, IngredientSerializer, LabelSerializer, MealTimeCategorySerializer,
+    MealEventSerializer,
     HouseholdTaskDefinitionSerializer, HouseholdTaskInstanceSerializer,
     NotificationPreferenceSerializer, PushSubscriptionSerializer,
     VoucherSerializer,
@@ -165,32 +170,178 @@ class HouseholdMemberViewSet(viewsets.ModelViewSet):
         member.avatar.delete(save=True)
         return Response(HouseholdMemberSerializer(member, context={'request': request}).data)
 
+def _visible_shopping_lists(user):
+    """An empty visible_to means "everyone"; otherwise only listed members."""
+    return ShoppingList.objects.filter(Q(visible_to__isnull=True) | Q(visible_to=user)).distinct()
+
+class ShoppingListViewSet(viewsets.ModelViewSet):
+    serializer_class = ShoppingListSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return _visible_shopping_lists(self.request.user)
+
+    def _ensure_creator_can_see(self, shopping_list):
+        # A restricted list that excluded its own editor would vanish from
+        # their view on the next fetch.
+        if shopping_list.visible_to.exists():
+            shopping_list.visible_to.add(self.request.user)
+
+    def perform_create(self, serializer):
+        shopping_list = serializer.save(created_by=self.request.user, updated_by=self.request.user)
+        self._ensure_creator_can_see(shopping_list)
+
+    def perform_update(self, serializer):
+        shopping_list = serializer.save(updated_by=self.request.user)
+        self._ensure_creator_can_see(shopping_list)
+
+    @action(detail=True, methods=['post'], url_path='clear-completed')
+    def clear_completed(self, request, pk=None):
+        deleted, _ = self.get_object().items.filter(is_completed=True).delete()
+        return Response({'deleted': deleted})
+
 class ShoppingListItemViewSet(viewsets.ModelViewSet):
-    queryset = ShoppingListItem.objects.all()
     serializer_class = ShoppingListItemSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    def get_queryset(self):
+        queryset = ShoppingListItem.objects.filter(
+            shopping_list__in=_visible_shopping_lists(self.request.user),
+        ).select_related('unit', 'created_by')
+        list_id = self.request.query_params.get('list')
+        if list_id:
+            queryset = queryset.filter(shopping_list_id=list_id)
+        return queryset
+
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        extra = {'created_by': self.request.user}
+        # Link to the ingredient catalogue when the typed name already
+        # matches one (never auto-creates -- shopping items are often
+        # non-food), so the Cooking Plan can later merge duplicates.
+        if not serializer.validated_data.get('ingredient'):
+            match = Ingredient.objects.filter(name__iexact=serializer.validated_data['title'].strip()).first()
+            if match:
+                extra['ingredient'] = match
+        serializer.save(**extra)
 
     @action(detail=False, methods=['post'])
     def toggle_completed(self, request):
-        item_id = request.data.get('id')
-        try:
-            item = ShoppingListItem.objects.get(id=item_id)
-            item.is_completed = not item.is_completed
-            item.save()
-            return Response(ShoppingListItemSerializer(item).data)
-        except ShoppingListItem.DoesNotExist:
+        item = self.get_queryset().filter(id=request.data.get('id')).first()
+        if item is None:
             return Response({'error': 'Item not found'}, status=status.HTTP_404_NOT_FOUND)
+        item.is_completed = not item.is_completed
+        item.save()
+        return Response(ShoppingListItemSerializer(item, context={'request': request}).data)
 
-class RecipeViewSet(viewsets.ModelViewSet):
-    queryset = Recipe.objects.all()
-    serializer_class = RecipeSerializer
+class ProtectedDeleteMixin:
+    """Deleting a unit/ingredient that recipes still reference raises
+    ProtectedError -- surface that as a 409 the UI can explain instead of a 500."""
+
+    def destroy(self, request, *args, **kwargs):
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except ProtectedError:
+            return Response(
+                {'detail': 'This is still used by one or more recipes and cannot be deleted.'},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+class AuditedConfigViewSet(ProtectedDeleteMixin, viewsets.ModelViewSet):
+    """Shared base for the small config-editable lookup tables."""
     permission_classes = [permissions.IsAuthenticated]
 
     def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user, updated_by=self.request.user)
+
+    def perform_update(self, serializer):
+        serializer.save(updated_by=self.request.user)
+
+class UnitOfMeasureViewSet(AuditedConfigViewSet):
+    queryset = UnitOfMeasure.objects.all()
+    serializer_class = UnitOfMeasureSerializer
+
+class LabelViewSet(AuditedConfigViewSet):
+    queryset = Label.objects.all()
+    serializer_class = LabelSerializer
+
+class MealTimeCategoryViewSet(AuditedConfigViewSet):
+    queryset = MealTimeCategory.objects.all()
+    serializer_class = MealTimeCategorySerializer
+
+class IngredientViewSet(AuditedConfigViewSet):
+    serializer_class = IngredientSerializer
+
+    def get_queryset(self):
+        queryset = Ingredient.objects.all()
+        q = self.request.query_params.get('q')
+        if q:
+            queryset = queryset.filter(name__icontains=q)
+        return queryset
+
+class RecipeViewSet(viewsets.ModelViewSet):
+    serializer_class = RecipeSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = Recipe.objects.prefetch_related(
+            'ingredients__ingredient', 'ingredients__unit', 'ratings__rated_by', 'labels', 'categories', 'meal_events',
+        ).select_related('created_by')
+        params = self.request.query_params
+        q = params.get('q')
+        if q:
+            queryset = queryset.filter(Q(title__icontains=q) | Q(ingredients__ingredient__name__icontains=q)).distinct()
+        if params.get('label'):
+            queryset = queryset.filter(labels__id=params['label'])
+        if params.get('category'):
+            queryset = queryset.filter(categories__id=params['category'])
+        return queryset
+
+    def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
+
+    @action(detail=True, methods=['post', 'delete'])
+    def rate(self, request, pk=None):
+        """One rating per (recipe, user): POST {score: 1-5} sets or changes
+        the caller's own rating, DELETE clears it."""
+        recipe = self.get_object()
+        if request.method == 'DELETE':
+            RecipeRating.objects.filter(recipe=recipe, rated_by=request.user).delete()
+        else:
+            try:
+                score = int(request.data.get('score'))
+            except (TypeError, ValueError):
+                score = None
+            if score is None or not 1 <= score <= 5:
+                return Response({'detail': 'score must be an integer from 1 to 5.'}, status=status.HTTP_400_BAD_REQUEST)
+            RecipeRating.objects.update_or_create(
+                recipe=recipe, rated_by=request.user, defaults={'score': score},
+            )
+        recipe = self.get_queryset().get(pk=recipe.pk)
+        return Response(RecipeSerializer(recipe, context={'request': request}).data)
+
+class MealEventViewSet(viewsets.ModelViewSet):
+    """Log of recipes actually cooked. Filter with ?recipe=<id>, ?date=<day>
+    (what was cooked that day) or ?start=&end= (a range, inclusive).
+    Entries are created or deleted, not edited -- a wrong one is re-logged."""
+    serializer_class = MealEventSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    http_method_names = ['get', 'post', 'delete', 'head', 'options']
+
+    def get_queryset(self):
+        queryset = MealEvent.objects.select_related('recipe', 'logged_by')
+        params = self.request.query_params
+        if params.get('recipe'):
+            queryset = queryset.filter(recipe_id=params['recipe'])
+        if params.get('date'):
+            queryset = queryset.filter(date_cooked=params['date'])
+        if params.get('start'):
+            queryset = queryset.filter(date_cooked__gte=params['start'])
+        if params.get('end'):
+            queryset = queryset.filter(date_cooked__lte=params['end'])
+        return queryset
+
+    def perform_create(self, serializer):
+        serializer.save(logged_by=self.request.user)
 
 class CookingPlanViewSet(viewsets.ModelViewSet):
     queryset = CookingPlan.objects.all()

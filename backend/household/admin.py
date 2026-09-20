@@ -1,6 +1,7 @@
 ﻿from django.contrib import admin
 from .models import (
-    HouseholdMember, HouseholdSettings, ShoppingListItem, Recipe, CookingPlan,
+    HouseholdMember, HouseholdSettings, ShoppingList, ShoppingListItem, Recipe, CookingPlan,
+    UnitOfMeasure, Ingredient, Label, MealTimeCategory, RecipeIngredient, RecipeRating, MealEvent,
     HouseholdTaskDefinition, HouseholdTaskInstance, HouseholdTaskEvent,
     NotificationPreference, PushSubscription, NotificationLog, Voucher, VoucherRedemption,
 )
@@ -14,17 +15,56 @@ class HouseholdMemberAdmin(admin.ModelAdmin):
 class HouseholdSettingsAdmin(admin.ModelAdmin):
     list_display = ('household_name', 'updated_by', 'updated_at')
 
+class ShoppingListItemInline(admin.TabularInline):
+    model = ShoppingListItem
+    extra = 0
+
+@admin.register(ShoppingList)
+class ShoppingListAdmin(admin.ModelAdmin):
+    list_display = ('name', 'is_favorite_for_cooking_plan', 'updated_by', 'updated_at')
+    inlines = [ShoppingListItemInline]
+
 @admin.register(ShoppingListItem)
 class ShoppingListItemAdmin(admin.ModelAdmin):
-    list_display = ('title', 'is_completed', 'created_by', 'created_at')
-    list_filter = ('is_completed', 'created_at')
+    list_display = ('title', 'shopping_list', 'quantity', 'unit', 'is_completed', 'created_by', 'created_at')
+    list_filter = ('shopping_list', 'is_completed', 'created_at')
     search_fields = ('title',)
+
+@admin.register(UnitOfMeasure)
+class UnitOfMeasureAdmin(admin.ModelAdmin):
+    list_display = ('name_de', 'name_en', 'abbreviation_de', 'abbreviation_en', 'sort_order')
+
+@admin.register(Ingredient)
+class IngredientAdmin(admin.ModelAdmin):
+    list_display = ('name', 'default_excluded_from_shopping_list')
+    search_fields = ('name',)
+
+@admin.register(Label)
+class LabelAdmin(admin.ModelAdmin):
+    list_display = ('name_de', 'name_en', 'color_hex')
+
+@admin.register(MealTimeCategory)
+class MealTimeCategoryAdmin(admin.ModelAdmin):
+    list_display = ('name_de', 'name_en', 'sort_order')
+
+class RecipeIngredientInline(admin.TabularInline):
+    model = RecipeIngredient
+    extra = 0
+
+class RecipeRatingInline(admin.TabularInline):
+    model = RecipeRating
+    extra = 0
+
+class MealEventInline(admin.TabularInline):
+    model = MealEvent
+    extra = 0
 
 @admin.register(Recipe)
 class RecipeAdmin(admin.ModelAdmin):
     list_display = ('title', 'created_by', 'created_at')
-    list_filter = ('created_at',)
+    list_filter = ('created_at', 'labels', 'categories')
     search_fields = ('title',)
+    inlines = [RecipeIngredientInline, RecipeRatingInline, MealEventInline]
 
 @admin.register(CookingPlan)
 class CookingPlanAdmin(admin.ModelAdmin):

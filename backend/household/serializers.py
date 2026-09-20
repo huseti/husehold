@@ -2,9 +2,10 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
 from .models import (
-    HouseholdMember, HouseholdSettings, ShoppingListItem, Recipe, CookingPlan,
+    HouseholdMember, HouseholdSettings, ShoppingList, ShoppingListItem, Recipe, CookingPlan,
     HouseholdTaskDefinition, HouseholdTaskInstance, HouseholdTaskEvent,
     NotificationPreference, PushSubscription, Voucher, VoucherRedemption,
+    UnitOfMeasure, Ingredient, Label, MealTimeCategory, RecipeIngredient, RecipeRating, MealEvent,
 )
 
 class UserSerializer(serializers.ModelSerializer):
@@ -31,19 +32,224 @@ class HouseholdSettingsSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('Not a recognized IANA timezone name.')
         return value
 
+class UnitOfMeasureSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UnitOfMeasure
+        fields = ('id', 'name_de', 'name_en', 'abbreviation_de', 'abbreviation_en', 'sort_order')
+
+    def validate_name_de(self, value):
+        value = value.strip()
+        clash = UnitOfMeasure.objects.filter(name_de__iexact=value)
+        if self.instance:
+            clash = clash.exclude(pk=self.instance.pk)
+        if clash.exists():
+            raise serializers.ValidationError('A unit with this name already exists.')
+        return value
+
+class IngredientSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Ingredient
+        fields = ('id', 'name', 'default_excluded_from_shopping_list')
+
+    def validate_name(self, value):
+        value = value.strip()
+        clash = Ingredient.objects.filter(name__iexact=value)
+        if self.instance:
+            clash = clash.exclude(pk=self.instance.pk)
+        if clash.exists():
+            raise serializers.ValidationError('An ingredient with this name already exists.')
+        return value
+
+class LabelSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Label
+        fields = ('id', 'name_de', 'name_en', 'color_hex')
+
+    def validate_name_de(self, value):
+        value = value.strip()
+        clash = Label.objects.filter(name_de__iexact=value)
+        if self.instance:
+            clash = clash.exclude(pk=self.instance.pk)
+        if clash.exists():
+            raise serializers.ValidationError('A label with this name already exists.')
+        return value
+
+class MealTimeCategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MealTimeCategory
+        fields = ('id', 'name_de', 'name_en', 'sort_order')
+
+    def validate_name_de(self, value):
+        value = value.strip()
+        clash = MealTimeCategory.objects.filter(name_de__iexact=value)
+        if self.instance:
+            clash = clash.exclude(pk=self.instance.pk)
+        if clash.exists():
+            raise serializers.ValidationError('A category with this name already exists.')
+        return value
+
+def get_or_create_ingredient(name, user):
+    """Case-insensitive match on the shared catalogue, creating the
+    ingredient on the fly if it's new -- this is what lets recipe entry be
+    free-text without ending up with "Zwiebel" and "zwiebel" as two rows."""
+    name = name.strip()
+    existing = Ingredient.objects.filter(name__iexact=name).first()
+    if existing:
+        return existing
+    return Ingredient.objects.create(name=name, created_by=user, updated_by=user)
+
+class ShoppingListSerializer(serializers.ModelSerializer):
+    item_count = serializers.SerializerMethodField()
+    open_item_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ShoppingList
+        fields = ('id', 'name', 'is_favorite_for_cooking_plan', 'visible_to', 'item_count', 'open_item_count')
+
+    def get_item_count(self, obj):
+        return obj.items.count()
+
+    def get_open_item_count(self, obj):
+        return obj.items.filter(is_completed=False).count()
+
 class ShoppingListItemSerializer(serializers.ModelSerializer):
     created_by_username = serializers.CharField(source='created_by.username', read_only=True)
+    unit_name = serializers.SerializerMethodField()
 
     class Meta:
         model = ShoppingListItem
-        fields = ('id', 'title', 'description', 'is_completed', 'created_by', 'created_by_username', 'created_at', 'updated_at')
+        fields = (
+            'id', 'shopping_list', 'title', 'description', 'quantity', 'unit', 'unit_name',
+            'ingredient', 'source', 'is_completed', 'created_by', 'created_by_username',
+            'created_at', 'updated_at',
+        )
+        read_only_fields = ('source', 'created_by')
+
+    def get_unit_name(self, obj):
+        return str(obj.unit) if obj.unit else None
+
+    def validate_shopping_list(self, value):
+        user = self.context['request'].user
+        if value.visible_to.exists() and not value.visible_to.filter(pk=user.pk).exists():
+            raise serializers.ValidationError('You cannot access this shopping list.')
+        return value
+
+class RecipeIngredientSerializer(serializers.ModelSerializer):
+    # Written as a plain name (auto-created if new) rather than an id, so the
+    # recipe form can be free-text -- see get_or_create_ingredient().
+    ingredient_name = serializers.CharField(source='ingredient.name', max_length=100)
+    unit_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = RecipeIngredient
+        fields = ('id', 'ingredient', 'ingredient_name', 'quantity', 'unit', 'unit_name', 'note', 'sort_order')
+        read_only_fields = ('ingredient',)
+
+    def get_unit_name(self, obj):
+        return str(obj.unit) if obj.unit else None
+
+class RecipeRatingSerializer(serializers.ModelSerializer):
+    rated_by_username = serializers.CharField(source='rated_by.username', read_only=True)
+
+    class Meta:
+        model = RecipeRating
+        fields = ('id', 'rated_by', 'rated_by_username', 'score')
+
+class MealEventSerializer(serializers.ModelSerializer):
+    logged_by_username = serializers.CharField(source='logged_by.username', read_only=True, default=None)
+    recipe_title = serializers.CharField(source='recipe.title', read_only=True)
+
+    class Meta:
+        model = MealEvent
+        fields = ('id', 'recipe', 'recipe_title', 'date_cooked', 'servings_made', 'logged_by', 'logged_by_username')
+        read_only_fields = ('logged_by',)
+
+    def validate_date_cooked(self, value):
+        if value > timezone.localdate():
+            raise serializers.ValidationError('A meal cannot be logged for a future date.')
+        return value
 
 class RecipeSerializer(serializers.ModelSerializer):
     created_by_username = serializers.CharField(source='created_by.username', read_only=True)
+    ingredients = RecipeIngredientSerializer(many=True, required=False)
+    categories = serializers.PrimaryKeyRelatedField(many=True, queryset=MealTimeCategory.objects.all(), required=False)
+    labels = serializers.PrimaryKeyRelatedField(many=True, queryset=Label.objects.all(), required=False)
+    ratings = RecipeRatingSerializer(many=True, read_only=True)
+    average_rating = serializers.SerializerMethodField()
+    my_rating = serializers.SerializerMethodField()
+    last_cooked_date = serializers.SerializerMethodField()
+    times_cooked = serializers.SerializerMethodField()
+    recent_meal_events = serializers.SerializerMethodField()
 
     class Meta:
         model = Recipe
-        fields = ('id', 'title', 'description', 'ingredients', 'instructions', 'prep_time', 'cook_time', 'servings', 'created_by', 'created_by_username', 'created_at', 'updated_at')
+        fields = (
+            'id', 'title', 'description', 'instructions', 'prep_time', 'cook_time', 'servings',
+            'source_url', 'notes', 'categories', 'labels', 'ingredients',
+            'ratings', 'average_rating', 'my_rating',
+            'last_cooked_date', 'times_cooked', 'recent_meal_events',
+            'created_by', 'created_by_username', 'created_at', 'updated_at',
+        )
+        read_only_fields = ('created_by',)
+
+    def get_average_rating(self, obj):
+        # Iterates .all() (not an aggregate query) so the viewset's
+        # prefetch_related('ratings') is what gets used.
+        scores = [r.score for r in obj.ratings.all()]
+        return round(sum(scores) / len(scores), 1) if scores else None
+
+    def get_my_rating(self, obj):
+        request = self.context.get('request')
+        if request is None:
+            return None
+        return next((r.score for r in obj.ratings.all() if r.rated_by_id == request.user.id), None)
+
+    # Derived from the prefetched meal_events rather than a stored column, so
+    # deleting a mistaken log entry can never leave a stale "last cooked".
+    def get_last_cooked_date(self, obj):
+        dates = [e.date_cooked for e in obj.meal_events.all()]
+        return max(dates).isoformat() if dates else None
+
+    def get_times_cooked(self, obj):
+        return len(obj.meal_events.all())
+
+    def get_recent_meal_events(self, obj):
+        return MealEventSerializer(obj.meal_events.all()[:10], many=True, context=self.context).data
+
+    def _replace_ingredients(self, recipe, lines):
+        user = self.context['request'].user
+        recipe.ingredients.all().delete()
+        for order, line in enumerate(lines):
+            ingredient = get_or_create_ingredient(line['ingredient']['name'], user)
+            RecipeIngredient.objects.create(
+                recipe=recipe, ingredient=ingredient, quantity=line.get('quantity'),
+                unit=line.get('unit'), note=line.get('note', ''), sort_order=order,
+            )
+
+    def create(self, validated_data):
+        lines = validated_data.pop('ingredients', [])
+        categories = validated_data.pop('categories', [])
+        labels = validated_data.pop('labels', [])
+        recipe = Recipe.objects.create(**validated_data)
+        recipe.categories.set(categories)
+        recipe.labels.set(labels)
+        self._replace_ingredients(recipe, lines)
+        return recipe
+
+    def update(self, instance, validated_data):
+        lines = validated_data.pop('ingredients', None)
+        categories = validated_data.pop('categories', None)
+        labels = validated_data.pop('labels', None)
+        instance = super().update(instance, validated_data)
+        if categories is not None:
+            instance.categories.set(categories)
+        if labels is not None:
+            instance.labels.set(labels)
+        # Only when the key was sent: a PATCH that omits ingredients must
+        # leave them alone rather than wiping the list.
+        if lines is not None:
+            self._replace_ingredients(instance, lines)
+        return instance
 
 class CookingPlanSerializer(serializers.ModelSerializer):
     recipe_title = serializers.CharField(source='recipe.title', read_only=True)

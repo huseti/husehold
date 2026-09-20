@@ -1,4 +1,6 @@
-﻿from django.db import models
+﻿from django.core.validators import MaxValueValidator, MinValueValidator
+from django.db import models
+from django.db.models.functions import Lower
 from django.contrib.auth.models import User
 from django.utils import timezone
 
@@ -32,10 +34,87 @@ class HouseholdSettings(AuditableMixin):
     def __str__(self):
         return self.household_name
 
-class ShoppingListItem(models.Model):
+class UnitOfMeasure(AuditableMixin):
+    """A plain label (g, EL, Stk, ...) -- deliberately no conversion between
+    units, see PLANNING.md 2b. Seeded by migration 0018, editable in config."""
+    # German is the primary (required) language; English is an optional
+    # translation and the UI falls back to German when it's blank.
+    name_de = models.CharField(max_length=50, unique=True)
+    name_en = models.CharField(max_length=50, blank=True)
+    abbreviation_de = models.CharField(max_length=20, blank=True)
+    abbreviation_en = models.CharField(max_length=20, blank=True)
+    sort_order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['sort_order', 'name_de']
+
+    def __str__(self):
+        return self.abbreviation_de or self.name_de
+
+
+class Ingredient(AuditableMixin):
+    """Shared ingredient catalogue. Created on the fly when a recipe (or
+    shopping list item) names an ingredient that doesn't exist yet -- matched
+    case-insensitively so "Zwiebel" and "zwiebel" don't become two rows."""
+    name = models.CharField(max_length=100)
+    # For staples like water or salt that shouldn't clutter a generated
+    # shopping list. Consumed by the Cooking Plan's send-to-shopping-list step.
+    default_excluded_from_shopping_list = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['name']
+        constraints = [
+            models.UniqueConstraint(Lower('name'), name='unique_ingredient_name_ci'),
+        ]
+
+    def __str__(self):
+        return self.name
+
+
+class Label(AuditableMixin):
+    name_de = models.CharField(max_length=50)
+    name_en = models.CharField(max_length=50, blank=True)
+    color_hex = models.CharField(max_length=7, default='#5b7a5e')
+
+    class Meta:
+        ordering = ['name_de']
+        constraints = [
+            models.UniqueConstraint(Lower('name_de'), name='unique_label_name_ci'),
+        ]
+
+    def __str__(self):
+        return self.name_de
+
+
+class MealTimeCategory(AuditableMixin):
+    """Breakfast / lunch / dinner / dessert... A recipe can belong to several.
+    The Cooking Plan will rank recipes independently per category."""
+    name_de = models.CharField(max_length=50)
+    name_en = models.CharField(max_length=50, blank=True)
+    sort_order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['sort_order', 'name_de']
+        verbose_name_plural = 'meal time categories'
+        constraints = [
+            models.UniqueConstraint(Lower('name_de'), name='unique_meal_category_name_ci'),
+        ]
+
+    def __str__(self):
+        return self.name_de
+
+
+class Recipe(models.Model):
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)
-    is_completed = models.BooleanField(default=False)
+    instructions = models.TextField(blank=True)
+    prep_time = models.IntegerField(help_text="Preparation time in minutes", null=True, blank=True)
+    cook_time = models.IntegerField(help_text="Cooking time in minutes", null=True, blank=True)
+    servings = models.PositiveIntegerField(default=1)
+    source_url = models.URLField(max_length=500, blank=True)
+    notes = models.TextField(blank=True)
+    categories = models.ManyToManyField(MealTimeCategory, blank=True, related_name='recipes')
+    labels = models.ManyToManyField(Label, blank=True, related_name='recipes')
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -46,20 +125,99 @@ class ShoppingListItem(models.Model):
     def __str__(self):
         return self.title
 
-class Recipe(models.Model):
+
+class RecipeIngredient(models.Model):
+    recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE, related_name='ingredients')
+    ingredient = models.ForeignKey(Ingredient, on_delete=models.PROTECT, related_name='recipe_lines')
+    # Blank for "to taste" / "a pinch" style lines with no amount.
+    quantity = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
+    unit = models.ForeignKey(UnitOfMeasure, on_delete=models.PROTECT, null=True, blank=True, related_name='+')
+    note = models.CharField(max_length=200, blank=True, help_text='e.g. "finely chopped"')
+    sort_order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['sort_order', 'id']
+
+    def __str__(self):
+        return f"{self.quantity or ''} {self.unit or ''} {self.ingredient}".strip()
+
+
+class RecipeRating(models.Model):
+    recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE, related_name='ratings')
+    rated_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='+')
+    score = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['recipe', 'rated_by'], name='one_rating_per_user_per_recipe'),
+        ]
+
+    def __str__(self):
+        return f"{self.recipe.title}: {self.score}/5 by {self.rated_by.username}"
+
+
+class MealEvent(models.Model):
+    """One time a recipe was actually cooked. The Cooking Plan will derive
+    "not cooked in a while" and its ranking from these rows, and a plan entry
+    will later be marked fulfilled by one."""
+    recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE, related_name='meal_events')
+    date_cooked = models.DateField(default=timezone.localdate)
+    servings_made = models.PositiveIntegerField(default=1)
+    logged_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-date_cooked', '-id']
+
+    def __str__(self):
+        return f"{self.recipe.title} on {self.date_cooked}"
+
+
+class ShoppingList(AuditableMixin):
+    name = models.CharField(max_length=100)
+    # The list the Cooking Plan writes into by default. At most one is the
+    # favorite -- enforced in save() rather than a DB constraint so flipping
+    # the flag on a new list atomically un-flags the old one.
+    is_favorite_for_cooking_plan = models.BooleanField(default=False)
+    # Empty means "visible to every member" -- with 2 users, restricting is
+    # the exception (e.g. a private gift-ideas list), not the default.
+    visible_to = models.ManyToManyField(User, blank=True, related_name='visible_shopping_lists')
+
+    class Meta:
+        ordering = ['-is_favorite_for_cooking_plan', 'name']
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if self.is_favorite_for_cooking_plan:
+            ShoppingList.objects.exclude(pk=self.pk).filter(
+                is_favorite_for_cooking_plan=True,
+            ).update(is_favorite_for_cooking_plan=False)
+
+    def __str__(self):
+        return self.name
+
+
+class ShoppingListItem(models.Model):
+    SOURCE_CHOICES = [
+        ('manual', 'Manual'),
+        ('cooking_plan', 'Cooking plan'),
+    ]
+
+    shopping_list = models.ForeignKey(ShoppingList, on_delete=models.CASCADE, related_name='items')
     title = models.CharField(max_length=200)
-    description = models.TextField()
-    ingredients = models.TextField()
-    instructions = models.TextField()
-    prep_time = models.IntegerField(help_text="Preparation time in minutes", null=True, blank=True)
-    cook_time = models.IntegerField(help_text="Cooking time in minutes", null=True, blank=True)
-    servings = models.IntegerField(default=1)
+    description = models.TextField(blank=True)
+    quantity = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
+    unit = models.ForeignKey(UnitOfMeasure, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    ingredient = models.ForeignKey(Ingredient, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    source = models.CharField(max_length=20, choices=SOURCE_CHOICES, default='manual')
+    is_completed = models.BooleanField(default=False)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['-created_at']
+        ordering = ['is_completed', '-created_at']
 
     def __str__(self):
         return self.title

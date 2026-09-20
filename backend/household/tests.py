@@ -1,12 +1,15 @@
 import tempfile
-from datetime import date
+from datetime import date, timedelta
 
 from django.contrib.auth.models import User
 from django.test import TestCase, override_settings
 from django.utils import timezone as dj_timezone
 from rest_framework.test import APIClient
 
-from .models import HouseholdMember, HouseholdSettings, HouseholdTaskDefinition, HouseholdTaskInstance, HouseholdTaskEvent
+from .models import (
+    HouseholdMember, HouseholdSettings, HouseholdTaskDefinition, HouseholdTaskInstance, HouseholdTaskEvent,
+    Ingredient, Label, MealEvent, MealTimeCategory, Recipe, RecipeRating, ShoppingList, ShoppingListItem, UnitOfMeasure,
+)
 from .services.task_generation import generate_instances_for_range
 
 
@@ -624,3 +627,285 @@ class TaskDefinitionDeletionTests(TestCase):
         self.assertEqual(response.status_code, 204)
         self.assertFalse(HouseholdTaskDefinition.objects.filter(id=self.definition.id).exists())
         self.assertFalse(HouseholdTaskInstance.objects.filter(id=instance.id).exists())
+
+
+class RecipeApiTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='tim', password='pw')
+        self.other = User.objects.create_user(username='anna', password='pw')
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+        self.gram = UnitOfMeasure.objects.get(abbreviation_de='g')
+
+    def _create(self, **extra):
+        payload = {
+            'title': 'Spaghetti', 'servings': 2,
+            'ingredients': [
+                {'ingredient_name': 'Spaghetti', 'quantity': '200', 'unit': self.gram.id},
+                {'ingredient_name': 'Salz'},
+            ],
+            **extra,
+        }
+        return self.client.post('/api/recipes/', payload, format='json')
+
+    def test_seed_data_present(self):
+        self.assertTrue(Label.objects.filter(name_de='Schnell').exists())
+        self.assertEqual(MealTimeCategory.objects.count(), 4)
+        self.assertTrue(ShoppingList.objects.filter(is_favorite_for_cooking_plan=True).exists())
+
+    def test_create_builds_ingredients_and_reuses_case_insensitively(self):
+        first = self._create()
+        second = self.client.post('/api/recipes/', {
+            'title': 'Salat', 'ingredients': [{'ingredient_name': 'salz'}],
+        }, format='json')
+
+        self.assertEqual(first.status_code, 201)
+        self.assertEqual(second.status_code, 201)
+        self.assertEqual(Ingredient.objects.filter(name__iexact='salz').count(), 1)
+        self.assertEqual(first.data['ingredients'][0]['unit_name'], 'g')
+        self.assertIsNone(first.data['ingredients'][1]['quantity'])
+
+    def test_patch_without_ingredients_keeps_them_but_with_replaces(self):
+        recipe_id = self._create().data['id']
+
+        self.client.patch(f'/api/recipes/{recipe_id}/', {'title': 'Nudeln'}, format='json')
+        self.assertEqual(Recipe.objects.get(pk=recipe_id).ingredients.count(), 2)
+
+        self.client.patch(f'/api/recipes/{recipe_id}/', {
+            'ingredients': [{'ingredient_name': 'Pfeffer'}],
+        }, format='json')
+        lines = Recipe.objects.get(pk=recipe_id).ingredients.all()
+        self.assertEqual([line.ingredient.name for line in lines], ['Pfeffer'])
+
+    def test_filters_by_query_label_and_category(self):
+        label = Label.objects.get(name_de='Schnell')
+        category = MealTimeCategory.objects.get(name_de='Abendessen')
+        self._create(labels=[label.id], categories=[category.id])
+        self.client.post('/api/recipes/', {'title': 'Kuchen'}, format='json')
+
+        def titles(query):
+            return [r['title'] for r in self.client.get(f'/api/recipes/?{query}').data['results']]
+
+        self.assertEqual(titles(f'label={label.id}'), ['Spaghetti'])
+        self.assertEqual(titles(f'category={category.id}'), ['Spaghetti'])
+        self.assertEqual(titles('q=kuch'), ['Kuchen'])
+        self.assertEqual(titles('q=salz'), ['Spaghetti'])
+
+    def test_rating_average_my_rating_and_clear(self):
+        recipe_id = self._create().data['id']
+        self.client.post(f'/api/recipes/{recipe_id}/rate/', {'score': 5})
+        other = APIClient()
+        other.force_authenticate(user=self.other)
+        response = other.post(f'/api/recipes/{recipe_id}/rate/', {'score': 2})
+
+        self.assertEqual(response.data['average_rating'], 3.5)
+        self.assertEqual(response.data['my_rating'], 2)
+        self.assertEqual(len(response.data['ratings']), 2)
+
+        # Re-rating changes the caller's own row rather than adding one.
+        self.client.post(f'/api/recipes/{recipe_id}/rate/', {'score': 3})
+        self.assertEqual(RecipeRating.objects.filter(recipe_id=recipe_id).count(), 2)
+
+        cleared = self.client.delete(f'/api/recipes/{recipe_id}/rate/')
+        self.assertIsNone(cleared.data['my_rating'])
+        self.assertEqual(cleared.data['average_rating'], 2.0)
+
+    def test_rating_rejects_out_of_range(self):
+        recipe_id = self._create().data['id']
+
+        self.assertEqual(self.client.post(f'/api/recipes/{recipe_id}/rate/', {'score': 6}).status_code, 400)
+        self.assertEqual(self.client.post(f'/api/recipes/{recipe_id}/rate/', {'score': 'x'}).status_code, 400)
+
+    def test_deleting_unit_or_ingredient_in_use_is_409(self):
+        self._create()
+        ingredient = Ingredient.objects.get(name='Spaghetti')
+
+        self.assertEqual(self.client.delete(f'/api/units/{self.gram.id}/').status_code, 409)
+        self.assertEqual(self.client.delete(f'/api/ingredients/{ingredient.id}/').status_code, 409)
+
+    def test_duplicate_label_name_rejected_case_insensitively(self):
+        response = self.client.post('/api/labels/', {'name_de': 'schnell', 'color_hex': '#111111'})
+
+        self.assertEqual(response.status_code, 400)
+
+
+class ShoppingApiTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='tim', password='pw')
+        self.other = User.objects.create_user(username='anna', password='pw')
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+        self.other_client = APIClient()
+        self.other_client.force_authenticate(user=self.other)
+
+    def test_only_one_favorite_list(self):
+        new_id = self.client.post('/api/shopping-lists/', {
+            'name': 'Baumarkt', 'is_favorite_for_cooking_plan': True,
+        }, format='json').data['id']
+
+        favorites = ShoppingList.objects.filter(is_favorite_for_cooking_plan=True)
+        self.assertEqual([f.id for f in favorites], [new_id])
+
+    def test_restricted_list_hidden_from_others_and_includes_creator(self):
+        response = self.client.post('/api/shopping-lists/', {
+            'name': 'Geschenke', 'visible_to': [self.user.id],
+        }, format='json')
+        list_id = response.data['id']
+
+        mine = [item['id'] for item in self.client.get('/api/shopping-lists/').data['results']]
+        theirs = [item['id'] for item in self.other_client.get('/api/shopping-lists/').data['results']]
+        self.assertIn(list_id, mine)
+        self.assertNotIn(list_id, theirs)
+        self.assertEqual(self.other_client.get(f'/api/shopping-lists/{list_id}/').status_code, 404)
+
+    def test_creator_is_added_when_they_forget_themselves(self):
+        response = self.client.post('/api/shopping-lists/', {
+            'name': 'Geheim', 'visible_to': [self.other.id],
+        }, format='json')
+
+        self.assertCountEqual(response.data['visible_to'], [self.user.id, self.other.id])
+
+    def test_cannot_add_item_to_hidden_list_or_toggle_its_items(self):
+        hidden = ShoppingList.objects.create(name='Privat')
+        hidden.visible_to.add(self.user)
+        item = ShoppingListItem.objects.create(shopping_list=hidden, title='Geheim', created_by=self.user)
+
+        add = self.other_client.post('/api/shopping/', {'shopping_list': hidden.id, 'title': 'x'}, format='json')
+        toggle = self.other_client.post('/api/shopping/toggle_completed/', {'id': item.id}, format='json')
+
+        self.assertEqual(add.status_code, 400)
+        self.assertEqual(toggle.status_code, 404)
+
+    def test_item_with_quantity_unit_and_ingredient_autolink(self):
+        shopping_list = ShoppingList.objects.first()
+        milk = Ingredient.objects.create(name='Milch')
+        litre = UnitOfMeasure.objects.get(abbreviation_de='l')
+
+        response = self.client.post('/api/shopping/', {
+            'shopping_list': shopping_list.id, 'title': 'milch', 'quantity': '2', 'unit': litre.id,
+        }, format='json')
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data['ingredient'], milk.id)
+        self.assertEqual(response.data['unit_name'], 'l')
+        self.assertEqual(response.data['source'], 'manual')
+
+    def test_filter_by_list_and_clear_completed(self):
+        first = ShoppingList.objects.first()
+        second = ShoppingList.objects.create(name='Drogerie')
+        ShoppingListItem.objects.create(shopping_list=first, title='a', is_completed=True)
+        ShoppingListItem.objects.create(shopping_list=first, title='b')
+        ShoppingListItem.objects.create(shopping_list=second, title='c', is_completed=True)
+
+        listed = self.client.get(f'/api/shopping/?list={first.id}').data['results']
+        cleared = self.client.post(f'/api/shopping-lists/{first.id}/clear-completed/')
+
+        self.assertEqual(len(listed), 2)
+        self.assertEqual(cleared.data['deleted'], 1)
+        self.assertEqual(second.items.count(), 1)
+
+
+class BilingualNamesTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='tim', password='pw')
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+
+    def test_seeded_rows_have_both_languages(self):
+        label = Label.objects.get(name_de='Schnell')
+        unit = UnitOfMeasure.objects.get(name_de='Esslöffel')
+        category = MealTimeCategory.objects.get(name_de='Frühstück')
+
+        self.assertEqual(label.name_en, 'Quick')
+        self.assertEqual((unit.abbreviation_de, unit.abbreviation_en), ('EL', 'tbsp'))
+        self.assertEqual(category.name_en, 'Breakfast')
+
+    def test_api_exposes_both_names_and_english_is_optional(self):
+        response = self.client.post('/api/labels/', {'name_de': 'Herzhaft', 'color_hex': '#111111'})
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data['name_de'], 'Herzhaft')
+        self.assertEqual(response.data['name_en'], '')
+
+        updated = self.client.patch(f"/api/labels/{response.data['id']}/", {'name_en': 'Savory'})
+        self.assertEqual(updated.data['name_en'], 'Savory')
+
+    def test_german_name_is_required(self):
+        response = self.client.post('/api/labels/', {'name_en': 'Only English', 'color_hex': '#111111'})
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_unit_carries_both_abbreviations(self):
+        response = self.client.post('/api/units/', {
+            'name_de': 'Tasse', 'name_en': 'Cup', 'abbreviation_de': 'Tas.', 'abbreviation_en': 'cup',
+        })
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data['abbreviation_en'], 'cup')
+
+
+class MealEventTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='tim', password='pw')
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+        self.recipe = Recipe.objects.create(title='Spaghetti', servings=2, created_by=self.user)
+        self.other_recipe = Recipe.objects.create(title='Salat', servings=2, created_by=self.user)
+
+    def _log(self, recipe, day, servings=2):
+        return self.client.post('/api/meal-events/', {
+            'recipe': recipe.id, 'date_cooked': day, 'servings_made': servings,
+        }, format='json')
+
+    def test_log_defaults_and_records_who(self):
+        response = self.client.post('/api/meal-events/', {'recipe': self.recipe.id}, format='json')
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data['date_cooked'], str(dj_timezone.localdate()))
+        self.assertEqual(response.data['logged_by_username'], 'tim')
+
+    def test_future_date_rejected(self):
+        tomorrow = dj_timezone.localdate() + timedelta(days=1)
+
+        self.assertEqual(self._log(self.recipe, str(tomorrow)).status_code, 400)
+
+    def test_recipe_shows_last_cooked_count_and_history(self):
+        self._log(self.recipe, '2026-01-05')
+        self._log(self.recipe, '2026-03-10')
+        self._log(self.recipe, '2026-02-01')
+
+        data = self.client.get(f'/api/recipes/{self.recipe.id}/').data
+
+        self.assertEqual(data['last_cooked_date'], '2026-03-10')
+        self.assertEqual(data['times_cooked'], 3)
+        self.assertEqual([e['date_cooked'] for e in data['recent_meal_events']],
+                         ['2026-03-10', '2026-02-01', '2026-01-05'])
+        untouched = self.client.get(f'/api/recipes/{self.other_recipe.id}/').data
+        self.assertIsNone(untouched['last_cooked_date'])
+        self.assertEqual(untouched['times_cooked'], 0)
+
+    def test_what_was_cooked_on_a_day_and_range(self):
+        self._log(self.recipe, '2026-03-10')
+        self._log(self.other_recipe, '2026-03-10')
+        self._log(self.recipe, '2026-03-12')
+
+        on_day = self.client.get('/api/meal-events/?date=2026-03-10').data['results']
+        in_range = self.client.get('/api/meal-events/?start=2026-03-11&end=2026-03-31').data['results']
+        for_recipe = self.client.get(f'/api/meal-events/?recipe={self.other_recipe.id}').data['results']
+
+        self.assertCountEqual([e['recipe_title'] for e in on_day], ['Spaghetti', 'Salat'])
+        self.assertEqual([e['date_cooked'] for e in in_range], ['2026-03-12'])
+        self.assertEqual(len(for_recipe), 1)
+
+    def test_deleting_an_entry_restores_last_cooked(self):
+        self._log(self.recipe, '2026-01-05')
+        mistake = self._log(self.recipe, '2026-03-10').data['id']
+
+        self.assertEqual(self.client.delete(f'/api/meal-events/{mistake}/').status_code, 204)
+
+        self.assertEqual(self.client.get(f'/api/recipes/{self.recipe.id}/').data['last_cooked_date'], '2026-01-05')
+
+    def test_entries_are_not_editable(self):
+        event_id = self._log(self.recipe, '2026-01-05').data['id']
+
+        self.assertEqual(self.client.patch(f'/api/meal-events/{event_id}/', {'servings_made': 9}).status_code, 405)

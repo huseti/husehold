@@ -37,8 +37,16 @@ export const authService = {
   getMe: () => api.get('/users/me/'),
 };
 
+export const shoppingListService = {
+  getAll: () => api.get('/shopping-lists/'),
+  create: (data) => api.post('/shopping-lists/', data),
+  update: (id, data) => api.patch(`/shopping-lists/${id}/`, data),
+  delete: (id) => api.delete(`/shopping-lists/${id}/`),
+  clearCompleted: (id) => api.post(`/shopping-lists/${id}/clear-completed/`),
+};
+
 export const shoppingService = {
-  getAll: () => api.get('/shopping/'),
+  getAll: (listId) => api.get('/shopping/', { params: { list: listId } }),
   create: (data) => api.post('/shopping/', data),
   update: (id, data) => api.patch(`/shopping/${id}/`, data),
   delete: (id) => api.delete(`/shopping/${id}/`),
@@ -50,7 +58,28 @@ export const recipeService = {
   create: (data) => api.post('/recipes/', data),
   update: (id, data) => api.patch(`/recipes/${id}/`, data),
   delete: (id) => api.delete(`/recipes/${id}/`),
+  rate: (id, score) => api.post(`/recipes/${id}/rate/`, { score }),
+  clearRating: (id) => api.delete(`/recipes/${id}/rate/`),
 };
+
+// Small config-editable lookup tables share one CRUD shape.
+const lookupService = (path) => ({
+  getAll: (params) => api.get(`/${path}/`, { params }),
+  create: (data) => api.post(`/${path}/`, data),
+  update: (id, data) => api.patch(`/${path}/${id}/`, data),
+  delete: (id) => api.delete(`/${path}/${id}/`),
+});
+
+export const mealEventService = {
+  getAll: (params) => api.get('/meal-events/', { params }),
+  create: (data) => api.post('/meal-events/', data),
+  delete: (id) => api.delete(`/meal-events/${id}/`),
+};
+
+export const unitService = lookupService('units');
+export const ingredientService = lookupService('ingredients');
+export const labelService = lookupService('labels');
+export const mealCategoryService = lookupService('meal-categories');
 
 export const taskDefinitionService = {
   getAll: () => api.get('/task-definitions/'),

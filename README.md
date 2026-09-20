@@ -79,8 +79,10 @@ Frontend runs at: `http://localhost:3000`
 - **Task actions**: complete, skip (this occurrence only), snooze (defers to next week's backlog while leaving a greyed-out marker behind), reassign, delete, and undo for any resolved state
 - **Assignment modes**: fixed member, alternating (rotates between household members; skipping doesn't advance the rotation), or decided during weekly planning
 - **Weekly planning reminder**: a configurable recurring system task (day/time, same assignment modes) that shows the target week's date range in its own name and can jump you straight into planning mode
-- **Shopping List**: Add items, mark complete
-- **Recipes**: Store and browse recipes
+- **Shopping Lists**: multiple lists, each with a favorite flag (the Cooking Plan will write into it) and optional per-member visibility; items carry a quantity and unit, autocomplete from the ingredient catalogue, and completed items can be cleared in one click
+- **Recipes**: structured ingredients (free-text entry, auto-created case-insensitively) with quantity/unit/note, servings scaling with kitchen-fraction rounding, meal types, labels, 1-5 star ratings per member (both scores + average shown), prep/cook time, source link, notes, and a "paste ingredient list" importer for recipes copied from websites
+- **Cooking log**: "I cooked this" on a recipe records the date and servings (last-cooked / times-cooked are derived from the log), followed by a rate-after-cooking prompt; queryable by day or range for the upcoming Cooking Plan
+- **Bilingual config**: labels, meal types and units have a German name (required) and an English name (optional, falls back to German); ingredients are single-language free text. All editable under Settings
 - **Cooking Plan**: Schedule meals by date
 - **Dashboard**: welcome message, a KPI overview (shopping/recipes/meals/overdue tasks) with shortcuts, "my open household tasks" grouped by overdue/today/this-week, and a read-only weekly preview
 - **Account**: profile avatar (upload/preview/remove) via the navbar account menu, alongside Settings and Logout
@@ -95,8 +97,11 @@ Frontend runs at: `http://localhost:3000`
 - `POST /api/auth/token/` - Login
 - `POST /api/auth/token/refresh/` - Refresh token
 - `GET /api/users/me/` - Current user
-- `GET/POST /api/shopping/` - Shopping list
-- `GET/POST /api/recipes/` - Recipes
+- `GET/POST/PATCH/DELETE /api/shopping-lists/` - Shopping lists (empty `visible_to` = everyone); action `clear-completed/`
+- `GET/POST/PATCH/DELETE /api/shopping/?list=<id>` - Shopping list items; `POST toggle_completed/`
+- `GET/POST/PATCH/DELETE /api/recipes/` - Recipes with nested ingredients (`?q=`, `?label=`, `?category=`); `POST/DELETE {id}/rate/` sets or clears the caller's 1-5 rating
+- `GET/POST/DELETE /api/meal-events/` - Cooking log (`?recipe=`, `?date=`, `?start=&end=`); create/delete only
+- `GET/POST/PATCH/DELETE /api/units/`, `/api/ingredients/` (`?q=`), `/api/labels/`, `/api/meal-categories/` - Config lookup tables; deleting one still used by a recipe returns 409
 - `GET/POST /api/cooking-plans/` - Cooking plans
 - `GET/POST /api/task-definitions/` - Recurring task templates (DELETE requires `?confirm=true` if it has occurrences)
 - `GET/POST /api/task-instances/` - Task occurrences (`?start=&end=` generates+lists a date range); actions: `reassign/`, `snooze/`, `skip/`, `reopen/`, `postpone/`, `complete/`
@@ -126,8 +131,12 @@ Access at: `https://<pi-ip>` (self-signed cert — browser warns once per device
 
 - **HouseholdMember**: role, color, avatar
 - **HouseholdSettings**: singleton — household name, timezone
-- **ShoppingListItem**: Items to buy
-- **Recipe**: Recipe storage
+- **ShoppingList** / **ShoppingListItem**: named lists (favorite flag, optional member visibility) and their items (quantity, unit, optional ingredient link, source)
+- **Recipe**: title, servings, times, source link, notes, meal-type and label M2Ms
+- **RecipeIngredient** / **Ingredient** / **UnitOfMeasure**: structured ingredient lines against a shared, case-insensitively unique ingredient catalogue and plain (non-converting) unit labels
+- **Label** / **MealTimeCategory**: bilingual (`name_de` required, `name_en` optional), seeded with editable starter sets
+- **RecipeRating**: one 1-5 score per (recipe, member)
+- **MealEvent**: one logged cooking of a recipe — date, servings made, who logged it
 - **CookingPlan**: Meal schedule
 - **HouseholdTaskDefinition**: recurring task template (RRULE recurrence, icon, assignment mode, optional system_action like the weekly planning reminder)
 - **HouseholdTaskInstance**: one occurrence — either generated from a definition, or standalone (one-off, `definition=None`); tracks `occurrence_date` (immutable, what generation keys on) separately from `scheduled_date` (mutable, what dragging/postponing changes) to avoid regenerating duplicates
