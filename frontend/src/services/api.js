@@ -45,6 +45,11 @@ export const shoppingListService = {
   clearCompleted: (id) => api.post(`/shopping-lists/${id}/clear-completed/`),
 };
 
+export const purchaseService = {
+  getAll: (params) => api.get('/purchases/', { params }),
+  summary: (params) => api.get('/purchases/summary/', { params }),
+};
+
 export const shoppingService = {
   getAll: (listId) => api.get('/shopping/', { params: { list: listId } }),
   create: (data) => api.post('/shopping/', data),

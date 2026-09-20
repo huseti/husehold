@@ -80,6 +80,7 @@ Frontend runs at: `http://localhost:3000`
 - **Assignment modes**: fixed member, alternating (rotates between household members; skipping doesn't advance the rotation), or decided during weekly planning
 - **Weekly planning reminder**: a configurable recurring system task (day/time, same assignment modes) that shows the target week's date range in its own name and can jump you straight into planning mode
 - **Shopping Lists**: multiple lists, each with a favorite flag (the Cooking Plan will write into it) and optional per-member visibility; items carry a quantity and unit, autocomplete from the ingredient catalogue, and completed items can be cleared in one click
+- **Shopping history**: ticking an item off logs a purchase (a snapshot, so it survives deleting the item or clearing completed ones; un-ticking undoes it). The Shopping page's "History" tab shows most-bought items (with "add again") and recent purchases by day, searchable and filterable by period
 - **Recipes**: structured ingredients (free-text entry, auto-created case-insensitively) with quantity/unit/note, servings scaling with kitchen-fraction rounding, meal types, labels, 1-5 star ratings per member (both scores + average shown), prep/cook time, source link, notes, and a "paste ingredient list" importer for recipes copied from websites
 - **Cooking log**: "I cooked this" on a recipe records the date and servings (last-cooked / times-cooked are derived from the log), followed by a rate-after-cooking prompt; queryable by day or range for the upcoming Cooking Plan
 - **Bilingual config**: labels, meal types and units have a German name (required) and an English name (optional, falls back to German); ingredients are single-language free text. All editable under Settings
@@ -98,7 +99,8 @@ Frontend runs at: `http://localhost:3000`
 - `POST /api/auth/token/refresh/` - Refresh token
 - `GET /api/users/me/` - Current user
 - `GET/POST/PATCH/DELETE /api/shopping-lists/` - Shopping lists (empty `visible_to` = everyone); action `clear-completed/`
-- `GET/POST/PATCH/DELETE /api/shopping/?list=<id>` - Shopping list items; `POST toggle_completed/`
+- `GET/POST/PATCH/DELETE /api/shopping/?list=<id>` - Shopping list items; `POST toggle_completed/` (ticking off / un-ticking also writes / removes the purchase record)
+- `GET /api/purchases/` (`?q=`, `?start=&end=`), `GET /api/purchases/summary/` (most-bought, `?limit=`) - Read-only purchase history
 - `GET/POST/PATCH/DELETE /api/recipes/` - Recipes with nested ingredients (`?q=`, `?label=`, `?category=`); `POST/DELETE {id}/rate/` sets or clears the caller's 1-5 rating
 - `GET/POST/DELETE /api/meal-events/` - Cooking log (`?recipe=`, `?date=`, `?start=&end=`); create/delete only
 - `GET/POST/PATCH/DELETE /api/units/`, `/api/ingredients/` (`?q=`), `/api/labels/`, `/api/meal-categories/` - Config lookup tables; deleting one still used by a recipe returns 409
@@ -135,6 +137,7 @@ Access at: `https://<pi-ip>` (self-signed cert — browser warns once per device
 - **Recipe**: title, servings, times, source link, notes, meal-type and label M2Ms
 - **RecipeIngredient** / **Ingredient** / **UnitOfMeasure**: structured ingredient lines against a shared, case-insensitively unique ingredient catalogue and plain (non-converting) unit labels
 - **Label** / **MealTimeCategory**: bilingual (`name_de` required, `name_en` optional), seeded with editable starter sets
+- **PurchaseRecord**: one logged purchase — title/quantity/unit/list name snapshot, date, who ticked it off (~200 bytes each, well under 1 MB/year for two people)
 - **RecipeRating**: one 1-5 score per (recipe, member)
 - **MealEvent**: one logged cooking of a recipe — date, servings made, who logged it
 - **CookingPlan**: Meal schedule

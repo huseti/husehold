@@ -66,11 +66,25 @@
     "emptyList": "Diese Liste ist noch leer.",
     "listSettings": "Listeneinstellungen",
     "favoriteLabel": "Lieblingsliste (der Kochplan legt Zutaten hier ab)",
-    "restrictVisibility": "Nur für ausgewählte Mitglieder sichtbar",
     "deleteList": "Diese Liste löschen",
     "confirmDeleteList": "Die Liste \"{{name}}\" und alle Artikel darin löschen?",
     "deleteItem": "Artikel löschen",
-    "clearCompleted": "Erledigte Artikel entfernen"
+    "clearCompleted": "Erledigte Artikel entfernen",
+    "tabList": "Listen",
+    "tabHistory": "Verlauf",
+    "historySearch": "Einkäufe durchsuchen...",
+    "period": {
+      "month": "Letzte 30 Tage",
+      "year": "Letztes Jahr",
+      "all": "Gesamter Zeitraum"
+    },
+    "historyEmpty": "Noch nichts gekauft — Artikel erscheinen hier, sobald du sie in einer Liste abhakst.",
+    "historyTop": "Am häufigsten gekauft",
+    "historyRecent": "Letzte Einkäufe",
+    "boughtTimes": "{{count}}× gekauft",
+    "lastBought": "zuletzt am {{date}}",
+    "reAdd": "Erneut hinzufügen",
+    "reAdded": "„{{title}}“ zu „{{list}}“ hinzugefügt."
   },
   "recipes": {
     "title": "Rezepte",

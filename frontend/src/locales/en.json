@@ -66,11 +66,25 @@
     "emptyList": "Nothing on this list yet.",
     "listSettings": "List settings",
     "favoriteLabel": "Favorite list (the Cooking Plan will add ingredients here)",
-    "restrictVisibility": "Only visible to selected members",
     "deleteList": "Delete this list",
     "confirmDeleteList": "Delete the list \"{{name}}\" and all its items?",
     "deleteItem": "Delete item",
-    "clearCompleted": "Clear completed items"
+    "clearCompleted": "Clear completed items",
+    "tabList": "Lists",
+    "tabHistory": "History",
+    "historySearch": "Search purchases...",
+    "period": {
+      "month": "Last 30 days",
+      "year": "Last year",
+      "all": "All time"
+    },
+    "historyEmpty": "Nothing bought yet — items appear here once you tick them off a list.",
+    "historyTop": "Most bought",
+    "historyRecent": "Recent purchases",
+    "boughtTimes": "{{count}}× bought",
+    "lastBought": "last on {{date}}",
+    "reAdd": "Add again",
+    "reAdded": "\"{{title}}\" added to \"{{list}}\"."
   },
   "recipes": {
     "title": "Recipes",

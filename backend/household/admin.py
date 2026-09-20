@@ -1,7 +1,7 @@
 ﻿from django.contrib import admin
 from .models import (
     HouseholdMember, HouseholdSettings, ShoppingList, ShoppingListItem, Recipe, CookingPlan,
-    UnitOfMeasure, Ingredient, Label, MealTimeCategory, RecipeIngredient, RecipeRating, MealEvent,
+    UnitOfMeasure, Ingredient, Label, MealTimeCategory, RecipeIngredient, RecipeRating, MealEvent, PurchaseRecord,
     HouseholdTaskDefinition, HouseholdTaskInstance, HouseholdTaskEvent,
     NotificationPreference, PushSubscription, NotificationLog, Voucher, VoucherRedemption,
 )
@@ -116,3 +116,9 @@ class PushSubscriptionAdmin(admin.ModelAdmin):
 class NotificationLogAdmin(admin.ModelAdmin):
     list_display = ('task_instance', 'user', 'notification_type', 'channel', 'sent_at')
     list_filter = ('notification_type', 'channel', 'sent_at')
+
+@admin.register(PurchaseRecord)
+class PurchaseRecordAdmin(admin.ModelAdmin):
+    list_display = ('title', 'quantity', 'unit', 'list_name', 'purchased_on', 'purchased_by')
+    list_filter = ('purchased_on', 'list_name')
+    search_fields = ('title',)

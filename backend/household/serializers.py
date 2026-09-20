@@ -5,7 +5,7 @@ from .models import (
     HouseholdMember, HouseholdSettings, ShoppingList, ShoppingListItem, Recipe, CookingPlan,
     HouseholdTaskDefinition, HouseholdTaskInstance, HouseholdTaskEvent,
     NotificationPreference, PushSubscription, Voucher, VoucherRedemption,
-    UnitOfMeasure, Ingredient, Label, MealTimeCategory, RecipeIngredient, RecipeRating, MealEvent,
+    UnitOfMeasure, Ingredient, Label, MealTimeCategory, RecipeIngredient, RecipeRating, MealEvent, PurchaseRecord,
 )
 
 class UserSerializer(serializers.ModelSerializer):
@@ -133,6 +133,17 @@ class ShoppingListItemSerializer(serializers.ModelSerializer):
         if value.visible_to.exists() and not value.visible_to.filter(pk=user.pk).exists():
             raise serializers.ValidationError('You cannot access this shopping list.')
         return value
+
+class PurchaseRecordSerializer(serializers.ModelSerializer):
+    purchased_by_username = serializers.CharField(source='purchased_by.username', read_only=True, default=None)
+
+    class Meta:
+        model = PurchaseRecord
+        fields = (
+            'id', 'title', 'quantity', 'unit', 'ingredient', 'list_name',
+            'purchased_on', 'purchased_by', 'purchased_by_username',
+        )
+        read_only_fields = fields
 
 class RecipeIngredientSerializer(serializers.ModelSerializer):
     # Written as a plain name (auto-created if new) rather than an id, so the

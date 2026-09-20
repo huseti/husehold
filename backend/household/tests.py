@@ -1,5 +1,6 @@
 import tempfile
 from datetime import date, timedelta
+from decimal import Decimal
 
 from django.contrib.auth.models import User
 from django.test import TestCase, override_settings
@@ -8,7 +9,7 @@ from rest_framework.test import APIClient
 
 from .models import (
     HouseholdMember, HouseholdSettings, HouseholdTaskDefinition, HouseholdTaskInstance, HouseholdTaskEvent,
-    Ingredient, Label, MealEvent, MealTimeCategory, Recipe, RecipeRating, ShoppingList, ShoppingListItem, UnitOfMeasure,
+    Ingredient, Label, MealEvent, MealTimeCategory, PurchaseRecord, Recipe, RecipeRating, ShoppingList, ShoppingListItem, UnitOfMeasure,
 )
 from .services.task_generation import generate_instances_for_range
 
@@ -909,3 +910,75 @@ class MealEventTests(TestCase):
         event_id = self._log(self.recipe, '2026-01-05').data['id']
 
         self.assertEqual(self.client.patch(f'/api/meal-events/{event_id}/', {'servings_made': 9}).status_code, 405)
+
+
+class PurchaseHistoryTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='tim', password='pw')
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.user)
+        self.shopping_list = ShoppingList.objects.first()
+
+    def _item(self, title='Milch', **extra):
+        return ShoppingListItem.objects.create(shopping_list=self.shopping_list, title=title, created_by=self.user, **extra)
+
+    def _toggle(self, item):
+        return self.client.post('/api/shopping/toggle_completed/', {'id': item.id}, format='json')
+
+    def test_ticking_logs_a_snapshot_and_unticking_removes_it(self):
+        litre = UnitOfMeasure.objects.get(abbreviation_de='l')
+        item = self._item(quantity='2', unit=litre)
+
+        self._toggle(item)
+        record = PurchaseRecord.objects.get()
+        self.assertEqual((record.title, str(record.quantity), record.unit, record.list_name, record.purchased_by),
+                         ('Milch', '2.00', litre, self.shopping_list.name, self.user))
+        self.assertEqual(record.purchased_on, dj_timezone.localdate())
+
+        self._toggle(item)
+        self.assertEqual(PurchaseRecord.objects.count(), 0)
+
+    def test_history_survives_deleting_item_and_clearing_completed(self):
+        deleted = self._item('Brot')
+        cleared = self._item('Butter')
+        self._toggle(deleted)
+        self._toggle(cleared)
+
+        self.client.delete(f'/api/shopping/{deleted.id}/')
+        self.client.post(f'/api/shopping-lists/{self.shopping_list.id}/clear-completed/')
+
+        self.assertEqual(ShoppingListItem.objects.count(), 0)
+        self.assertCountEqual(PurchaseRecord.objects.values_list('title', flat=True), ['Brot', 'Butter'])
+
+    def test_completing_via_patch_also_logs_once(self):
+        item = self._item()
+
+        self.client.patch(f'/api/shopping/{item.id}/', {'is_completed': True}, format='json')
+        self.client.patch(f'/api/shopping/{item.id}/', {'title': 'Vollmilch'}, format='json')
+
+        self.assertEqual(PurchaseRecord.objects.count(), 1)
+
+    def test_summary_groups_case_insensitively_and_ranks_by_count(self):
+        for title in ('Milch', 'milch', 'Eier'):
+            self._toggle(self._item(title))
+        self._toggle(self._item('Milch', quantity='3'))
+
+        data = self.client.get('/api/purchases/summary/').data
+
+        self.assertEqual([(e['title'].lower(), e['count']) for e in data], [('milch', 3), ('eier', 1)])
+        self.assertEqual(data[0]['quantity'], Decimal('3.00'))  # latest purchase's quantity
+
+    def test_list_filters_by_range_and_name(self):
+        PurchaseRecord.objects.create(title='Alt', purchased_on='2026-01-01')
+        PurchaseRecord.objects.create(title='Neu', purchased_on='2026-06-01')
+
+        by_range = self.client.get('/api/purchases/?start=2026-03-01').data['results']
+        by_name = self.client.get('/api/purchases/?q=alt').data['results']
+
+        self.assertEqual([r['title'] for r in by_range], ['Neu'])
+        self.assertEqual([r['title'] for r in by_name], ['Alt'])
+
+    def test_history_is_read_only(self):
+        response = self.client.post('/api/purchases/', {'title': 'x'}, format='json')
+
+        self.assertEqual(response.status_code, 405)

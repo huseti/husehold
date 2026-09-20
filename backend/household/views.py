@@ -14,14 +14,14 @@ from .models import (
     HouseholdMember, HouseholdSettings, ShoppingList, ShoppingListItem, Recipe, CookingPlan,
     HouseholdTaskDefinition, HouseholdTaskInstance, HouseholdTaskEvent,
     NotificationPreference, PushSubscription, Voucher, VoucherRedemption,
-    UnitOfMeasure, Ingredient, Label, MealTimeCategory, RecipeRating, MealEvent,
+    UnitOfMeasure, Ingredient, Label, MealTimeCategory, RecipeRating, MealEvent, PurchaseRecord,
 )
 from .serializers import (
     UserSerializer, HouseholdMemberSerializer, HouseholdSettingsSerializer,
     ShoppingListSerializer, ShoppingListItemSerializer,
     RecipeSerializer, CookingPlanSerializer,
     UnitOfMeasureSerializer, IngredientSerializer, LabelSerializer, MealTimeCategorySerializer,
-    MealEventSerializer,
+    MealEventSerializer, PurchaseRecordSerializer,
     HouseholdTaskDefinitionSerializer, HouseholdTaskInstanceSerializer,
     NotificationPreferenceSerializer, PushSubscriptionSerializer,
     VoucherSerializer,
@@ -213,6 +213,22 @@ class ShoppingListItemViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(shopping_list_id=list_id)
         return queryset
 
+    def _sync_purchase_record(self, item, was_completed):
+        """Ticking an item off logs a purchase; un-ticking it takes that
+        record back. Deleting the item later leaves the record alone."""
+        if item.is_completed and not was_completed:
+            PurchaseRecord.objects.create(
+                title=item.title, quantity=item.quantity, unit=item.unit, ingredient=item.ingredient,
+                list_name=item.shopping_list.name, purchased_by=self.request.user, item=item,
+            )
+        elif was_completed and not item.is_completed:
+            item.purchase_records.all().delete()
+
+    def perform_update(self, serializer):
+        was_completed = serializer.instance.is_completed
+        item = serializer.save()
+        self._sync_purchase_record(item, was_completed)
+
     def perform_create(self, serializer):
         extra = {'created_by': self.request.user}
         # Link to the ingredient catalogue when the typed name already
@@ -222,16 +238,55 @@ class ShoppingListItemViewSet(viewsets.ModelViewSet):
             match = Ingredient.objects.filter(name__iexact=serializer.validated_data['title'].strip()).first()
             if match:
                 extra['ingredient'] = match
-        serializer.save(**extra)
+        item = serializer.save(**extra)
+        self._sync_purchase_record(item, was_completed=False)
 
     @action(detail=False, methods=['post'])
     def toggle_completed(self, request):
         item = self.get_queryset().filter(id=request.data.get('id')).first()
         if item is None:
             return Response({'error': 'Item not found'}, status=status.HTTP_404_NOT_FOUND)
-        item.is_completed = not item.is_completed
+        was_completed = item.is_completed
+        item.is_completed = not was_completed
         item.save()
+        self._sync_purchase_record(item, was_completed)
         return Response(ShoppingListItemSerializer(item, context={'request': request}).data)
+
+class PurchaseRecordViewSet(viewsets.ReadOnlyModelViewSet):
+    """Shopping history. Filter with ?q= (name), ?start=&end= (inclusive).
+    Records are created/removed by ticking items off, never edited directly."""
+    serializer_class = PurchaseRecordSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = PurchaseRecord.objects.select_related('purchased_by')
+        params = self.request.query_params
+        if params.get('q'):
+            queryset = queryset.filter(title__icontains=params['q'])
+        if params.get('start'):
+            queryset = queryset.filter(purchased_on__gte=params['start'])
+        if params.get('end'):
+            queryset = queryset.filter(purchased_on__lte=params['end'])
+        return queryset
+
+    @action(detail=False, methods=['get'])
+    def summary(self, request):
+        """Most-bought items, grouped case-insensitively by name: how often,
+        when last, and the quantity/unit of the latest purchase (handy for
+        re-adding). ?limit= caps the list (default 20)."""
+        try:
+            limit = max(1, min(int(request.query_params.get('limit', 20)), 100))
+        except ValueError:
+            limit = 20
+        groups = {}
+        for record in self.get_queryset():  # newest first, so the first hit per name is the latest
+            entry = groups.setdefault(record.title.strip().lower(), {
+                'title': record.title, 'count': 0, 'last_purchased': record.purchased_on,
+                'quantity': record.quantity, 'unit': record.unit_id,
+            })
+            entry['count'] += 1
+        ranked = sorted(groups.values(), key=lambda e: (-e['count'], e['title'].lower()))[:limit]
+        return Response(ranked)
 
 class ProtectedDeleteMixin:
     """Deleting a unit/ingredient that recipes still reference raises

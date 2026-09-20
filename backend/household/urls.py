@@ -3,7 +3,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     UserViewSet, HouseholdMemberViewSet, HouseholdSettingsView, ShoppingListItemViewSet,
     RecipeViewSet, CookingPlanViewSet, VoucherViewSet, ShoppingListViewSet,
-    UnitOfMeasureViewSet, IngredientViewSet, LabelViewSet, MealTimeCategoryViewSet, MealEventViewSet,
+    UnitOfMeasureViewSet, IngredientViewSet, LabelViewSet, MealTimeCategoryViewSet, MealEventViewSet, PurchaseRecordViewSet,
     HouseholdTaskDefinitionViewSet, HouseholdTaskInstanceViewSet,
     NotificationPreferencesView, PushSubscriptionViewSet, VapidPublicKeyView,
     TestEmailNotificationView, TestPushNotificationView,
@@ -13,6 +13,7 @@ router = DefaultRouter()
 router.register(r'users', UserViewSet)
 router.register(r'members', HouseholdMemberViewSet)
 router.register(r'shopping', ShoppingListItemViewSet, basename='shopping')
+router.register(r'purchases', PurchaseRecordViewSet, basename='purchase')
 router.register(r'shopping-lists', ShoppingListViewSet, basename='shopping-list')
 router.register(r'recipes', RecipeViewSet, basename='recipe')
 router.register(r'meal-events', MealEventViewSet, basename='meal-event')

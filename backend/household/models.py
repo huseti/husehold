@@ -241,6 +241,27 @@ class CookingPlan(models.Model):
     def __str__(self):
         return f"{self.date} - {self.meal_type}"
 
+class PurchaseRecord(models.Model):
+    """One purchase, logged when a shopping list item is ticked off. A
+    snapshot (title/quantity/list name are copied) so the history survives the
+    item being deleted or the completed items being cleared; `item` only
+    exists to undo the record if the tick is taken back."""
+    title = models.CharField(max_length=200)
+    quantity = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
+    unit = models.ForeignKey(UnitOfMeasure, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    ingredient = models.ForeignKey(Ingredient, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    list_name = models.CharField(max_length=100, blank=True)
+    purchased_on = models.DateField(default=timezone.localdate)
+    purchased_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    item = models.ForeignKey(ShoppingListItem, on_delete=models.SET_NULL, null=True, blank=True, related_name='purchase_records')
+
+    class Meta:
+        ordering = ['-purchased_on', '-id']
+
+    def __str__(self):
+        return f"{self.title} on {self.purchased_on}"
+
+
 class HouseholdTaskDefinition(AuditableMixin):
     """A recurring task template. Expanded into HouseholdTaskInstance rows by
     household.services.task_generation, using recurrence_rule as an RFC 5545
