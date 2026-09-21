@@ -7,6 +7,7 @@ import Navbar from '../components/Navbar';
 import StarRating from '../components/StarRating';
 import RecipeForm from '../components/RecipeForm';
 import RecipeDetail from '../components/RecipeDetail';
+import AddToShoppingDialog from '../components/AddToShoppingDialog';
 import { localizedName } from '../utils/localized';
 
 export default function Recipes() {
@@ -24,6 +25,7 @@ export default function Recipes() {
 
   // mode: null | { type: 'view', id } | { type: 'edit', recipe|null }
   const [mode, setMode] = useState(null);
+  const [shoppingDishes, setShoppingDishes] = useState(null);
 
   useEffect(() => {
     loadAll();
@@ -92,6 +94,15 @@ export default function Recipes() {
       replaceRecipe((await recipeService.clearRating(viewing.id)).data);
     } catch (error) {
       console.error('Error clearing rating:', error);
+    }
+  };
+
+  const handleAddToShopping = async (servings) => {
+    try {
+      const response = await recipeService.shoppingLines(viewing.id, servings);
+      setShoppingDishes([response.data]);
+    } catch (error) {
+      console.error('Error loading ingredients:', error);
     }
   };
 
@@ -187,8 +198,12 @@ export default function Recipes() {
         </div>
       </main>
 
+      {shoppingDishes && (
+        <AddToShoppingDialog dishes={shoppingDishes} onClose={() => setShoppingDishes(null)} />
+      )}
+
       {mode && (
-        <div className="fixed inset-0 z-50 bg-black/40 overflow-y-auto p-4" onClick={() => setMode(null)}>
+        <div className="fixed inset-0 z-40 bg-black/40 overflow-y-auto p-4" onClick={() => setMode(null)}>
           <div className="bg-white rounded-lg shadow-xl max-w-2xl mx-auto my-8 p-6" onClick={(e) => e.stopPropagation()}>
             {mode.type === 'edit' ? (
               <RecipeForm
@@ -207,6 +222,7 @@ export default function Recipes() {
                 labels={labels}
                 categories={categories}
                 units={units}
+                onAddToShopping={handleAddToShopping}
                 onLogCooked={handleLogCooked}
                 onDeleteMeal={handleDeleteMeal}
                 onRate={handleRate}

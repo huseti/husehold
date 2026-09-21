@@ -53,7 +53,8 @@
       "overdueTasks_other": "{{count}} überfällige Aufgaben",
       "expiringVouchers_one": "{{count}} Gutschein läuft in den nächsten 6 Monaten ab",
       "expiringVouchers_other": "{{count}} Gutscheine laufen in den nächsten 6 Monaten ab"
-    }
+    },
+    "cookingToday": "Heute kochen wir"
   },
   "shoppingList": {
     "title": "Einkaufsliste",
@@ -146,11 +147,66 @@
     "howWasIt": "Wie war es?",
     "skip": "Überspringen",
     "cookLogFailed": "Eintrag konnte nicht gespeichert werden. Bitte erneut versuchen.",
-    "removeLogEntry": "Eintrag entfernen"
+    "removeLogEntry": "Eintrag entfernen",
+    "addToShopping": "Zutaten zur Einkaufsliste"
   },
   "cookingPlan": {
     "title": "Kochplan",
-    "comingSoon": "Demnächst verfügbar..."
+    "servingsShort": "{{count}} Port.",
+    "leftoversOf": "Reste von {{title}}",
+    "cookedLogged": "Als gekocht eingetragen.",
+    "howWasIt": "Wie war „{{title}}“?",
+    "planningBanner": "Du planst gerade die Woche {{range}}. Mit „Plan abschließen“ entstehen die Kochaufgaben und die Planungs-Erinnerung wird erledigt.",
+    "finish": "Plan abschließen",
+    "finishWithCount_one": "Plan abschließen ({{count}} Kochaufgabe erstellen)",
+    "finishWithCount_other": "Plan abschließen ({{count}} Kochaufgaben erstellen)",
+    "finished_one": "{{count}} Kochaufgabe erstellt — weise sie im Haushaltsplan zu.",
+    "finished_other": "{{count}} Kochaufgaben erstellt — weise sie im Haushaltsplan zu.",
+    "finishedNothingNew": "Nichts Neues zu erstellen — alle Gerichte haben schon eine Aufgabe.",
+    "toHouseholdPlan": "Zum Haushaltsplan →",
+    "shoppingButton": "Zutaten zur Einkaufsliste",
+    "noDishesForShopping": "Diese Woche gibt es keine Gerichte, die noch gekocht werden müssen.",
+    "settings": "Einstellungen",
+    "noMeals": "Es gibt noch keine Mahlzeiten. Lege sie unter Einstellungen → Rezepte & Einkaufslisten an.",
+    "addDish": "Gericht hinzufügen",
+    "edit": "Bearbeiten",
+    "planLeftovers": "Reste einplanen",
+    "leftoversWhen": "Reste am:",
+    "add": "Hinzufügen",
+    "notesPlaceholder": "Notiz (optional)",
+    "confirmDelete": "„{{title}}“ aus dem Plan entfernen?",
+    "status": {
+      "cooked": "gekocht",
+      "draft": "Entwurf — noch keine Aufgabe",
+      "unassigned": "niemand zugewiesen"
+    },
+    "pickerTitle": "{{meal}} · {{day}}",
+    "tab": {
+      "recipes": "Rezepte",
+      "leftovers": "Reste"
+    },
+    "searchPlaceholder": "Rezept oder Zutat suchen...",
+    "noSuggestions": "Keine passenden Rezepte — leg zuerst Rezepte an.",
+    "leftoversEmpty": "Diese Woche ist noch kein Gericht zum Kochen geplant.",
+    "lastCookedAgo_one": "zuletzt vor {{count}} Tag gekocht",
+    "lastCookedAgo_other": "zuletzt vor {{count}} Tagen gekocht",
+    "cookedToday": "heute gekocht",
+    "neverCooked": "noch nie gekocht",
+    "reroll": "Neu würfeln",
+    "bucket": {
+      "craving": "Lust darauf",
+      "topRated": "Beste Bewertung",
+      "longAgo": "Lange nicht gekocht",
+      "random": "Zufällige Vorschläge",
+      "rest": "Alle übrigen"
+    },
+    "bucketHint": {
+      "craving": "gut bewertet und länger nicht dran",
+      "topRated": "eure Favoriten",
+      "longAgo": "Zeit für eine Wiederholung",
+      "random": "mal was anderes",
+      "rest": ""
+    }
   },
   "tasks": {
     "title": "Haushaltsplan",
@@ -339,7 +395,9 @@
     "pushChannel": "Push",
     "notificationTypes": {
       "task_due_today": "Aufgabe heute fällig",
-      "household_planning_due": "Wöchentliche Haushaltsplanung fällig"
+      "household_planning_due": "Wöchentliche Haushaltsplanung fällig",
+      "meal_planning_due": "Wöchentliche Kochplanung fällig",
+      "cooking_today": "Heute kochen wir ..."
     },
     "enablePushOnDevice": "Push-Benachrichtigungen auf diesem Gerät aktivieren",
     "pushEnabling": "Wird aktiviert...",
@@ -372,5 +430,31 @@
     "nameEn": "Name (Englisch)",
     "abbreviationDe": "Kürzel (DE)",
     "abbreviationEn": "Kürzel (EN)"
+  },
+  "shoppingDialog": {
+    "title": "Zutaten zur Einkaufsliste",
+    "list": "Einkaufsliste",
+    "noIngredients": "Für dieses Rezept sind keine Zutaten hinterlegt.",
+    "staple": "Grundzutat",
+    "add": "Zur Liste hinzufügen ({{count}})",
+    "result": "{{created}} neu hinzugefügt, {{merged}} ergänzt.",
+    "failed": "Das Hinzufügen hat nicht geklappt. Bitte erneut versuchen."
+  },
+  "cookingSettings": {
+    "title": "Einstellungen für den Kochplan",
+    "hint": "Bestimmt, welche Mahlzeiten im Wochenplan stehen und wie die Rezeptvorschläge sortiert werden.",
+    "plannedMeals": "Geplante Mahlzeiten",
+    "cravingCount": "Anzahl „Lust darauf“",
+    "randomCount": "Anzahl Zufallsvorschläge",
+    "topPercentile": "Beste Bewertung (Top %)",
+    "uncookedDays": "Lange nicht gekocht (Tage)",
+    "ratingWeight": "Gewicht Bewertung",
+    "neglectWeight": "Gewicht „lange nicht“",
+    "saved": "Gespeichert.",
+    "failed": "Speichern fehlgeschlagen. Bitte Werte prüfen."
+  },
+  "mealPlanning": {
+    "title": "Wöchentliche Kochplanung",
+    "description": "Legt fest, wann die wiederkehrende Erinnerung erscheint, die Mahlzeiten der nächsten Woche zu planen. Sie erscheint auch als Aufgabe an diesem Tag; „Jetzt planen“ öffnet den Kochplan."
   }
 }

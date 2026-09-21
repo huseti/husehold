@@ -84,11 +84,11 @@ Frontend runs at: `http://localhost:3000`
 - **Recipes**: structured ingredients (free-text entry, auto-created case-insensitively) with quantity/unit/note, servings scaling with kitchen-fraction rounding, meal types, labels, 1-5 star ratings per member (both scores + average shown), prep/cook time, source link, notes, and a "paste ingredient list" importer for recipes copied from websites
 - **Cooking log**: "I cooked this" on a recipe records the date and servings (last-cooked / times-cooked are derived from the log), followed by a rate-after-cooking prompt; queryable by day or range for the upcoming Cooking Plan
 - **Bilingual config**: labels, meal types and units have a German name (required) and an English name (optional, falls back to German); ingredients are single-language free text. All editable under Settings
-- **Cooking Plan**: Schedule meals by date
+- **Cooking Plan**: a weekly meal plan (lunch/dinner by default, configurable). Dishes are picked from five suggestion buckets per meal type — *craving* (rating and "not cooked lately" combined), *best rated*, *not cooked in a while*, *random picks*, *rest* — or by search/label; a dish can be re-planned as "leftovers of ..." (no task, no extra shopping) and servings are adjustable per entry. Planning is driven by a recurring **weekly meal planning** task ("Plan now" opens the plan for next week); "Finish plan" creates **one cook task per dish** in the household plan, where it is assigned and dragged like any task (moving/skipping/snoozing/deleting the task moves/removes the dish). Ticking a cook task off logs the cooking (`MealEvent`) and asks for a rating if the user has none yet. "Ingredients to shopping list" (whole week, or from a recipe) previews every dish's scaled ingredients, lets you untick dishes/ingredients (staples start unticked) and merges equal ingredient+unit into one item. The dashboard shows "Cooking today"
 - **Dashboard**: welcome message, a KPI overview (shopping/recipes/meals/overdue tasks) with shortcuts, "my open household tasks" grouped by overdue/today/this-week, and a read-only weekly preview
 - **Account**: profile avatar (upload/preview/remove) via the navbar account menu, alongside Settings and Logout
 - **Settings**: household name and timezone (used for "today"/"overdue" comparisons, not the server's own timezone), language (German/English), notification preferences
-- **Notifications**: email (SMTP) and Web Push, per-type/per-channel toggles, for tasks due today and weekly household planning due; delivered by a cron-driven management command, not a background daemon; test-email/test-push buttons in Settings for on-demand verification
+- **Notifications**: email (SMTP) and Web Push, per-type/per-channel toggles, for tasks due today, weekly household planning due, weekly meal planning due and "Cooking today: <dish>" (goes to the assignee, or to the whole household while unassigned, from 08:00); delivered by a cron-driven management command, not a background daemon; test-email/test-push buttons in Settings for on-demand verification
 - **Vouchers**: track gift/store vouchers (monetary, redeemed down over time with a logged history) and non-monetary gifts (e.g. a dinner invitation, marked used in one go); soonest-expiring first, auto-archived once fully used or manually archived, with an "expiring soon" (next 6 months) indicator on each card and a household-overview count; inline editing (value/currency locked once a redemption has been logged)
 - **User Authentication**: JWT-based auth
 - **Responsive Design**: Works on mobile and desktop
@@ -104,7 +104,10 @@ Frontend runs at: `http://localhost:3000`
 - `GET/POST/PATCH/DELETE /api/recipes/` - Recipes with nested ingredients (`?q=`, `?label=`, `?category=`); `POST/DELETE {id}/rate/` sets or clears the caller's 1-5 rating
 - `GET/POST/DELETE /api/meal-events/` - Cooking log (`?recipe=`, `?date=`, `?start=&end=`); create/delete only
 - `GET/POST/PATCH/DELETE /api/units/`, `/api/ingredients/` (`?q=`), `/api/labels/`, `/api/meal-categories/` - Config lookup tables; deleting one still used by a recipe returns 409
-- `GET/POST /api/cooking-plans/` - Cooking plans
+- `GET/POST/PATCH/DELETE /api/cooking-plan-entries/` (`?start=&end=`) - Planned dishes (`kind` cook|leftovers); `POST finalize/` creates the missing cook tasks for a date range, `GET shopping-preview/?start=&end=` returns every open dish with scaled ingredient lines
+- `GET /api/cooking-suggestions/?meal=<id>[&exclude=1,2][&seed=n]` - The five suggestion buckets for a meal type
+- `GET/PATCH /api/cooking-plan-config/` - Suggestion tuning (percentile, thresholds, weights, counts) and the meals shown in the plan
+- `POST /api/shopping-lists/{id}/add-ingredients/` - Add (merge) ticked ingredient lines; `GET /api/recipes/{id}/shopping-lines/?servings=` - one recipe's scaled lines
 - `GET/POST /api/task-definitions/` - Recurring task templates (DELETE requires `?confirm=true` if it has occurrences)
 - `GET/POST /api/task-instances/` - Task occurrences (`?start=&end=` generates+lists a date range); actions: `reassign/`, `snooze/`, `skip/`, `reopen/`, `postpone/`, `complete/`
 - `GET/PATCH /api/members/` - Household members (color, avatar); `GET /api/members/me/`; `DELETE /api/members/{id}/avatar/`
@@ -140,7 +143,8 @@ Access at: `https://<pi-ip>` (self-signed cert — browser warns once per device
 - **PurchaseRecord**: one logged purchase — title/quantity/unit/list name snapshot, date, who ticked it off (~200 bytes each, well under 1 MB/year for two people)
 - **RecipeRating**: one 1-5 score per (recipe, member)
 - **MealEvent**: one logged cooking of a recipe — date, servings made, who logged it
-- **CookingPlan**: Meal schedule
+- **CookingPlanEntry**: one planned meal — date, meal type, kind (cook / leftovers), recipe, servings; a cook entry owns one `HouseholdTaskInstance` (`system_action=cook_meal`) and, once cooked, a `MealEvent`
+- **CookingPlanConfig**: singleton — suggestion tuning and which meal types the plan shows
 - **HouseholdTaskDefinition**: recurring task template (RRULE recurrence, icon, assignment mode, optional system_action like the weekly planning reminder)
 - **HouseholdTaskInstance**: one occurrence — either generated from a definition, or standalone (one-off, `definition=None`); tracks `occurrence_date` (immutable, what generation keys on) separately from `scheduled_date` (mutable, what dragging/postponing changes) to avoid regenerating duplicates
 - **HouseholdTaskEvent**: audit trail per instance (created/reassigned/snoozed/skipped/postponed/completed/reopened)

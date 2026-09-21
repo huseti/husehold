@@ -6,6 +6,7 @@ import Navbar from '../components/Navbar';
 import WeekBoard from '../components/WeekBoard';
 import TaskDefinitionForm from '../components/TaskDefinitionForm';
 import AddSingleTaskForm from '../components/AddSingleTaskForm';
+import CookRatingPrompt from '../components/CookRatingPrompt';
 import { getWeekStart, toISODate, addDays, parseISODate } from '../utils/weekDates';
 
 export default function Tasks() {
@@ -26,6 +27,8 @@ export default function Tasks() {
   const [definitions, setDefinitions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddSingle, setShowAddSingle] = useState(false);
+  // A just-cooked dish the current user hasn't rated yet -- see CookRatingPrompt.
+  const [ratingPromptEntry, setRatingPromptEntry] = useState(null);
 
   useEffect(() => {
     const planWeek = searchParams.get('planWeek');
@@ -142,7 +145,9 @@ export default function Tasks() {
   };
 
   const handleComplete = async (id) => {
-    await taskInstanceService.complete(id);
+    const response = await taskInstanceService.complete(id);
+    const cookingEntry = response.data.cooking_entry;
+    if (cookingEntry && cookingEntry.my_rating === null) setRatingPromptEntry(cookingEntry);
     loadWeek();
   };
 
@@ -278,6 +283,7 @@ export default function Tasks() {
           </>
         )}
       </main>
+      <CookRatingPrompt entry={ratingPromptEntry} onClose={() => setRatingPromptEntry(null)} />
     </div>
   );
 }

@@ -2,15 +2,16 @@ import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
-  shoppingService, recipeService, cookingPlanService, taskInstanceService, authService, householdSettingsService,
+  shoppingService, recipeService, cookingPlanEntryService, taskInstanceService, authService, householdSettingsService,
   voucherService,
 } from '../services/api';
 import Navbar from '../components/Navbar';
 import WeekPreview from '../components/WeekPreview';
 import OverviewPanel from '../components/OverviewPanel';
 import TaskIcon from '../components/icons/taskIcons';
-import { getDisplayTitle, canSnoozeInstance } from '../utils/taskDisplay';
-import { getWeekStart, toISODate, addDays, parseISODate } from '../utils/weekDates';
+import CookRatingPrompt from '../components/CookRatingPrompt';
+import { getDisplayTitle, canSnoozeInstance, getPlanNowPath, mealName } from '../utils/taskDisplay';
+import { getWeekStart, toISODate, addDays } from '../utils/weekDates';
 import { isExpiringSoon } from '../utils/voucherDisplay';
 
 const OVERDUE_LOOKBACK_DAYS = 30;
@@ -21,6 +22,8 @@ export default function Dashboard() {
   const [shopping, setShopping] = useState([]);
   const [recipeCount, setRecipeCount] = useState(0);
   const [mealCount, setMealCount] = useState(0);
+  const [mealEntries, setMealEntries] = useState([]);
+  const [ratingPromptEntry, setRatingPromptEntry] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [vouchers, setVouchers] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
@@ -37,7 +40,7 @@ export default function Dashboard() {
       const [shoppingRes, recipesRes, mealsRes, tasksRes, meRes, settingsRes, vouchersRes] = await Promise.all([
         shoppingService.getAll(),
         recipeService.getAll(),
-        cookingPlanService.getAll(),
+        cookingPlanEntryService.getRange(todayISO, toISODate(addDays(new Date(), 6))),
         taskInstanceService.getRange(toISODate(fetchStart), toISODate(weekDays[6])),
         authService.getMe(),
         householdSettingsService.get(),
@@ -45,7 +48,9 @@ export default function Dashboard() {
       ]);
       setShopping(shoppingRes.data.results || []);
       setRecipeCount(recipesRes.data.count ?? (recipesRes.data.results || recipesRes.data || []).length);
-      setMealCount(mealsRes.data.count ?? (mealsRes.data.results || mealsRes.data || []).length);
+      const upcomingMeals = mealsRes.data.results || [];
+      setMealEntries(upcomingMeals);
+      setMealCount(upcomingMeals.filter((entry) => entry.kind === 'cook').length);
       setTasks(tasksRes.data.results || tasksRes.data || []);
       setCurrentUser(meRes.data);
       setHouseholdName(settingsRes.data.household_name);
@@ -62,7 +67,9 @@ export default function Dashboard() {
   }, [loadData]);
 
   const handleComplete = async (id) => {
-    await taskInstanceService.complete(id);
+    const response = await taskInstanceService.complete(id);
+    const cookingEntry = response.data.cooking_entry;
+    if (cookingEntry && cookingEntry.my_rating === null) setRatingPromptEntry(cookingEntry);
     loadData();
   };
 
@@ -95,13 +102,10 @@ export default function Dashboard() {
     (task) => task.status === 'pending' && !task.is_in_backlog && task.scheduled_date < todayISO,
   ).length;
 
-  const handlePlanNow = (task) => {
-    const planWeekStart = addDays(getWeekStart(parseISODate(task.scheduled_date)), 7);
-    navigate(`/tasks?planWeek=${toISODate(planWeekStart)}&planInstance=${task.id}`);
-  };
+  const todayMeals = mealEntries.filter((entry) => entry.date === todayISO);
 
   const renderTaskRow = (task, { overdue = false, today = false } = {}) => {
-    const isWeeklyPlanning = task.system_action === 'weekly_household_planning';
+    const planNowPath = getPlanNowPath(task);
     return (
       <li
         key={task.id}
@@ -114,9 +118,9 @@ export default function Dashboard() {
           {overdue && <span className="ml-2 text-xs uppercase tracking-wide">{t('dashboard.overdue')}</span>}
           {today && <span className="ml-2 text-xs text-blue-600 uppercase tracking-wide">{t('dashboard.dueToday')}</span>}
         </span>
-        {isWeeklyPlanning && (
+        {planNowPath && (
           <button
-            onClick={() => handlePlanNow(task)}
+            onClick={() => navigate(planNowPath)}
             className="text-xs px-2 py-0.5 rounded bg-purple-100 text-purple-700 hover:bg-purple-200"
           >
             {t('weeklyPlanning.planNow')}
@@ -186,8 +190,31 @@ export default function Dashboard() {
           />
         </div>
 
+        {todayMeals.length > 0 && (
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-xl font-semibold mb-4">{t('dashboard.cookingToday')}</h2>
+            <ul className="space-y-2">
+              {todayMeals.map((entry) => (
+                <li key={entry.id} className="flex items-center gap-2 text-sm">
+                  <TaskIcon icon="cooking" className="text-gray-500 flex-shrink-0" />
+                  <span className="text-gray-500 w-28 flex-shrink-0">{mealName(entry, i18n)}</span>
+                  <span className={`font-medium ${entry.is_cooked ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+                    {entry.kind === 'leftovers' ? t('cookingPlan.leftoversOf', { title: entry.recipe_title }) : entry.recipe_title}
+                  </span>
+                  <span className="text-gray-400">{t('cookingPlan.servingsShort', { count: entry.servings })}</span>
+                  {entry.assigned_to_username && <span className="text-gray-500">· {entry.assigned_to_username}</span>}
+                </li>
+              ))}
+            </ul>
+            <Link to="/cooking-plan" className="mt-4 inline-block text-blue-500 hover:text-blue-700 font-medium">
+              {t('dashboard.viewAll')}
+            </Link>
+          </div>
+        )}
+
         <WeekPreview weekDays={weekDays} instances={tasks} />
       </main>
+      <CookRatingPrompt entry={ratingPromptEntry} onClose={() => setRatingPromptEntry(null)} />
     </div>
   );
 }

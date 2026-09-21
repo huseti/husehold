@@ -1,7 +1,8 @@
 ﻿from django.contrib import admin
 from .models import (
-    HouseholdMember, HouseholdSettings, ShoppingList, ShoppingListItem, Recipe, CookingPlan,
+    HouseholdMember, HouseholdSettings, ShoppingList, ShoppingListItem, Recipe,
     UnitOfMeasure, Ingredient, Label, MealTimeCategory, RecipeIngredient, RecipeRating, MealEvent, PurchaseRecord,
+    CookingPlanConfig, CookingPlanEntry,
     HouseholdTaskDefinition, HouseholdTaskInstance, HouseholdTaskEvent,
     NotificationPreference, PushSubscription, NotificationLog, Voucher, VoucherRedemption,
 )
@@ -66,11 +67,6 @@ class RecipeAdmin(admin.ModelAdmin):
     search_fields = ('title',)
     inlines = [RecipeIngredientInline, RecipeRatingInline, MealEventInline]
 
-@admin.register(CookingPlan)
-class CookingPlanAdmin(admin.ModelAdmin):
-    list_display = ('date', 'meal_type', 'recipe', 'created_by')
-    list_filter = ('date', 'meal_type')
-
 class VoucherRedemptionInline(admin.TabularInline):
     model = VoucherRedemption
     extra = 0
@@ -122,3 +118,13 @@ class PurchaseRecordAdmin(admin.ModelAdmin):
     list_display = ('title', 'quantity', 'unit', 'list_name', 'purchased_on', 'purchased_by')
     list_filter = ('purchased_on', 'list_name')
     search_fields = ('title',)
+
+@admin.register(CookingPlanEntry)
+class CookingPlanEntryAdmin(admin.ModelAdmin):
+    list_display = ('date', 'meal_category', 'kind', 'recipe', 'servings', 'task_instance')
+    list_filter = ('kind', 'meal_category', 'date')
+    search_fields = ('recipe__title',)
+
+@admin.register(CookingPlanConfig)
+class CookingPlanConfigAdmin(admin.ModelAdmin):
+    list_display = ('__str__', 'top_rating_percentile', 'uncooked_threshold_days', 'rating_weight', 'neglect_weight')

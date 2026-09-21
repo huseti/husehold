@@ -53,7 +53,8 @@
       "overdueTasks_other": "{{count}} overdue tasks",
       "expiringVouchers_one": "{{count}} coupon is about to expire in the next 6 months",
       "expiringVouchers_other": "{{count}} coupons are about to expire in the next 6 months"
-    }
+    },
+    "cookingToday": "Cooking today"
   },
   "shoppingList": {
     "title": "Shopping List",
@@ -146,11 +147,66 @@
     "howWasIt": "How was it?",
     "skip": "Skip",
     "cookLogFailed": "Could not log this. Please try again.",
-    "removeLogEntry": "Remove entry"
+    "removeLogEntry": "Remove entry",
+    "addToShopping": "Ingredients to shopping list"
   },
   "cookingPlan": {
     "title": "Cooking Plan",
-    "comingSoon": "Coming soon..."
+    "servingsShort": "{{count}} serv.",
+    "leftoversOf": "Leftovers of {{title}}",
+    "cookedLogged": "Logged as cooked.",
+    "howWasIt": "How was “{{title}}”?",
+    "planningBanner": "You are planning the week {{range}}. “Finish plan” creates the cooking tasks and ticks off the planning reminder.",
+    "finish": "Finish plan",
+    "finishWithCount_one": "Finish plan (create {{count}} cooking task)",
+    "finishWithCount_other": "Finish plan (create {{count}} cooking tasks)",
+    "finished_one": "{{count}} cooking task created — assign it in the household plan.",
+    "finished_other": "{{count}} cooking tasks created — assign them in the household plan.",
+    "finishedNothingNew": "Nothing new to create — every dish already has a task.",
+    "toHouseholdPlan": "To the household plan →",
+    "shoppingButton": "Ingredients to shopping list",
+    "noDishesForShopping": "There are no dishes left to cook this week.",
+    "settings": "Settings",
+    "noMeals": "There are no meal types yet. Add them under Settings → Recipes & Shopping Lists.",
+    "addDish": "Add dish",
+    "edit": "Edit",
+    "planLeftovers": "Plan leftovers",
+    "leftoversWhen": "Leftovers on:",
+    "add": "Add",
+    "notesPlaceholder": "Note (optional)",
+    "confirmDelete": "Remove “{{title}}” from the plan?",
+    "status": {
+      "cooked": "cooked",
+      "draft": "Draft — no task yet",
+      "unassigned": "not assigned"
+    },
+    "pickerTitle": "{{meal}} · {{day}}",
+    "tab": {
+      "recipes": "Recipes",
+      "leftovers": "Leftovers"
+    },
+    "searchPlaceholder": "Search recipes or ingredients...",
+    "noSuggestions": "No matching recipes — add some recipes first.",
+    "leftoversEmpty": "No dish to cook is planned this week yet.",
+    "lastCookedAgo_one": "last cooked {{count}} day ago",
+    "lastCookedAgo_other": "last cooked {{count}} days ago",
+    "cookedToday": "cooked today",
+    "neverCooked": "never cooked",
+    "reroll": "Re-roll",
+    "bucket": {
+      "craving": "Craving",
+      "topRated": "Best rated",
+      "longAgo": "Not cooked in a while",
+      "random": "Random picks",
+      "rest": "Everything else"
+    },
+    "bucketHint": {
+      "craving": "well rated and due again",
+      "topRated": "your favorites",
+      "longAgo": "time for a repeat",
+      "random": "something different",
+      "rest": ""
+    }
   },
   "tasks": {
     "title": "Household Plan",
@@ -339,7 +395,9 @@
     "pushChannel": "Push",
     "notificationTypes": {
       "task_due_today": "Task due today",
-      "household_planning_due": "Weekly household planning due"
+      "household_planning_due": "Weekly household planning due",
+      "meal_planning_due": "Weekly meal planning due",
+      "cooking_today": "Cooking today"
     },
     "enablePushOnDevice": "Enable push notifications on this device",
     "pushEnabling": "Enabling...",
@@ -372,5 +430,31 @@
     "nameEn": "Name (English)",
     "abbreviationDe": "Abbrev. (DE)",
     "abbreviationEn": "Abbrev. (EN)"
+  },
+  "shoppingDialog": {
+    "title": "Ingredients to shopping list",
+    "list": "Shopping list",
+    "noIngredients": "This recipe has no ingredients.",
+    "staple": "staple",
+    "add": "Add to list ({{count}})",
+    "result": "{{created}} added, {{merged}} topped up.",
+    "failed": "Could not add the ingredients. Please try again."
+  },
+  "cookingSettings": {
+    "title": "Cooking plan settings",
+    "hint": "Decides which meals appear in the weekly plan and how the recipe suggestions are ranked.",
+    "plannedMeals": "Planned meals",
+    "cravingCount": "Number of “craving”",
+    "randomCount": "Number of random picks",
+    "topPercentile": "Best rated (top %)",
+    "uncookedDays": "Not cooked in a while (days)",
+    "ratingWeight": "Weight of rating",
+    "neglectWeight": "Weight of “not in a while”",
+    "saved": "Saved.",
+    "failed": "Could not save. Please check the values."
+  },
+  "mealPlanning": {
+    "title": "Weekly Meal Planning",
+    "description": "Decides when the recurring reminder to plan next week’s meals shows up. It also appears as a task on that day; “Plan now” opens the cooking plan."
   }
 }

@@ -7,7 +7,7 @@ import {
 } from '../services/api';
 import { urlBase64ToUint8Array, isPushSupported } from '../utils/push';
 
-const NOTIFICATION_TYPES = ['task_due_today', 'household_planning_due'];
+const NOTIFICATION_TYPES = ['task_due_today', 'household_planning_due', 'meal_planning_due', 'cooking_today'];
 
 const LANGUAGES = [
   { code: 'de', labelKey: 'settings.german' },

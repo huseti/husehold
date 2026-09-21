@@ -174,6 +174,79 @@ class MealEvent(models.Model):
         return f"{self.recipe.title} on {self.date_cooked}"
 
 
+class CookingPlanConfig(AuditableMixin):
+    """Singleton (always pk=1, use CookingPlanConfig.load()) -- tuning knobs for
+    the recipe suggestions in the Cooking Plan, plus which meal types the
+    weekly plan grid shows. See household.services.cooking_suggestions."""
+    top_rating_percentile = models.PositiveSmallIntegerField(
+        default=30, validators=[MinValueValidator(1), MaxValueValidator(100)],
+        help_text='The best-rated N% of recipes form the "best rated" suggestions.',
+    )
+    uncooked_threshold_days = models.PositiveIntegerField(
+        default=21, help_text='Recipes not cooked for at least this many days count as "not cooked in a while".',
+    )
+    rating_weight = models.FloatField(default=0.7, validators=[MinValueValidator(0)])
+    neglect_weight = models.FloatField(default=0.3, validators=[MinValueValidator(0)])
+    craving_count = models.PositiveSmallIntegerField(default=5, help_text='How many "craving" suggestions to show.')
+    random_count = models.PositiveSmallIntegerField(default=3, help_text='How many random suggestions to show before the rest.')
+    planned_meal_categories = models.ManyToManyField(
+        MealTimeCategory, blank=True, related_name='+',
+        help_text='The meals shown as rows in the weekly plan (e.g. lunch and dinner).',
+    )
+
+    @classmethod
+    def load(cls):
+        config, created = cls.objects.get_or_create(pk=1)
+        if created:
+            config.planned_meal_categories.set(
+                MealTimeCategory.objects.filter(name_de__in=['Mittagessen', 'Abendessen']),
+            )
+        return config
+
+    def __str__(self):
+        return 'Cooking plan settings'
+
+
+class CookingPlanEntry(models.Model):
+    """One planned meal on a day. A 'cook' entry is a dish that actually gets
+    cooked -- it owns exactly one HouseholdTaskInstance (created when the
+    week's plan is finalized) so it shows up in the household plan, can be
+    assigned there, and ticking it off logs the MealEvent. A 'leftovers' entry
+    ("Reste von ...") re-uses an earlier cook entry's dish on another
+    day/meal: no task, no extra shopping."""
+    KIND_CHOICES = [
+        ('cook', 'Cook'),
+        ('leftovers', 'Leftovers'),
+    ]
+
+    date = models.DateField()
+    meal_category = models.ForeignKey(MealTimeCategory, on_delete=models.PROTECT, related_name='plan_entries')
+    kind = models.CharField(max_length=10, choices=KIND_CHOICES, default='cook')
+    recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE, related_name='plan_entries')
+    # Only for leftovers. Deleting the dish deletes the leftovers of it.
+    source_entry = models.ForeignKey(
+        'self', on_delete=models.CASCADE, null=True, blank=True, related_name='leftover_entries',
+    )
+    servings = models.PositiveIntegerField(default=2)
+    notes = models.CharField(max_length=200, blank=True)
+    # CASCADE on purpose: deleting the cook task from the household plan takes
+    # the dish out of the meal plan too ("one entry = one task").
+    task_instance = models.OneToOneField(
+        'HouseholdTaskInstance', on_delete=models.CASCADE, null=True, blank=True, related_name='cooking_entry',
+    )
+    # Set when the task is ticked off; lets "undo" remove exactly that event.
+    meal_event = models.ForeignKey(MealEvent, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['date', 'meal_category__sort_order', 'id']
+        verbose_name_plural = 'cooking plan entries'
+
+    def __str__(self):
+        return f"{self.date} {self.meal_category}: {self.recipe.title}"
+
+
 class ShoppingList(AuditableMixin):
     name = models.CharField(max_length=100)
     # The list the Cooking Plan writes into by default. At most one is the
@@ -222,25 +295,6 @@ class ShoppingListItem(models.Model):
     def __str__(self):
         return self.title
 
-class CookingPlan(models.Model):
-    date = models.DateField()
-    meal_type = models.CharField(max_length=50, choices=[
-        ('breakfast', 'Breakfast'),
-        ('lunch', 'Lunch'),
-        ('dinner', 'Dinner'),
-        ('snack', 'Snack'),
-    ])
-    recipe = models.ForeignKey(Recipe, on_delete=models.SET_NULL, null=True, blank=True)
-    notes = models.TextField(blank=True)
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ['date', 'meal_type']
-
-    def __str__(self):
-        return f"{self.date} - {self.meal_type}"
-
 class PurchaseRecord(models.Model):
     """One purchase, logged when a shopping list item is ticked off. A
     snapshot (title/quantity/list name are copied) so the history survives the
@@ -275,6 +329,7 @@ class HouseholdTaskDefinition(AuditableMixin):
         ('none', 'None'),
         ('weekly_household_planning', 'Weekly household planning'),
         ('weekly_meal_planning', 'Weekly meal planning'),
+        ('cook_meal', 'Cook a planned meal'),
     ]
 
     # Flat, single-color icon set for the weekly view -- keep additions in
@@ -293,6 +348,7 @@ class HouseholdTaskDefinition(AuditableMixin):
         ('tool', 'Repair'),
         ('bed', 'Bed'),
         ('calendar', 'Calendar'),
+        ('cooking', 'Cooking'),
         ('other', 'Other'),
     ]
 
@@ -455,6 +511,8 @@ class NotificationPreference(models.Model):
     NOTIFICATION_TYPE_CHOICES = [
         ('task_due_today', 'Task due today'),
         ('household_planning_due', 'Weekly household planning due'),
+        ('meal_planning_due', 'Weekly meal planning due'),
+        ('cooking_today', 'Cooking today'),
     ]
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notification_preferences')

@@ -11,22 +11,28 @@ from django.contrib.auth.models import User
 from django.conf import settings as django_settings
 from django.db.models import ProtectedError, Q
 from .models import (
-    HouseholdMember, HouseholdSettings, ShoppingList, ShoppingListItem, Recipe, CookingPlan,
+    HouseholdMember, HouseholdSettings, ShoppingList, ShoppingListItem, Recipe,
     HouseholdTaskDefinition, HouseholdTaskInstance, HouseholdTaskEvent,
     NotificationPreference, PushSubscription, Voucher, VoucherRedemption,
-    UnitOfMeasure, Ingredient, Label, MealTimeCategory, RecipeRating, MealEvent, PurchaseRecord,
+    UnitOfMeasure, Ingredient, Label, MealTimeCategory, RecipeRating, MealEvent, PurchaseRecord, CookingPlanConfig, CookingPlanEntry,
 )
 from .serializers import (
     UserSerializer, HouseholdMemberSerializer, HouseholdSettingsSerializer,
     ShoppingListSerializer, ShoppingListItemSerializer,
-    RecipeSerializer, CookingPlanSerializer,
+    RecipeSerializer,
     UnitOfMeasureSerializer, IngredientSerializer, LabelSerializer, MealTimeCategorySerializer,
-    MealEventSerializer, PurchaseRecordSerializer,
+    MealEventSerializer, PurchaseRecordSerializer, CookingPlanConfigSerializer, CookingPlanEntrySerializer,
     HouseholdTaskDefinitionSerializer, HouseholdTaskInstanceSerializer,
     NotificationPreferenceSerializer, PushSubscriptionSerializer,
     VoucherSerializer,
 )
 from .services.task_generation import generate_instances_for_range, monday_of_week_as_datetime
+from .services.cooking_suggestions import build_suggestions
+from .services.cooking_shopping import add_lines_to_list, dish as shopping_dish
+from .services.cooking_tasks import (
+    finalize_range, follow_snooze, get_cooking_entry, log_cooked, restore_after_unsnooze,
+    sync_entry_date, sync_task_from_entry, undo_cooked,
+)
 
 
 def _monday_of_week(day):
@@ -195,6 +201,16 @@ class ShoppingListViewSet(viewsets.ModelViewSet):
         shopping_list = serializer.save(updated_by=self.request.user)
         self._ensure_creator_can_see(shopping_list)
 
+    @action(detail=True, methods=['post'], url_path='add-ingredients')
+    def add_ingredients(self, request, pk=None):
+        """Body: {lines: [{ingredient, title, quantity, unit}, ...]} -- the
+        ingredients the user ticked in the cooking plan / recipe dialog. Same
+        ingredient + unit is merged into one item (see cooking_shopping)."""
+        lines = request.data.get('lines')
+        if not isinstance(lines, list):
+            return Response({'detail': 'lines must be a list.'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(add_lines_to_list(self.get_object(), lines, request.user))
+
     @action(detail=True, methods=['post'], url_path='clear-completed')
     def clear_completed(self, request, pk=None):
         deleted, _ = self.get_object().items.filter(is_completed=True).delete()
@@ -299,7 +315,7 @@ class ProtectedDeleteMixin:
             return super().destroy(request, *args, **kwargs)
         except ProtectedError:
             return Response(
-                {'detail': 'This is still used by one or more recipes and cannot be deleted.'},
+                {'detail': 'This is still in use and cannot be deleted.'},
                 status=status.HTTP_409_CONFLICT,
             )
 
@@ -356,6 +372,21 @@ class RecipeViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
 
+    def perform_destroy(self, instance):
+        # The dish's still-open cook tasks would otherwise be left behind in
+        # the household plan pointing at a recipe that no longer exists.
+        HouseholdTaskInstance.objects.filter(cooking_entry__recipe=instance, status='pending').delete()
+        instance.delete()
+
+    @action(detail=True, methods=['get'], url_path='shopping-lines')
+    def shopping_lines(self, request, pk=None):
+        """The recipe's ingredients scaled to ?servings= (default: its own),
+        in the same shape as one dish of the cooking plan's shopping preview."""
+        recipe = self.get_object()
+        servings = request.query_params.get('servings', '')
+        servings = int(servings) if servings.isdigit() and int(servings) > 0 else recipe.servings
+        return Response(shopping_dish(f'recipe-{recipe.id}', recipe, servings))
+
     @action(detail=True, methods=['post', 'delete'])
     def rate(self, request, pk=None):
         """One rating per (recipe, user): POST {score: 1-5} sets or changes
@@ -375,6 +406,102 @@ class RecipeViewSet(viewsets.ModelViewSet):
             )
         recipe = self.get_queryset().get(pk=recipe.pk)
         return Response(RecipeSerializer(recipe, context={'request': request}).data)
+
+class CookingPlanConfigView(APIView):
+    """Singleton (pk=1), like HouseholdSettingsView: get or patch."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        return Response(CookingPlanConfigSerializer(CookingPlanConfig.load()).data)
+
+    def patch(self, request):
+        config = CookingPlanConfig.load()
+        serializer = CookingPlanConfigSerializer(config, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(updated_by=request.user)
+        return Response(serializer.data)
+
+class CookingSuggestionsView(APIView):
+    """GET ?meal=<category id>[&exclude=1,2,3][&seed=n] -- the five suggestion
+    buckets for one meal type (see services.cooking_suggestions). Without a
+    seed the random bucket is re-rolled on every call."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        meal = request.query_params.get('meal', '')
+        if not meal.isdigit() or not MealTimeCategory.objects.filter(pk=int(meal)).exists():
+            return Response({'detail': 'meal must be the id of a meal category.'}, status=status.HTTP_400_BAD_REQUEST)
+        exclude = [int(x) for x in request.query_params.get('exclude', '').split(',') if x.strip().isdigit()]
+        return Response(build_suggestions(int(meal), exclude, seed=request.query_params.get('seed')))
+
+class CookingPlanEntryViewSet(viewsets.ModelViewSet):
+    """The weekly meal plan. Filter with ?start=&end= (inclusive days).
+    Entries whose cook task was skipped are left out -- skipping takes the
+    dish out of the plan, undoing the skip brings it back."""
+    serializer_class = CookingPlanEntrySerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = CookingPlanEntry.objects.select_related(
+            'recipe', 'meal_category', 'source_entry__recipe', 'task_instance__assigned_to__householdmember',
+        ).exclude(task_instance__status='skipped')
+        start = parse_date(self.request.query_params.get('start') or '')
+        end = parse_date(self.request.query_params.get('end') or '')
+        if start:
+            queryset = queryset.filter(date__gte=start)
+        if end:
+            queryset = queryset.filter(date__lte=end)
+        return queryset
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+    def perform_update(self, serializer):
+        entry = serializer.save()
+        if entry.kind == 'cook':
+            entry.leftover_entries.update(recipe=entry.recipe)
+        sync_task_from_entry(entry)
+
+    def perform_destroy(self, instance):
+        task = instance.task_instance
+        instance.delete()
+        # A cooked dish keeps its (done) task as history; an open one goes with the entry.
+        if task is not None and task.status == 'pending':
+            task.delete()
+
+    def _range(self, request):
+        source = request.data if request.method == 'POST' else request.query_params
+        start, end = parse_date(source.get('start') or ''), parse_date(source.get('end') or '')
+        return start, end
+
+    @action(detail=False, methods=['post'])
+    def finalize(self, request):
+        """Creates the cook task for every cook entry in the range that has
+        none yet -- the "planning is done" step that puts the dishes into the
+        household plan, where they can be assigned."""
+        start, end = self._range(request)
+        if not start or not end:
+            return Response({'detail': 'start and end are required.'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'created': finalize_range(start, end, request.user)})
+
+    @action(detail=False, methods=['get'], url_path='shopping-preview')
+    def shopping_preview(self, request):
+        """One block per dish still to be cooked in the range, its ingredients
+        scaled to the planned servings, for the "add to shopping list" step."""
+        start, end = self._range(request)
+        if not start or not end:
+            return Response({'detail': 'start and end are required.'}, status=status.HTTP_400_BAD_REQUEST)
+        entries = self.get_queryset().filter(
+            kind='cook', meal_event__isnull=True, date__gte=start, date__lte=end,
+        ).prefetch_related('recipe__ingredients__ingredient')
+        return Response([
+            shopping_dish(
+                f'entry-{entry.id}', entry.recipe, entry.servings,
+                entry=entry.id, date=entry.date.isoformat(), meal_category=entry.meal_category_id,
+                meal_category_name_de=entry.meal_category.name_de, meal_category_name_en=entry.meal_category.name_en,
+            )
+            for entry in entries
+        ])
 
 class MealEventViewSet(viewsets.ModelViewSet):
     """Log of recipes actually cooked. Filter with ?recipe=<id>, ?date=<day>
@@ -399,14 +526,6 @@ class MealEventViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(logged_by=self.request.user)
-
-class CookingPlanViewSet(viewsets.ModelViewSet):
-    queryset = CookingPlan.objects.all()
-    serializer_class = CookingPlanSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-    def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
 
 class VoucherViewSet(viewsets.ModelViewSet):
     queryset = Voucher.objects.all()
@@ -505,7 +624,7 @@ class HouseholdTaskInstanceViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        queryset = super().get_queryset()
+        queryset = super().get_queryset().select_related('cooking_entry')
         start = parse_date(self.request.query_params.get('start') or '')
         end = parse_date(self.request.query_params.get('end') or '')
         if start and end:
@@ -556,6 +675,7 @@ class HouseholdTaskInstanceViewSet(viewsets.ModelViewSet):
             origin_instance=instance,
         )
         HouseholdTaskEvent.objects.create(task_instance=copy, event_type='snoozed', actor=request.user)
+        follow_snooze(instance, copy)
 
         return Response(HouseholdTaskInstanceSerializer(instance).data)
 
@@ -596,6 +716,7 @@ class HouseholdTaskInstanceViewSet(viewsets.ModelViewSet):
         instance.is_in_backlog = bool(request.data.get('is_in_backlog', False))
         instance.save()
         HouseholdTaskEvent.objects.create(task_instance=instance, event_type='postponed', actor=request.user)
+        sync_entry_date(instance)
         return Response(HouseholdTaskInstanceSerializer(instance).data)
 
     @action(detail=True, methods=['post'])
@@ -605,6 +726,7 @@ class HouseholdTaskInstanceViewSet(viewsets.ModelViewSet):
         instance.completed_at = timezone.now()
         instance.save()
         HouseholdTaskEvent.objects.create(task_instance=instance, event_type='completed', actor=request.user)
+        log_cooked(instance, request.user)
         return Response(HouseholdTaskInstanceSerializer(instance).data)
 
     @action(detail=True, methods=['post'])
@@ -615,7 +737,9 @@ class HouseholdTaskInstanceViewSet(viewsets.ModelViewSet):
         still sitting in the backlog) -- otherwise it'd be left behind
         forever, which is exactly the bug this fixes."""
         instance = self.get_object()
+        undo_cooked(instance)
         if instance.status == 'snoozed':
+            restore_after_unsnooze(instance)
             instance.snoozed_copies.filter(status='pending', is_in_backlog=True).delete()
         instance.status = 'pending'
         instance.completed_at = None

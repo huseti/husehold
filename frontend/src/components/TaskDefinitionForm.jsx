@@ -118,6 +118,7 @@ export default function TaskDefinitionForm({ members, definitions, onSaved }) {
       </div>
 
       <WeeklyPlanningConfig definitions={definitions} members={members} onSaved={onSaved} />
+      <WeeklyPlanningConfig kind="meal" definitions={definitions} members={members} onSaved={onSaved} />
 
       <div className="bg-white rounded-lg shadow p-4">
         <h3 className="font-semibold mb-2">{t('tasks.recurringTasks')}</h3>

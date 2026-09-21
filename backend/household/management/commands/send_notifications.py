@@ -1,10 +1,17 @@
+from datetime import time
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from django.core.management.base import BaseCommand
+from django.db.models import Q
 from django.utils import timezone
 
 from household.models import HouseholdSettings, HouseholdTaskInstance
 from household.services.notifications import notify_task_due
+
+
+# "Heute kochen wir ..." goes out in the morning, not at midnight -- cook
+# tasks have no reminder_time of their own.
+COOKING_TODAY_FROM = time(8, 0)
 
 
 class Command(BaseCommand):
@@ -32,12 +39,15 @@ class Command(BaseCommand):
         now_time = timezone.localtime().time()
 
         due_instances = HouseholdTaskInstance.objects.filter(
-            scheduled_date=today, status='pending', assigned_to__isnull=False,
+            Q(assigned_to__isnull=False) | Q(system_action='cook_meal'),
+            scheduled_date=today, status='pending',
         ).select_related('definition', 'assigned_to')
 
         processed = 0
         for instance in due_instances:
             reminder_time = instance.definition.reminder_time if instance.definition else None
+            if instance.system_action == 'cook_meal':
+                reminder_time = COOKING_TODAY_FROM
             if reminder_time and now_time < reminder_time:
                 continue
             notify_task_due(instance)

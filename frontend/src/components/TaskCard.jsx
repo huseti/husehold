@@ -2,8 +2,8 @@ import { useDraggable } from '@dnd-kit/core';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import TaskIcon from './icons/taskIcons';
-import { getDisplayTitle, canSnoozeInstance } from '../utils/taskDisplay';
-import { getWeekStart, addDays, parseISODate, toISODate } from '../utils/weekDates';
+import { getDisplayTitle, canSnoozeInstance, getPlanNowPath, mealName } from '../utils/taskDisplay';
+import { getWeekStart, parseISODate, toISODate } from '../utils/weekDates';
 
 export default function TaskCard({
   instance, members, onComplete, onSkip, onSnooze, onReassign, onReopen, onDelete,
@@ -18,12 +18,7 @@ export default function TaskCard({
     }
   };
 
-  const isWeeklyPlanning = instance.system_action === 'weekly_household_planning';
-
-  const handlePlanNow = () => {
-    const planWeekStart = addDays(getWeekStart(parseISODate(instance.scheduled_date)), 7);
-    navigate(`/tasks?planWeek=${toISODate(planWeekStart)}&planInstance=${instance.id}`);
-  };
+  const planNowPath = getPlanNowPath(instance);
 
   const isDone = instance.status === 'done';
   const isSkipped = instance.status === 'skipped';
@@ -74,6 +69,11 @@ export default function TaskCard({
         {isCarriedOverFromPastWeek && <span className="text-gray-400 font-normal ml-1">({t('weeklyPlanning.carriedOverFromLastWeek')})</span>}
         {needsAttention && <span className="text-xs text-red-500 ml-1" title={t('weeklyPlanning.needsAttention')}>⚠</span>}
       </div>
+      {instance.cooking_entry && (
+        <div className={`text-gray-500 ${isResolved ? 'text-[11px]' : 'text-xs'}`}>
+          {mealName(instance.cooking_entry, i18n)} · {t('cookingPlan.servingsShort', { count: instance.cooking_entry.servings })}
+        </div>
+      )}
       <div className={`text-gray-500 ${isResolved ? 'text-[11px]' : 'text-xs'}`}>
         {instance.assigned_to_username || t('tasks.unassigned')}
       </div>
@@ -104,9 +104,9 @@ export default function TaskCard({
 
       {interactive && !isResolved && (
         <div className="flex items-center gap-1 flex-wrap mt-1">
-          {isWeeklyPlanning && (
+          {planNowPath && (
             <button
-              onClick={handlePlanNow}
+              onClick={() => navigate(planNowPath)}
               className="text-xs px-2 py-0.5 rounded bg-purple-100 text-purple-700 hover:bg-purple-200"
             >
               {t('weeklyPlanning.planNow')}

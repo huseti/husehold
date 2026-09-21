@@ -9,7 +9,8 @@ from rest_framework.test import APIClient
 
 from .models import (
     HouseholdMember, HouseholdSettings, HouseholdTaskDefinition, HouseholdTaskInstance, HouseholdTaskEvent,
-    Ingredient, Label, MealEvent, MealTimeCategory, PurchaseRecord, Recipe, RecipeRating, ShoppingList, ShoppingListItem, UnitOfMeasure,
+    CookingPlanConfig, CookingPlanEntry, Ingredient, Label, MealEvent, MealTimeCategory, NotificationPreference,
+    PurchaseRecord, Recipe, RecipeRating, ShoppingList, ShoppingListItem, UnitOfMeasure,
 )
 from .services.task_generation import generate_instances_for_range
 
@@ -1019,3 +1020,439 @@ class PurchaseHistoryPerListTests(TestCase):
         self.assertIsNone(record.shopping_list)
         self.assertEqual(record.list_name, 'Baumarkt')
         self.assertEqual(self.client.get(f'/api/purchases/?list={list_id}').data['results'], [])
+
+
+class CookingFixtureMixin:
+    """Shared setup: two members, the seeded meal types, and small helpers."""
+
+    def setUpCooking(self):
+        self.tim = User.objects.create_user(username='tim', password='pw', email='tim@example.com')
+        self.anna = User.objects.create_user(username='anna', password='pw', email='anna@example.com')
+        HouseholdMember.objects.create(user=self.tim)
+        HouseholdMember.objects.create(user=self.anna)
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.tim)
+        self.dinner = MealTimeCategory.objects.get(name_de='Abendessen')
+        self.lunch = MealTimeCategory.objects.get(name_de='Mittagessen')
+        self.today = dj_timezone.localdate()
+
+    def recipe(self, title, categories=(), rating=None, cooked_days_ago=None, servings=2):
+        recipe = Recipe.objects.create(title=title, servings=servings, created_by=self.tim)
+        recipe.categories.set(categories)
+        if rating is not None:
+            RecipeRating.objects.create(recipe=recipe, rated_by=self.tim, score=rating)
+        if cooked_days_ago is not None:
+            MealEvent.objects.create(recipe=recipe, date_cooked=self.today - timedelta(days=cooked_days_ago))
+        return recipe
+
+    def add_entry(self, recipe, day, meal=None, **extra):
+        payload = {'date': str(day), 'meal_category': (meal or self.dinner).id, 'recipe': recipe.id, **extra}
+        return self.client.post('/api/cooking-plan-entries/', payload, format='json')
+
+
+class CookingSuggestionsTests(CookingFixtureMixin, TestCase):
+    def setUp(self):
+        self.setUpCooking()
+        config = CookingPlanConfig.load()
+        config.craving_count, config.top_rating_percentile = 1, 50
+        config.uncooked_threshold_days, config.random_count = 21, 1
+        config.save()
+
+    def _suggest(self, meal=None, **params):
+        query = '&'.join(f'{k}={v}' for k, v in params.items())
+        return self.client.get(f'/api/cooking-suggestions/?meal={(meal or self.dinner).id}&{query}')
+
+    def _titles(self, data):
+        return {bucket: [r['title'] for r in data[bucket]] for bucket in ('craving', 'top_rated', 'long_ago', 'random', 'rest')}
+
+    def test_buckets_are_evaluated_top_down_and_exclusive(self):
+        self.recipe('Top', [self.dinner], rating=5, cooked_days_ago=2)
+        self.recipe('Lang', [self.dinner], rating=3, cooked_days_ago=60)
+        self.recipe('Neu', [self.dinner])
+        self.recipe('Mittel', [self.dinner], rating=4, cooked_days_ago=5)
+        self.recipe('Schlecht', [self.dinner], rating=1, cooked_days_ago=3)
+        self.recipe('Ohne', [])
+        self.recipe('NurMittag', [self.lunch], rating=5)
+
+        titles = self._titles(self._suggest().data)
+
+        self.assertEqual(titles['craving'], ['Top'])
+        self.assertEqual(titles['top_rated'], ['Mittel'])
+        self.assertEqual(titles['long_ago'], ['Neu', 'Ohne', 'Lang'])  # never cooked first, then longest ago
+        self.assertEqual(titles['random'], ['Schlecht'])
+        self.assertEqual(titles['rest'], [])
+        everything = [t for bucket in titles.values() for t in bucket]
+        self.assertEqual(len(everything), len(set(everything)))
+        self.assertNotIn('NurMittag', everything)  # other meal type is not offered
+        self.assertIn('Ohne', everything)  # uncategorized recipes are offered for every meal
+
+    def test_items_carry_rating_and_last_cooked(self):
+        self.recipe('Top', [self.dinner], rating=5, cooked_days_ago=2)
+
+        item = self._suggest().data['craving'][0]
+
+        self.assertEqual(item['average_rating'], 5.0)
+        self.assertEqual(item['last_cooked_date'], str(self.today - timedelta(days=2)))
+        self.assertEqual(item['times_cooked'], 1)
+
+    def test_exclude_hides_recipes_and_random_is_seedable(self):
+        config = CookingPlanConfig.load()
+        config.craving_count, config.random_count = 0, 3
+        config.save()
+        recipes = [self.recipe(f'R{i}', [self.dinner], rating=3, cooked_days_ago=1) for i in range(8)]
+
+        first = self._titles(self._suggest(seed=7).data)['random']
+        again = self._titles(self._suggest(seed=7).data)['random']
+        excluded = self._titles(self._suggest(exclude=f'{recipes[0].id},{recipes[1].id}').data)
+
+        self.assertEqual(first, again)
+        self.assertEqual(len(first), 3)
+        self.assertNotIn('R0', [t for bucket in excluded.values() for t in bucket])
+        self.assertNotIn('R1', [t for bucket in excluded.values() for t in bucket])
+
+    def test_requires_a_valid_meal(self):
+        self.assertEqual(self.client.get('/api/cooking-suggestions/').status_code, 400)
+        self.assertEqual(self.client.get('/api/cooking-suggestions/?meal=99999').status_code, 400)
+
+
+class CookingPlanConfigTests(CookingFixtureMixin, TestCase):
+    def setUp(self):
+        self.setUpCooking()
+
+    def test_defaults_plan_lunch_and_dinner(self):
+        data = self.client.get('/api/cooking-plan-config/').data
+
+        self.assertCountEqual(data['planned_meal_categories'], [self.lunch.id, self.dinner.id])
+        self.assertEqual((data['top_rating_percentile'], data['uncooked_threshold_days']), (30, 21))
+        self.assertEqual((data['rating_weight'], data['neglect_weight']), (0.7, 0.3))
+
+    def test_patch_updates_and_rejects_bad_values(self):
+        ok = self.client.patch('/api/cooking-plan-config/', {
+            'random_count': 5, 'planned_meal_categories': [self.dinner.id],
+        }, format='json')
+        bad = self.client.patch('/api/cooking-plan-config/', {'top_rating_percentile': 0}, format='json')
+
+        self.assertEqual(ok.data['random_count'], 5)
+        self.assertEqual(ok.data['planned_meal_categories'], [self.dinner.id])
+        self.assertEqual(bad.status_code, 400)
+        self.assertEqual(CookingPlanConfig.objects.count(), 1)
+
+
+class CookingPlanEntryTests(CookingFixtureMixin, TestCase):
+    def setUp(self):
+        self.setUpCooking()
+        self.pasta = self.recipe('Pasta', [self.dinner], servings=4)
+        self.monday = self.today - timedelta(days=self.today.weekday())
+
+    def test_cook_entry_defaults_servings_and_needs_a_recipe(self):
+        ok = self.add_entry(self.pasta, self.monday)
+        missing = self.client.post('/api/cooking-plan-entries/', {
+            'date': str(self.monday), 'meal_category': self.dinner.id,
+        }, format='json')
+
+        self.assertEqual(ok.status_code, 201)
+        self.assertEqual((ok.data['servings'], ok.data['recipe_title'], ok.data['kind']), (4, 'Pasta', 'cook'))
+        self.assertIsNone(ok.data['task_instance'])
+        self.assertEqual(missing.status_code, 400)
+
+    def test_leftovers_need_a_cook_entry_and_copy_its_dish(self):
+        cook = self.add_entry(self.pasta, self.monday, servings=3).data
+        leftovers = self.client.post('/api/cooking-plan-entries/', {
+            'date': str(self.monday + timedelta(days=1)), 'meal_category': self.lunch.id,
+            'kind': 'leftovers', 'source_entry': cook['id'],
+        }, format='json')
+        orphan = self.client.post('/api/cooking-plan-entries/', {
+            'date': str(self.monday), 'meal_category': self.lunch.id, 'kind': 'leftovers',
+        }, format='json')
+        chained = self.client.post('/api/cooking-plan-entries/', {
+            'date': str(self.monday), 'meal_category': self.lunch.id, 'kind': 'leftovers',
+            'source_entry': leftovers.data['id'],
+        }, format='json')
+
+        self.assertEqual(leftovers.status_code, 201)
+        self.assertEqual((leftovers.data['recipe'], leftovers.data['servings']), (self.pasta.id, 3))
+        self.assertEqual(leftovers.data['source_recipe_title'], 'Pasta')
+        self.assertEqual(orphan.status_code, 400)
+        self.assertEqual(chained.status_code, 400)  # leftovers of leftovers make no sense
+
+    def test_list_filters_by_range(self):
+        self.add_entry(self.pasta, self.monday)
+        self.add_entry(self.pasta, self.monday + timedelta(days=10))
+
+        week = self.client.get(f'/api/cooking-plan-entries/?start={self.monday}&end={self.monday + timedelta(days=6)}')
+
+        self.assertEqual(len(week.data['results']), 1)
+
+    def test_finalize_creates_one_open_task_per_cook_entry_only(self):
+        cook = self.add_entry(self.pasta, self.monday).data
+        self.client.post('/api/cooking-plan-entries/', {
+            'date': str(self.monday + timedelta(days=1)), 'meal_category': self.lunch.id,
+            'kind': 'leftovers', 'source_entry': cook['id'],
+        }, format='json')
+        body = {'start': str(self.monday), 'end': str(self.monday + timedelta(days=6))}
+
+        first = self.client.post('/api/cooking-plan-entries/finalize/', body, format='json')
+        second = self.client.post('/api/cooking-plan-entries/finalize/', body, format='json')
+
+        self.assertEqual((first.data['created'], second.data['created']), (1, 0))
+        task = HouseholdTaskInstance.objects.get()
+        self.assertEqual(
+            (task.standalone_title, task.system_action, task.standalone_icon, task.scheduled_date, task.assigned_to),
+            ('Pasta', 'cook_meal', 'cooking', self.monday, None),
+        )
+        self.assertEqual(CookingPlanEntry.objects.get(pk=cook['id']).task_instance, task)
+        self.assertEqual(self.client.post('/api/cooking-plan-entries/finalize/', {}, format='json').status_code, 400)
+
+    def _finalized(self, day=None):
+        entry = self.add_entry(self.pasta, day or self.monday).data
+        self.client.post('/api/cooking-plan-entries/finalize/', {
+            'start': str(self.monday - timedelta(days=7)), 'end': str(self.monday + timedelta(days=13)),
+        }, format='json')
+        return CookingPlanEntry.objects.get(pk=entry['id'])
+
+    def test_editing_an_entry_moves_its_task_and_follows_recipe_changes(self):
+        entry = self._finalized()
+        leftovers = self.client.post('/api/cooking-plan-entries/', {
+            'date': str(self.monday), 'meal_category': self.lunch.id, 'kind': 'leftovers', 'source_entry': entry.id,
+        }, format='json').data
+        salad = self.recipe('Salat', [self.dinner])
+        new_day = self.monday + timedelta(days=2)
+
+        self.client.patch(f'/api/cooking-plan-entries/{entry.id}/', {'date': str(new_day), 'recipe': salad.id}, format='json')
+
+        task = HouseholdTaskInstance.objects.get()
+        self.assertEqual((task.scheduled_date, task.standalone_title), (new_day, 'Salat'))
+        self.assertEqual(CookingPlanEntry.objects.get(pk=leftovers['id']).recipe, salad)
+
+    def test_deleting_an_entry_removes_its_open_task_but_keeps_a_done_one(self):
+        open_entry = self._finalized()
+        self.client.delete(f'/api/cooking-plan-entries/{open_entry.id}/')
+        self.assertEqual(HouseholdTaskInstance.objects.count(), 0)
+
+        done_entry = self._finalized(self.monday + timedelta(days=1))
+        self.client.post(f'/api/task-instances/{done_entry.task_instance_id}/complete/')
+        self.client.delete(f'/api/cooking-plan-entries/{done_entry.id}/')
+        self.assertEqual(HouseholdTaskInstance.objects.filter(status='done').count(), 1)
+
+    def test_dragging_the_task_moves_the_dish_but_the_backlog_keeps_its_day(self):
+        entry = self._finalized()
+        task_id = entry.task_instance_id
+        new_day = self.monday + timedelta(days=3)
+
+        self.client.post(f'/api/task-instances/{task_id}/postpone/', {'scheduled_date': str(new_day)}, format='json')
+        self.assertEqual(CookingPlanEntry.objects.get(pk=entry.id).date, new_day)
+
+        self.client.post(f'/api/task-instances/{task_id}/postpone/', {'is_in_backlog': True}, format='json')
+        self.assertEqual(CookingPlanEntry.objects.get(pk=entry.id).date, new_day)
+
+    def test_completing_logs_the_meal_once_and_undo_removes_it(self):
+        yesterday = self.today - timedelta(days=1)
+        entry = self._finalized(yesterday)
+        self.client.patch(f'/api/cooking-plan-entries/{entry.id}/', {'servings': 6}, format='json')
+
+        done = self.client.post(f'/api/task-instances/{entry.task_instance_id}/complete/')
+        self.client.post(f'/api/task-instances/{entry.task_instance_id}/complete/')
+
+        event = MealEvent.objects.get()
+        self.assertEqual((event.recipe, event.date_cooked, event.servings_made, event.logged_by),
+                         (self.pasta, yesterday, 6, self.tim))
+        self.assertTrue(done.data['cooking_entry']['is_cooked'])
+        self.assertIsNone(done.data['cooking_entry']['my_rating'])  # the UI asks for one
+
+        self.client.post(f'/api/task-instances/{entry.task_instance_id}/reopen/')
+        self.assertEqual(MealEvent.objects.count(), 0)
+        self.assertFalse(CookingPlanEntry.objects.get(pk=entry.id).meal_event_id)
+
+    def test_future_dish_ticked_early_is_logged_for_today(self):
+        entry = self._finalized(self.today + timedelta(days=3))
+
+        self.client.post(f'/api/task-instances/{entry.task_instance_id}/complete/')
+
+        self.assertEqual(MealEvent.objects.get().date_cooked, self.today)
+
+    def test_task_reports_my_rating_after_cooking(self):
+        entry = self._finalized()
+        RecipeRating.objects.create(recipe=self.pasta, rated_by=self.tim, score=4)
+
+        task = self.client.get(f'/api/task-instances/{entry.task_instance_id}/').data
+
+        self.assertEqual(task['cooking_entry']['my_rating'], 4)
+        self.assertEqual(task['cooking_entry']['meal_category_name_de'], 'Abendessen')
+
+    def test_skipping_the_task_takes_the_dish_out_of_the_plan_and_undo_brings_it_back(self):
+        entry = self._finalized()
+        unplanned = self.add_entry(self.pasta, self.monday + timedelta(days=1)).data  # no task yet -> stays visible
+
+        self.client.post(f'/api/task-instances/{entry.task_instance_id}/skip/')
+        listed = [e['id'] for e in self.client.get('/api/cooking-plan-entries/').data['results']]
+        self.assertEqual(listed, [unplanned['id']])
+
+        self.client.post(f'/api/task-instances/{entry.task_instance_id}/reopen/')
+        listed = [e['id'] for e in self.client.get('/api/cooking-plan-entries/').data['results']]
+        self.assertCountEqual(listed, [entry.id, unplanned['id']])
+
+    def test_snoozing_moves_the_dish_to_the_copy_and_undo_hands_it_back(self):
+        entry = self._finalized()
+        original_id = entry.task_instance_id
+
+        self.client.post(f'/api/task-instances/{original_id}/snooze/')
+        entry.refresh_from_db()
+        copy = HouseholdTaskInstance.objects.get(origin_instance_id=original_id)
+        self.assertEqual(entry.task_instance_id, copy.id)
+        self.assertEqual(entry.date, self.monday + timedelta(days=7))
+
+        self.client.post(f'/api/task-instances/{original_id}/reopen/')
+        entry.refresh_from_db()
+        self.assertEqual(entry.task_instance_id, original_id)
+        self.assertEqual(entry.date, self.monday)
+        self.assertFalse(HouseholdTaskInstance.objects.filter(pk=copy.id).exists())
+
+    def test_deleting_the_task_or_the_recipe_cleans_up_the_plan(self):
+        entry = self._finalized()
+        self.client.delete(f'/api/task-instances/{entry.task_instance_id}/')
+        self.assertEqual(CookingPlanEntry.objects.count(), 0)
+
+        self._finalized(self.monday + timedelta(days=1))
+        self.client.delete(f'/api/recipes/{self.pasta.id}/')
+        self.assertEqual((CookingPlanEntry.objects.count(), HouseholdTaskInstance.objects.count()), (0, 0))
+
+    def test_meal_type_in_the_plan_cannot_be_deleted(self):
+        self.add_entry(self.pasta, self.monday)
+
+        self.assertEqual(self.client.delete(f'/api/meal-categories/{self.dinner.id}/').status_code, 409)
+
+
+class CookingShoppingTests(CookingFixtureMixin, TestCase):
+    def setUp(self):
+        self.setUpCooking()
+        self.gram = UnitOfMeasure.objects.get(abbreviation_de='g')
+        self.spoon = UnitOfMeasure.objects.get(abbreviation_de='EL')
+        self.monday = self.today - timedelta(days=self.today.weekday())
+        self.list = ShoppingList.objects.first()
+
+    def _dish(self, title, lines, servings=2):
+        recipe = self.recipe(title, [self.dinner], servings=servings)
+        self.client.patch(f'/api/recipes/{recipe.id}/', {'ingredients': lines}, format='json')
+        return Recipe.objects.get(pk=recipe.id)
+
+    def test_recipe_shopping_lines_scale_and_flag_staples(self):
+        Ingredient.objects.create(name='Salz', default_excluded_from_shopping_list=True)
+        recipe = self._dish('Pasta', [
+            {'ingredient_name': 'Spaghetti', 'quantity': '200', 'unit': self.gram.id},
+            {'ingredient_name': 'Salz'},
+        ])
+
+        data = self.client.get(f'/api/recipes/{recipe.id}/shopping-lines/?servings=6').data
+
+        spaghetti, salt = data['lines']
+        self.assertEqual((data['recipe_title'], data['servings']), ('Pasta', 6))
+        self.assertEqual((spaghetti['quantity'], spaghetti['unit'], spaghetti['excluded_by_default']), (600.0, self.gram.id, False))
+        self.assertEqual((salt['quantity'], salt['excluded_by_default']), (None, True))
+
+    def test_plan_preview_lists_open_cook_dishes_only(self):
+        pasta = self._dish('Pasta', [{'ingredient_name': 'Spaghetti', 'quantity': '200', 'unit': self.gram.id}])
+        cook = self.add_entry(pasta, self.monday, servings=4).data
+        self.client.post('/api/cooking-plan-entries/', {
+            'date': str(self.monday + timedelta(days=1)), 'meal_category': self.lunch.id,
+            'kind': 'leftovers', 'source_entry': cook['id'],
+        }, format='json')
+        cooked = self.add_entry(pasta, self.monday + timedelta(days=2)).data
+        CookingPlanEntry.objects.filter(pk=cooked['id']).update(
+            meal_event=MealEvent.objects.create(recipe=pasta, date_cooked=self.monday),
+        )
+
+        preview = self.client.get(f'/api/cooking-plan-entries/shopping-preview/?start={self.monday}&end={self.monday + timedelta(days=6)}').data
+
+        self.assertEqual(len(preview), 1)  # not the leftovers, not the already-cooked one
+        self.assertEqual((preview[0]['entry'], preview[0]['servings'], preview[0]['lines'][0]['quantity']), (cook['id'], 4, 400.0))
+
+    def test_adding_merges_same_ingredient_and_unit_and_tops_up_open_items(self):
+        flour = Ingredient.objects.create(name='Mehl')
+        ShoppingListItem.objects.create(shopping_list=self.list, title='Mehl', ingredient=flour, unit=self.gram, quantity=100)
+
+        result = self.client.post(f'/api/shopping-lists/{self.list.id}/add-ingredients/', {'lines': [
+            {'ingredient': flour.id, 'title': 'Mehl', 'quantity': 250, 'unit': self.gram.id},
+            {'ingredient': flour.id, 'title': 'Mehl', 'quantity': 50, 'unit': self.gram.id},
+            {'ingredient': flour.id, 'title': 'Mehl', 'quantity': 2, 'unit': self.spoon.id},  # other unit: separate line
+            {'ingredient': None, 'title': 'Servietten', 'quantity': None, 'unit': None},
+            {'ingredient': None, 'title': 'servietten', 'quantity': None, 'unit': None},
+        ]}, format='json')
+
+        self.assertEqual(result.data, {'created': 2, 'merged': 1})
+        grams = ShoppingListItem.objects.get(ingredient=flour, unit=self.gram)
+        self.assertEqual(grams.quantity, 400)
+        self.assertEqual(ShoppingListItem.objects.get(ingredient=flour, unit=self.spoon).source, 'cooking_plan')
+        self.assertEqual(ShoppingListItem.objects.filter(title__iexact='servietten').count(), 1)
+
+    def test_a_completed_item_is_not_topped_up_but_bought_again(self):
+        flour = Ingredient.objects.create(name='Mehl')
+        ShoppingListItem.objects.create(
+            shopping_list=self.list, title='Mehl', ingredient=flour, unit=self.gram, quantity=100, is_completed=True,
+        )
+
+        result = self.client.post(f'/api/shopping-lists/{self.list.id}/add-ingredients/', {'lines': [
+            {'ingredient': flour.id, 'title': 'Mehl', 'quantity': 250, 'unit': self.gram.id},
+        ]}, format='json')
+
+        self.assertEqual(result.data, {'created': 1, 'merged': 0})
+
+    def test_lines_must_be_a_list(self):
+        response = self.client.post(f'/api/shopping-lists/{self.list.id}/add-ingredients/', {'lines': 'x'}, format='json')
+
+        self.assertEqual(response.status_code, 400)
+
+
+class CookingNotificationTests(CookingFixtureMixin, TestCase):
+    def setUp(self):
+        self.setUpCooking()
+        self.task = HouseholdTaskInstance.objects.create(
+            standalone_title='Pasta', system_action='cook_meal', occurrence_date=self.today, scheduled_date=self.today,
+        )
+
+    def test_an_unclaimed_cook_task_tells_the_whole_household_once(self):
+        from django.core import mail
+        from .services.notifications import notify_task_due
+
+        notify_task_due(self.task)
+        notify_task_due(self.task)
+
+        self.assertEqual(sorted(m.to[0] for m in mail.outbox), ['anna@example.com', 'tim@example.com'])
+        self.assertEqual(mail.outbox[0].subject, 'Heute kochen wir: Pasta')
+        self.assertTrue(NotificationPreference.objects.filter(notification_type='cooking_today').exists())
+
+    def test_an_assigned_cook_task_only_tells_the_cook(self):
+        from django.core import mail
+        from .services.notifications import notify_task_due
+        self.task.assigned_to = self.anna
+        self.task.save()
+
+        notify_task_due(self.task)
+
+        self.assertEqual([m.to[0] for m in mail.outbox], ['anna@example.com'])
+
+    def test_respects_the_users_preference(self):
+        from django.core import mail
+        from .services.notifications import notify_task_due
+        NotificationPreference.objects.create(user=self.tim, notification_type='cooking_today', email_enabled=False)
+
+        notify_task_due(self.task)
+
+        self.assertEqual([m.to[0] for m in mail.outbox], ['anna@example.com'])
+
+    def test_meal_planning_reminder_has_its_own_type(self):
+        from django.core import mail
+        from .services.notifications import notify_task_due
+        reminder = HouseholdTaskInstance.objects.create(
+            standalone_title='Weekly Meal Planning', system_action='weekly_meal_planning',
+            occurrence_date=self.today, scheduled_date=self.today, assigned_to=self.tim,
+        )
+
+        notify_task_due(reminder)
+
+        self.assertEqual(mail.outbox[0].subject, 'Kochplanung für nächste Woche ist fällig')
+
+    def test_preferences_endpoint_lists_the_new_types(self):
+        types = [p['notification_type'] for p in self.client.get('/api/notification-preferences/').data]
+
+        self.assertIn('cooking_today', types)
+        self.assertIn('meal_planning_due', types)

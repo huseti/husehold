@@ -19,9 +19,17 @@ function nextDateForWeekday(code) {
   return toISODate(result);
 }
 
-export default function WeeklyPlanningConfig({ definitions, members, onSaved }) {
+// kind: 'household' (the weekly household task planning reminder) or 'meal'
+// (the weekly cooking plan reminder) -- same shape, different system task.
+const KINDS = {
+  household: { action: 'weekly_household_planning', title: 'Weekly Household Planning', icon: 'calendar', textKey: 'weeklyPlanning' },
+  meal: { action: 'weekly_meal_planning', title: 'Weekly Meal Planning', icon: 'cooking', textKey: 'mealPlanning' },
+};
+
+export default function WeeklyPlanningConfig({ definitions, members, onSaved, kind = 'household' }) {
   const { t, i18n } = useTranslation();
-  const existing = definitions.find((d) => d.system_action === 'weekly_household_planning');
+  const config = KINDS[kind];
+  const existing = definitions.find((d) => d.system_action === config.action);
 
   const [weekday, setWeekday] = useState('SU');
   const [time, setTime] = useState('18:00');
@@ -41,13 +49,13 @@ export default function WeeklyPlanningConfig({ definitions, members, onSaved }) 
   const handleSave = async (e) => {
     e.preventDefault();
     const payload = {
-      title: 'Weekly Household Planning',
-      icon: 'calendar',
+      title: config.title,
+      icon: config.icon,
       starts_on: nextDateForWeekday(weekday),
       recurrence_rule: `FREQ=WEEKLY;BYDAY=${weekday}`,
       assignment_mode: assignmentMode,
       default_assignee: assignmentMode === 'fixed' ? (defaultAssignee || null) : null,
-      system_action: 'weekly_household_planning',
+      system_action: config.action,
       reminder_time: time,
     };
     if (existing) {
@@ -60,8 +68,8 @@ export default function WeeklyPlanningConfig({ definitions, members, onSaved }) 
 
   return (
     <div className="bg-white rounded-lg shadow p-4 mb-6">
-      <h3 className="font-semibold mb-1">{t('weeklyPlanning.title')}</h3>
-      <p className="text-xs text-gray-500 mb-3">{t('weeklyPlanning.description')}</p>
+      <h3 className="font-semibold mb-1">{t(`${config.textKey}.title`)}</h3>
+      <p className="text-xs text-gray-500 mb-3">{t(`${config.textKey}.description`)}</p>
 
       {existing ? (
         <p className="text-sm text-gray-700 mb-3">

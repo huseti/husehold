@@ -43,6 +43,7 @@ export const shoppingListService = {
   update: (id, data) => api.patch(`/shopping-lists/${id}/`, data),
   delete: (id) => api.delete(`/shopping-lists/${id}/`),
   clearCompleted: (id) => api.post(`/shopping-lists/${id}/clear-completed/`),
+  addIngredients: (id, lines) => api.post(`/shopping-lists/${id}/add-ingredients/`, { lines }),
 };
 
 export const purchaseService = {
@@ -65,6 +66,7 @@ export const recipeService = {
   delete: (id) => api.delete(`/recipes/${id}/`),
   rate: (id, score) => api.post(`/recipes/${id}/rate/`, { score }),
   clearRating: (id) => api.delete(`/recipes/${id}/rate/`),
+  shoppingLines: (id, servings) => api.get(`/recipes/${id}/shopping-lines/`, { params: { servings } }),
 };
 
 // Small config-editable lookup tables share one CRUD shape.
@@ -158,11 +160,24 @@ export const voucherService = {
   toggleArchived: (id) => api.post(`/vouchers/${id}/toggle-archived/`),
 };
 
-export const cookingPlanService = {
-  getAll: () => api.get('/cooking-plans/'),
-  create: (data) => api.post('/cooking-plans/', data),
-  update: (id, data) => api.patch(`/cooking-plans/${id}/`, data),
-  delete: (id) => api.delete(`/cooking-plans/${id}/`),
+export const cookingPlanEntryService = {
+  getRange: (start, end) => api.get('/cooking-plan-entries/', { params: { start, end } }),
+  create: (data) => api.post('/cooking-plan-entries/', data),
+  update: (id, data) => api.patch(`/cooking-plan-entries/${id}/`, data),
+  delete: (id) => api.delete(`/cooking-plan-entries/${id}/`),
+  finalize: (start, end) => api.post('/cooking-plan-entries/finalize/', { start, end }),
+  shoppingPreview: (start, end) => api.get('/cooking-plan-entries/shopping-preview/', { params: { start, end } }),
+};
+
+export const cookingPlanConfigService = {
+  get: () => api.get('/cooking-plan-config/'),
+  update: (data) => api.patch('/cooking-plan-config/', data),
+};
+
+export const cookingSuggestionService = {
+  get: (mealCategoryId, excludeRecipeIds = [], seed) => api.get('/cooking-suggestions/', {
+    params: { meal: mealCategoryId, exclude: excludeRecipeIds.join(','), seed },
+  }),
 };
 
 export default api;

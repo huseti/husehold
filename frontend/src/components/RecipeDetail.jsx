@@ -7,7 +7,7 @@ import { localizedName, unitLabel } from '../utils/localized';
 const todayIso = () => new Date().toLocaleDateString('sv-SE');
 
 export default function RecipeDetail({
-  recipe, labels, categories, units, onRate, onClearRating, onLogCooked, onDeleteMeal, onEdit, onDelete, onClose,
+  recipe, labels, categories, units, onAddToShopping, onRate, onClearRating, onLogCooked, onDeleteMeal, onEdit, onDelete, onClose,
 }) {
   const { t, i18n } = useTranslation();
   const [servings, setServings] = useState(recipe.servings);
@@ -213,6 +213,11 @@ export default function RecipeDetail({
 
       <div className="flex gap-3 pt-2 border-t">
         <button onClick={onEdit} className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">{t('recipes.edit')}</button>
+        {recipe.ingredients.length > 0 && (
+          <button onClick={() => onAddToShopping(servings)} className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300">
+            {t('recipes.addToShopping')}
+          </button>
+        )}
         <button onClick={onDelete} className="bg-gray-200 text-red-600 px-4 py-2 rounded hover:bg-gray-300">{t('recipes.delete')}</button>
       </div>
     </div>
