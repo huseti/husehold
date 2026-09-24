@@ -166,7 +166,7 @@ export default function LookupEditor({ titleKey, service, fields, newItemDefault
                 placeholder={t(field.labelKey)}
                 onChange={(e) => setNewItem({ ...newItem, [field.key]: e.target.value })}
                 className={`px-3 py-1.5 border border-gray-300 rounded ${field.className || 'flex-1 min-w-28'}`}
-                required={field.key === 'name' || field.key === 'name_de'}
+                required={field.key === 'name' || field.key === 'name_de' || field.key === 'text'}
               />
             )
           ))}

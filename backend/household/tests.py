@@ -11,6 +11,7 @@ from .models import (
     HouseholdMember, HouseholdSettings, HouseholdTaskDefinition, HouseholdTaskInstance, HouseholdTaskEvent,
     CookingPlanConfig, CookingPlanEntry, Ingredient, Label, MealEvent, MealTimeCategory, NotificationPreference,
     PurchaseRecord, Recipe, RecipeRating, ShoppingList, ShoppingListItem, UnitOfMeasure,
+    PackingList, PackingListParticipant, PackingListItem, PackingBucket, PackingBucketItem,
 )
 from .services.task_generation import generate_instances_for_range
 
@@ -1767,3 +1768,160 @@ class StayLoggedInTests(TestCase):
         self.assertNotEqual(refreshed.data['refresh'], pair['refresh'])
         lifetime = datetime.fromtimestamp(RefreshToken(pair['refresh'])['exp'], dt_timezone.utc) - datetime.now(dt_timezone.utc)
         self.assertGreater(lifetime.days, 170)
+
+
+class PackingListTests(TestCase):
+    def setUp(self):
+        self.tim = User.objects.create_user(username='tim', password='pw')
+        self.anna = User.objects.create_user(username='anna', password='pw')
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.tim)
+        self.today = dj_timezone.localdate()
+
+    def test_creating_a_list_requires_at_least_one_participant(self):
+        response = self.client.post('/api/packing-lists/', {
+            'name': 'Beach week', 'start_date': self.today, 'end_date': self.today + timedelta(days=7),
+            'participant_ids': [],
+        }, format='json')
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(PackingList.objects.exists())
+
+    def test_creating_a_list_adds_the_given_participants(self):
+        response = self.client.post('/api/packing-lists/', {
+            'name': 'Beach week', 'start_date': self.today, 'end_date': self.today + timedelta(days=7),
+            'participant_ids': [self.tim.id, self.anna.id],
+        }, format='json')
+
+        self.assertEqual(response.status_code, 201)
+        packing_list = PackingList.objects.get(pk=response.data['id'])
+        self.assertEqual(
+            set(packing_list.participants.values_list('user_id', flat=True)), {self.tim.id, self.anna.id},
+        )
+
+    def test_add_and_remove_participant(self):
+        packing_list = PackingList.objects.create(name='Beach week', start_date=self.today, end_date=self.today)
+        PackingListParticipant.objects.create(packing_list=packing_list, user=self.tim)
+
+        added = self.client.post(f'/api/packing-lists/{packing_list.id}/add-participant/', {'user_id': self.anna.id}, format='json')
+        self.assertEqual(added.status_code, 200)
+        self.assertTrue(PackingListParticipant.objects.filter(packing_list=packing_list, user=self.anna).exists())
+
+        removed = self.client.post(f'/api/packing-lists/{packing_list.id}/remove-participant/', {'user_id': self.anna.id}, format='json')
+        self.assertEqual(removed.status_code, 200)
+        self.assertFalse(PackingListParticipant.objects.filter(packing_list=packing_list, user=self.anna).exists())
+
+    def test_items_are_a_single_flat_list_not_split_per_participant(self):
+        packing_list = PackingList.objects.create(name='Beach week', start_date=self.today, end_date=self.today)
+        PackingListParticipant.objects.create(packing_list=packing_list, user=self.tim)
+        PackingListParticipant.objects.create(packing_list=packing_list, user=self.anna)
+
+        response = self.client.post('/api/packing-items/', {'packing_list': packing_list.id, 'text': 'Sunscreen'}, format='json')
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(list(PackingList.objects.get(pk=packing_list.id).items.values_list('text', flat=True)), ['Sunscreen'])
+
+    def test_packing_items_are_filtered_by_list_query_param(self):
+        list_a = PackingList.objects.create(name='Beach week', start_date=self.today, end_date=self.today)
+        list_b = PackingList.objects.create(name='Ski trip', start_date=self.today, end_date=self.today)
+        PackingListItem.objects.create(packing_list=list_a, text='Towel')
+        PackingListItem.objects.create(packing_list=list_b, text='Skis')
+
+        response = self.client.get(f'/api/packing-items/?list={list_a.id}')
+
+        self.assertEqual([i['text'] for i in response.data['results']], ['Towel'])
+
+    def test_toggling_is_packed_via_patch(self):
+        packing_list = PackingList.objects.create(name='Beach week', start_date=self.today, end_date=self.today)
+        item = PackingListItem.objects.create(packing_list=packing_list, text='Towel')
+
+        response = self.client.patch(f'/api/packing-items/{item.id}/', {'is_packed': True}, format='json')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.data['is_packed'])
+
+    def test_add_bucket_copies_its_items_onto_the_list(self):
+        bucket = PackingBucket.objects.create(name='Sommerurlaub', color_hex='#ffcc00')
+        PackingBucketItem.objects.create(bucket=bucket, text='Sonnencreme')
+        PackingBucketItem.objects.create(bucket=bucket, text='Badehose')
+        packing_list = PackingList.objects.create(name='Beach week', start_date=self.today, end_date=self.today)
+
+        response = self.client.post(f'/api/packing-lists/{packing_list.id}/add-bucket/', {'bucket_id': bucket.id}, format='json')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            set(PackingList.objects.get(pk=packing_list.id).items.values_list('text', flat=True)),
+            {'Sonnencreme', 'Badehose'},
+        )
+
+    def test_a_bucket_cannot_be_added_twice_to_the_same_list(self):
+        bucket = PackingBucket.objects.create(name='Sommerurlaub')
+        PackingBucketItem.objects.create(bucket=bucket, text='Sonnencreme')
+        packing_list = PackingList.objects.create(name='Beach week', start_date=self.today, end_date=self.today)
+        self.client.post(f'/api/packing-lists/{packing_list.id}/add-bucket/', {'bucket_id': bucket.id}, format='json')
+
+        response = self.client.post(f'/api/packing-lists/{packing_list.id}/add-bucket/', {'bucket_id': bucket.id}, format='json')
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(packing_list.items.count(), 1)
+
+    def test_add_bucket_skips_items_that_duplicate_an_existing_item_by_name(self):
+        bucket = PackingBucket.objects.create(name='Sommerurlaub')
+        PackingBucketItem.objects.create(bucket=bucket, text='sonnencreme')
+        PackingBucketItem.objects.create(bucket=bucket, text='Badehose')
+        packing_list = PackingList.objects.create(name='Beach week', start_date=self.today, end_date=self.today)
+        PackingListItem.objects.create(packing_list=packing_list, text='Sonnencreme')
+
+        response = self.client.post(f'/api/packing-lists/{packing_list.id}/add-bucket/', {'bucket_id': bucket.id}, format='json')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            sorted(packing_list.items.values_list('text', flat=True)), ['Badehose', 'Sonnencreme'],
+        )
+
+    def test_cannot_add_two_items_with_the_same_name_case_insensitive(self):
+        packing_list = PackingList.objects.create(name='Beach week', start_date=self.today, end_date=self.today)
+        PackingListItem.objects.create(packing_list=packing_list, text='Sonnencreme')
+
+        response = self.client.post('/api/packing-items/', {'packing_list': packing_list.id, 'text': 'sonnencreme '}, format='json')
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(packing_list.items.count(), 1)
+
+    def test_cannot_rename_an_item_to_duplicate_another_items_name(self):
+        packing_list = PackingList.objects.create(name='Beach week', start_date=self.today, end_date=self.today)
+        PackingListItem.objects.create(packing_list=packing_list, text='Sonnencreme')
+        towel = PackingListItem.objects.create(packing_list=packing_list, text='Towel')
+
+        response = self.client.patch(f'/api/packing-items/{towel.id}/', {'text': 'Sonnencreme'}, format='json')
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_editing_a_bucket_afterward_does_not_change_lists_it_was_already_added_to(self):
+        bucket = PackingBucket.objects.create(name='Sommerurlaub')
+        PackingBucketItem.objects.create(bucket=bucket, text='Sonnencreme')
+        packing_list = PackingList.objects.create(name='Beach week', start_date=self.today, end_date=self.today)
+        self.client.post(f'/api/packing-lists/{packing_list.id}/add-bucket/', {'bucket_id': bucket.id}, format='json')
+
+        PackingBucketItem.objects.create(bucket=bucket, text='Badehose')
+
+        self.assertEqual(list(packing_list.items.values_list('text', flat=True)), ['Sonnencreme'])
+
+    def test_bucket_items_are_shared_household_config_not_scoped_to_a_user(self):
+        bucket = PackingBucket.objects.create(name='Übernachten')
+        PackingBucketItem.objects.create(bucket=bucket, text='Kulturbeutel')
+        self.client.force_authenticate(user=self.anna)
+
+        response = self.client.get('/api/packing-buckets/')
+
+        self.assertEqual([b['name'] for b in response.data['results']], ['Übernachten'])
+
+    def test_bucket_item_create_and_delete(self):
+        bucket = PackingBucket.objects.create(name='Sommerurlaub')
+
+        created = self.client.post('/api/packing-bucket-items/', {'bucket': bucket.id, 'text': 'Sonnencreme'}, format='json')
+        self.assertEqual(created.status_code, 201)
+
+        deleted = self.client.delete(f"/api/packing-bucket-items/{created.data['id']}/")
+        self.assertEqual(deleted.status_code, 204)
+        self.assertFalse(bucket.items.exists())

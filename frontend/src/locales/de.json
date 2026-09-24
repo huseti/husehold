@@ -15,6 +15,7 @@
     "cookingPlan": "Kochplan",
     "tasks": "Haushaltsplan",
     "vouchers": "Gutscheine",
+    "packingLists": "Packlisten",
     "settings": "Einstellungen"
   },
   "login": {
@@ -51,7 +52,9 @@
       "overdueTasks_one": "{{count}} überfällige Aufgabe",
       "overdueTasks_other": "{{count}} überfällige Aufgaben",
       "expiringVouchers_one": "{{count}} Gutschein läuft in den nächsten 6 Monaten ab",
-      "expiringVouchers_other": "{{count}} Gutscheine laufen in den nächsten 6 Monaten ab"
+      "expiringVouchers_other": "{{count}} Gutscheine laufen in den nächsten 6 Monaten ab",
+      "upcomingPackingLists_one": "{{count}} bevorstehende Packliste",
+      "upcomingPackingLists_other": "{{count}} bevorstehende Packlisten"
     },
     "mealsRow": "Mahlzeiten",
     "householdOverdue": {
@@ -379,6 +382,32 @@
     "historyEntryNoValue": "Benutzt am {{date}} von {{name}}",
     "createdInfo": "Hinzugefügt am {{date}} von {{name}}"
   },
+  "packingLists": {
+    "title": "Packlisten",
+    "manageBuckets": "Buckets verwalten",
+    "newListPlaceholder": "Name der neuen Packliste...",
+    "createTitle": "Packliste anlegen",
+    "formNamePlaceholder": "z. B. Strandurlaub",
+    "formStartDate": "Beginn",
+    "formEndDate": "Ende",
+    "formParticipants": "Teilnehmer",
+    "createButton": "Anlegen",
+    "createFailed": "Anlegen fehlgeschlagen. Bitte erneut versuchen.",
+    "upcoming": "Bevorstehend",
+    "past": "Vergangen",
+    "noUpcomingLists": "Noch keine bevorstehenden Packlisten — füge oben eine hinzu.",
+    "noLists": "Noch keine Packliste ausgewählt.",
+    "listSettings": "Reiseeinstellungen",
+    "deleteList": "Packliste löschen",
+    "confirmDeleteList": "\"{{name}}\" löschen?",
+    "itemPlaceholder": "Neuer Gegenstand...",
+    "addButton": "Hinzufügen",
+    "editItem": "Bearbeiten",
+    "deleteItem": "Löschen",
+    "emptyList": "Noch nichts auf der Liste — leg direkt los.",
+    "selectBucket": "Bucket auswählen...",
+    "addBucketButton": "Bucket hinzufügen"
+  },
   "weeklyPlanning": {
     "title": "Wöchentliche Haushaltsplanung",
     "description": "Legt fest, wann die Erinnerung zur Planung der nächsten Woche erscheint. Erscheint an diesem Tag auch als Aufgabenkarte.",
@@ -454,6 +483,19 @@
     "nameEn": "Name (Englisch)",
     "abbreviationDe": "Kürzel (DE)",
     "abbreviationEn": "Kürzel (EN)"
+  },
+  "packingBuckets": {
+    "title": "Reise-Buckets",
+    "hint": "Vorlagen wie 'Übernachten' oder 'Sommerurlaub' -- auf einer Packliste als Ganzes hinzufügbar, statt jedes Item einzeln einzutippen. Gemeinsame Haushaltskonfiguration, für beide sichtbar und bearbeitbar.",
+    "backToLists": "Zurück zu den Packlisten",
+    "newBucketPlaceholder": "Name des neuen Buckets...",
+    "noBuckets": "Noch kein Bucket angelegt.",
+    "deleteBucket": "Bucket löschen",
+    "confirmDelete": "\"{{name}}\" löschen?",
+    "itemPlaceholder": "Neuer Gegenstand...",
+    "addButton": "Hinzufügen",
+    "deleteItem": "Löschen",
+    "emptyBucket": "Noch keine Gegenstände in diesem Bucket."
   },
   "shoppingDialog": {
     "title": "Zutaten zur Einkaufsliste",

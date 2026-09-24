@@ -7,6 +7,7 @@ from .models import (
     HouseholdTaskDefinition, HouseholdTaskInstance, HouseholdTaskEvent,
     NotificationPreference, PushSubscription, Voucher, VoucherRedemption,
     UnitOfMeasure, Ingredient, Label, MealTimeCategory, RecipeIngredient, RecipeRating, MealEvent, PurchaseRecord, CookingPlanConfig, CookingPlanEntry,
+    PackingList, PackingListParticipant, PackingListItem, PackingBucket, PackingBucketItem,
 )
 
 class UserSerializer(serializers.ModelSerializer):
@@ -290,6 +291,46 @@ class VoucherSerializer(serializers.ModelSerializer):
 
     def get_is_expired(self, obj):
         return bool(obj.valid_until and obj.valid_until < timezone.localdate())
+
+class PackingListItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PackingListItem
+        fields = ('id', 'packing_list', 'text', 'is_packed')
+
+class PackingListParticipantSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source='user.username', read_only=True)
+
+    class Meta:
+        model = PackingListParticipant
+        fields = ('id', 'packing_list', 'user', 'username')
+
+class PackingListSerializer(serializers.ModelSerializer):
+    participants = PackingListParticipantSerializer(many=True, read_only=True)
+    items = PackingListItemSerializer(many=True, read_only=True)
+    added_bucket_ids = serializers.PrimaryKeyRelatedField(source='added_buckets', many=True, read_only=True)
+
+    class Meta:
+        model = PackingList
+        fields = ('id', 'name', 'start_date', 'end_date', 'participants', 'items', 'added_bucket_ids')
+
+class PackingBucketItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PackingBucketItem
+        fields = ('id', 'bucket', 'text')
+
+class PackingBucketSerializer(serializers.ModelSerializer):
+    items = PackingBucketItemSerializer(many=True, read_only=True)
+    created_by_username = serializers.CharField(source='created_by.username', read_only=True, default=None)
+    updated_by_username = serializers.CharField(source='updated_by.username', read_only=True, default=None)
+
+    class Meta:
+        model = PackingBucket
+        fields = (
+            'id', 'name', 'color_hex', 'items',
+            'created_by', 'created_by_username', 'created_at',
+            'updated_by', 'updated_by_username', 'updated_at',
+        )
+        read_only_fields = ('created_by', 'updated_by')
 
 class NotificationPreferenceSerializer(serializers.ModelSerializer):
     class Meta:

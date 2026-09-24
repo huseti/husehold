@@ -5,16 +5,19 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.contrib.auth.models import User
 from django.conf import settings as django_settings
 from django.db.models import ProtectedError, Q
+from django.shortcuts import get_object_or_404
 from .models import (
     HouseholdMember, HouseholdSettings, ShoppingList, ShoppingListItem, Recipe,
     HouseholdTaskDefinition, HouseholdTaskInstance, HouseholdTaskEvent,
     NotificationPreference, PushSubscription, Voucher, VoucherRedemption,
     UnitOfMeasure, Ingredient, Label, MealTimeCategory, RecipeRating, MealEvent, PurchaseRecord, CookingPlanConfig, CookingPlanEntry,
+    PackingList, PackingListParticipant, PackingListItem, PackingBucket, PackingBucketItem,
 )
 from .serializers import (
     UserSerializer, HouseholdMemberSerializer, HouseholdSettingsSerializer,
@@ -25,6 +28,8 @@ from .serializers import (
     HouseholdTaskDefinitionSerializer, HouseholdTaskInstanceSerializer,
     NotificationPreferenceSerializer, PushSubscriptionSerializer,
     VoucherSerializer,
+    PackingListSerializer, PackingListParticipantSerializer, PackingListItemSerializer,
+    PackingBucketSerializer, PackingBucketItemSerializer,
 )
 from .services.task_generation import generate_instances_for_range, monday_of_week_as_datetime
 from .services.cooking_suggestions import build_suggestions
@@ -603,6 +608,104 @@ class VoucherViewSet(viewsets.ModelViewSet):
         voucher.is_archived = not voucher.is_archived
         voucher.save()
         return Response(VoucherSerializer(voucher).data)
+
+class PackingListViewSet(viewsets.ModelViewSet):
+    queryset = PackingList.objects.all()
+    serializer_class = PackingListSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        participant_ids = self.request.data.get('participant_ids') or []
+        if not participant_ids:
+            raise DRFValidationError({'participant_ids': 'At least one participant is required.'})
+        packing_list = serializer.save()
+        for user_id in participant_ids:
+            PackingListParticipant.objects.create(packing_list=packing_list, user_id=user_id)
+
+    @action(detail=True, methods=['post'], url_path='add-participant')
+    def add_participant(self, request, pk=None):
+        packing_list = self.get_object()
+        PackingListParticipant.objects.get_or_create(packing_list=packing_list, user_id=request.data.get('user_id'))
+        return Response(PackingListSerializer(packing_list).data)
+
+    @action(detail=True, methods=['post'], url_path='remove-participant')
+    def remove_participant(self, request, pk=None):
+        packing_list = self.get_object()
+        PackingListParticipant.objects.filter(packing_list=packing_list, user_id=request.data.get('user_id')).delete()
+        return Response(PackingListSerializer(packing_list).data)
+
+    @action(detail=True, methods=['post'], url_path='add-bucket')
+    def add_bucket(self, request, pk=None):
+        """Copies a PackingBucket's items onto this list as a one-time batch
+        -- a snapshot, not a live link (see PackingBucket's docstring). A
+        bucket can only be added once per list; items it contributes that
+        duplicate a name already on the list (case-insensitive) are skipped
+        rather than creating a second copy."""
+        packing_list = self.get_object()
+        bucket = get_object_or_404(PackingBucket, pk=request.data.get('bucket_id'))
+        if packing_list.added_buckets.filter(pk=bucket.pk).exists():
+            raise DRFValidationError({'bucket_id': 'This bucket has already been added to this list.'})
+        existing_texts = {t.lower() for t in packing_list.items.values_list('text', flat=True)}
+        new_texts = set()
+        items_to_create = []
+        for item in bucket.items.all():
+            key = item.text.strip().lower()
+            if key in existing_texts or key in new_texts:
+                continue
+            new_texts.add(key)
+            items_to_create.append(PackingListItem(packing_list=packing_list, text=item.text))
+        PackingListItem.objects.bulk_create(items_to_create)
+        packing_list.added_buckets.add(bucket)
+        return Response(PackingListSerializer(packing_list).data)
+
+class PackingListItemViewSet(viewsets.ModelViewSet):
+    serializer_class = PackingListItemSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = PackingListItem.objects.all()
+        list_id = self.request.query_params.get('list')
+        if list_id:
+            queryset = queryset.filter(packing_list_id=list_id)
+        return queryset
+
+    def perform_create(self, serializer):
+        packing_list = serializer.validated_data['packing_list']
+        text = serializer.validated_data['text'].strip()
+        if packing_list.items.filter(text__iexact=text).exists():
+            raise DRFValidationError({'text': 'This item is already on the list.'})
+        serializer.save()
+
+    def perform_update(self, serializer):
+        item = serializer.instance
+        text = serializer.validated_data.get('text')
+        if text is not None:
+            text = text.strip()
+            if item.packing_list.items.exclude(pk=item.pk).filter(text__iexact=text).exists():
+                raise DRFValidationError({'text': 'This item is already on the list.'})
+        serializer.save()
+
+class PackingBucketViewSet(viewsets.ModelViewSet):
+    queryset = PackingBucket.objects.all()
+    serializer_class = PackingBucketSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user, updated_by=self.request.user)
+
+    def perform_update(self, serializer):
+        serializer.save(updated_by=self.request.user)
+
+class PackingBucketItemViewSet(viewsets.ModelViewSet):
+    serializer_class = PackingBucketItemSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = PackingBucketItem.objects.all()
+        bucket_id = self.request.query_params.get('bucket')
+        if bucket_id:
+            queryset = queryset.filter(bucket_id=bucket_id)
+        return queryset
 
 class HouseholdTaskDefinitionViewSet(viewsets.ModelViewSet):
     queryset = HouseholdTaskDefinition.objects.all()

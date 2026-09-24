@@ -9,6 +9,8 @@ import Recipes from './pages/Recipes';
 import CookingPlan from './pages/CookingPlan';
 import Tasks from './pages/Tasks';
 import Vouchers from './pages/Vouchers';
+import PackingLists from './pages/PackingLists';
+import PackingBuckets from './pages/PackingBuckets';
 import Settings from './pages/Settings';
 
 function App() {
@@ -39,6 +41,8 @@ function App() {
             <Route path="/cooking-plan" element={<CookingPlan />} />
             <Route path="/tasks" element={<Tasks />} />
             <Route path="/vouchers" element={<Vouchers />} />
+            <Route path="/packing-lists" element={<PackingLists />} />
+            <Route path="/packing-buckets" element={<PackingBuckets />} />
             <Route path="/settings" element={<Settings />} />
           </>
         ) : (

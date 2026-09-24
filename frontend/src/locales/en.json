@@ -15,6 +15,7 @@
     "cookingPlan": "Cooking Plan",
     "tasks": "Household Plan",
     "vouchers": "Vouchers",
+    "packingLists": "Packing Lists",
     "settings": "Settings"
   },
   "login": {
@@ -51,7 +52,9 @@
       "overdueTasks_one": "{{count}} overdue task",
       "overdueTasks_other": "{{count}} overdue tasks",
       "expiringVouchers_one": "{{count}} coupon is about to expire in the next 6 months",
-      "expiringVouchers_other": "{{count}} coupons are about to expire in the next 6 months"
+      "expiringVouchers_other": "{{count}} coupons are about to expire in the next 6 months",
+      "upcomingPackingLists_one": "{{count}} upcoming packing list",
+      "upcomingPackingLists_other": "{{count}} upcoming packing lists"
     },
     "mealsRow": "Meals",
     "householdOverdue": {
@@ -379,6 +382,32 @@
     "historyEntryNoValue": "Used on {{date}} by {{name}}",
     "createdInfo": "Added {{date}} by {{name}}"
   },
+  "packingLists": {
+    "title": "Packing Lists",
+    "manageBuckets": "Manage buckets",
+    "newListPlaceholder": "New packing list's name...",
+    "createTitle": "Create packing list",
+    "formNamePlaceholder": "e.g. Beach vacation",
+    "formStartDate": "Start",
+    "formEndDate": "End",
+    "formParticipants": "Participants",
+    "createButton": "Create",
+    "createFailed": "Could not create the list. Please try again.",
+    "upcoming": "Upcoming",
+    "past": "Past",
+    "noUpcomingLists": "No upcoming packing lists yet -- add one above.",
+    "noLists": "No packing list selected.",
+    "listSettings": "Trip settings",
+    "deleteList": "Delete this list",
+    "confirmDeleteList": "Delete \"{{name}}\"?",
+    "itemPlaceholder": "New item...",
+    "addButton": "Add",
+    "editItem": "Edit",
+    "deleteItem": "Delete",
+    "emptyList": "Nothing on this list yet -- add something above.",
+    "selectBucket": "Select a bucket...",
+    "addBucketButton": "Add bucket"
+  },
   "weeklyPlanning": {
     "title": "Weekly Household Planning",
     "description": "This decides when the recurring reminder to plan next week's tasks shows up. It also appears as a task card on that day.",
@@ -454,6 +483,19 @@
     "nameEn": "Name (English)",
     "abbreviationDe": "Abbrev. (DE)",
     "abbreviationEn": "Abbrev. (EN)"
+  },
+  "packingBuckets": {
+    "title": "Trip Buckets",
+    "hint": "Templates like \"Staying overnight\" or \"Summer vacation\" -- add one to a packing list as a whole instead of typing every item by hand. Shared household config, visible and editable by both of you.",
+    "backToLists": "Back to packing lists",
+    "newBucketPlaceholder": "New bucket's name...",
+    "noBuckets": "No bucket created yet.",
+    "deleteBucket": "Delete bucket",
+    "confirmDelete": "Delete \"{{name}}\"?",
+    "itemPlaceholder": "New item...",
+    "addButton": "Add",
+    "deleteItem": "Delete",
+    "emptyBucket": "No items in this bucket yet."
   },
   "shoppingDialog": {
     "title": "Ingredients to shopping list",

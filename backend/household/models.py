@@ -520,6 +520,75 @@ class VoucherRedemption(models.Model):
         return f"{self.voucher.title} - {self.redeemed_on}"
 
 
+class PackingList(models.Model):
+    """A packing list for a trip -- one flat checklist shared by all its
+    participants (not split per person). Independent of every other domain,
+    see PLANNING.md 2d. Name, dates and at least one participant are required
+    up front (see PackingListViewSet.perform_create)."""
+    name = models.CharField(max_length=200)
+    start_date = models.DateField()
+    end_date = models.DateField()
+    # Which buckets have already been added, so a bucket can't be added twice
+    # to the same list -- the items it copied in are independent afterward
+    # (see PackingBucket's docstring), this is just a one-time-add guard.
+    added_buckets = models.ManyToManyField('PackingBucket', blank=True, related_name='+')
+
+    class Meta:
+        ordering = ['-start_date']
+
+    def __str__(self):
+        return self.name
+
+
+class PackingListParticipant(models.Model):
+    packing_list = models.ForeignKey(PackingList, on_delete=models.CASCADE, related_name='participants')
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = ('packing_list', 'user')
+
+    def __str__(self):
+        return f"{self.user.username} @ {self.packing_list.name}"
+
+
+class PackingListItem(models.Model):
+    packing_list = models.ForeignKey(PackingList, on_delete=models.CASCADE, related_name='items')
+    text = models.CharField(max_length=200)
+    is_packed = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['id']
+
+    def __str__(self):
+        return self.text
+
+
+class PackingBucket(AuditableMixin):
+    """A reusable, household-shared template (e.g. "Sommerurlaub") -- its
+    items get copied as a batch onto a PackingList via
+    PackingListViewSet.add_bucket(). A one-time snapshot, not a live link:
+    editing the bucket afterward never touches lists it was already added to."""
+    name = models.CharField(max_length=200)
+    color_hex = models.CharField(max_length=7, default='#5b7a5e')
+
+    class Meta:
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+
+class PackingBucketItem(models.Model):
+    bucket = models.ForeignKey(PackingBucket, on_delete=models.CASCADE, related_name='items')
+    text = models.CharField(max_length=200)
+
+    class Meta:
+        ordering = ['id']
+
+    def __str__(self):
+        return self.text
+
+
 class NotificationPreference(models.Model):
     """Per-user, per-type opt-in for each delivery channel. Rows are created
     on demand (get_or_create) the first time a type is looked up for a user,

@@ -219,4 +219,29 @@ export const cookingSuggestionService = {
   }),
 };
 
+export const packingListService = {
+  getAll: () => api.get('/packing-lists/'),
+  create: (data) => api.post('/packing-lists/', data),
+  update: (id, data) => api.patch(`/packing-lists/${id}/`, data),
+  delete: (id) => api.delete(`/packing-lists/${id}/`),
+  addParticipant: (id, userId) => api.post(`/packing-lists/${id}/add-participant/`, { user_id: userId }),
+  removeParticipant: (id, userId) => api.post(`/packing-lists/${id}/remove-participant/`, { user_id: userId }),
+  addBucket: (id, bucketId) => api.post(`/packing-lists/${id}/add-bucket/`, { bucket_id: bucketId }),
+};
+
+export const packingItemService = {
+  getByList: (listId) => api.get('/packing-items/', { params: { list: listId } }),
+  create: (data) => api.post('/packing-items/', data),
+  update: (id, data) => api.patch(`/packing-items/${id}/`, data),
+  delete: (id) => api.delete(`/packing-items/${id}/`),
+};
+
+export const packingBucketService = lookupService('packing-buckets');
+
+export const packingBucketItemService = {
+  getByBucket: (bucketId) => api.get('/packing-bucket-items/', { params: { bucket: bucketId } }),
+  create: (data) => api.post('/packing-bucket-items/', data),
+  delete: (id) => api.delete(`/packing-bucket-items/${id}/`),
+};
+
 export default api;

@@ -7,6 +7,7 @@ from .views import (
     HouseholdTaskDefinitionViewSet, HouseholdTaskInstanceViewSet,
     NotificationPreferencesView, PushSubscriptionViewSet, VapidPublicKeyView,
     TestEmailNotificationView, TestPushNotificationView,
+    PackingListViewSet, PackingListItemViewSet, PackingBucketViewSet, PackingBucketItemViewSet,
 )
 
 router = DefaultRouter()
@@ -26,6 +27,10 @@ router.register(r'vouchers', VoucherViewSet, basename='voucher')
 router.register(r'task-definitions', HouseholdTaskDefinitionViewSet, basename='task-definition')
 router.register(r'task-instances', HouseholdTaskInstanceViewSet, basename='task-instance')
 router.register(r'push-subscriptions', PushSubscriptionViewSet, basename='push-subscription')
+router.register(r'packing-lists', PackingListViewSet, basename='packing-list')
+router.register(r'packing-items', PackingListItemViewSet, basename='packing-item')
+router.register(r'packing-buckets', PackingBucketViewSet, basename='packing-bucket')
+router.register(r'packing-bucket-items', PackingBucketItemViewSet, basename='packing-bucket-item')
 
 urlpatterns = [
     path('cooking-plan-config/', CookingPlanConfigView.as_view(), name='cooking-plan-config'),

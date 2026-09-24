@@ -5,6 +5,7 @@ from .models import (
     CookingPlanConfig, CookingPlanEntry,
     HouseholdTaskDefinition, HouseholdTaskInstance, HouseholdTaskEvent,
     NotificationPreference, PushSubscription, NotificationLog, Voucher, VoucherRedemption,
+    PackingList, PackingListParticipant, PackingListItem, PackingBucket, PackingBucketItem,
 )
 
 @admin.register(HouseholdMember)
@@ -79,6 +80,31 @@ class VoucherAdmin(admin.ModelAdmin):
     list_filter = ('is_archived', 'valid_until')
     search_fields = ('title', 'received_from', 'location')
     inlines = [VoucherRedemptionInline]
+
+class PackingListItemInline(admin.TabularInline):
+    model = PackingListItem
+    extra = 0
+
+class PackingListParticipantInline(admin.TabularInline):
+    model = PackingListParticipant
+    extra = 0
+
+@admin.register(PackingList)
+class PackingListAdmin(admin.ModelAdmin):
+    list_display = ('name', 'start_date', 'end_date')
+    list_filter = ('start_date',)
+    search_fields = ('name',)
+    inlines = [PackingListParticipantInline, PackingListItemInline]
+
+class PackingBucketItemInline(admin.TabularInline):
+    model = PackingBucketItem
+    extra = 0
+
+@admin.register(PackingBucket)
+class PackingBucketAdmin(admin.ModelAdmin):
+    list_display = ('name', 'color_hex', 'updated_by', 'updated_at')
+    search_fields = ('name',)
+    inlines = [PackingBucketItemInline]
 
 class HouseholdTaskEventInline(admin.TabularInline):
     model = HouseholdTaskEvent
