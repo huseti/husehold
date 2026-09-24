@@ -39,6 +39,21 @@ def dish(key, recipe, servings, **extra):
     }
 
 
+def free_dish(key, title, servings, **extra):
+    """A dish without a recipe: its name is the one thing to put on the list."""
+    return {
+        'key': key,
+        'recipe': None,
+        'recipe_title': title,
+        'servings': servings,
+        'lines': [{
+            'ingredient': None, 'ingredient_name': title, 'quantity': None, 'unit': None,
+            'note': '', 'excluded_by_default': False,
+        }],
+        **extra,
+    }
+
+
 def add_lines_to_list(shopping_list, lines, user):
     """lines: [{ingredient (id or None), title, quantity (number or None), unit (id or None)}].
     Same ingredient (or same name, when unlinked) + same unit is summed into

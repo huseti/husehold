@@ -39,7 +39,6 @@
     "noOpenTasks": "Nichts offen — sehr gut.",
     "overdue": "Überfällig",
     "dueToday": "Heute",
-    "mealsComingSoon": "Mahlzeiten-Zeile — kommt mit dem Kochplan.",
     "calendarComingSoon": "Kalendereinträge-Zeile — kommt mit der Google-Kalender-Synchronisierung.",
     "overview": {
       "title": "Übersicht",
@@ -54,7 +53,7 @@
       "expiringVouchers_one": "{{count}} Gutschein läuft in den nächsten 6 Monaten ab",
       "expiringVouchers_other": "{{count}} Gutscheine laufen in den nächsten 6 Monaten ab"
     },
-    "cookingToday": "Heute kochen wir"
+    "mealsRow": "Mahlzeiten"
   },
   "shoppingList": {
     "title": "Einkaufsliste",
@@ -164,8 +163,6 @@
     "finished_other": "{{count}} Kochaufgaben erstellt — weise sie im Haushaltsplan zu.",
     "finishedNothingNew": "Nichts Neues zu erstellen — alle Gerichte haben schon eine Aufgabe.",
     "toHouseholdPlan": "Zum Haushaltsplan →",
-    "shoppingButton": "Zutaten zur Einkaufsliste",
-    "noDishesForShopping": "Diese Woche gibt es keine Gerichte, die noch gekocht werden müssen.",
     "settings": "Einstellungen",
     "noMeals": "Es gibt noch keine Mahlzeiten. Lege sie unter Einstellungen → Rezepte & Einkaufslisten an.",
     "addDish": "Gericht hinzufügen",
@@ -183,11 +180,12 @@
     "pickerTitle": "{{meal}} · {{day}}",
     "tab": {
       "recipes": "Rezepte",
-      "leftovers": "Reste"
+      "leftovers": "Reste",
+      "free": "Ohne Rezept"
     },
     "searchPlaceholder": "Rezept oder Zutat suchen...",
     "noSuggestions": "Keine passenden Rezepte — leg zuerst Rezepte an.",
-    "leftoversEmpty": "Diese Woche ist noch kein Gericht zum Kochen geplant.",
+    "leftoversEmpty": "Vor diesem Zeitpunkt ist noch kein Gericht zum Kochen geplant.",
     "lastCookedAgo_one": "zuletzt vor {{count}} Tag gekocht",
     "lastCookedAgo_other": "zuletzt vor {{count}} Tagen gekocht",
     "cookedToday": "heute gekocht",
@@ -206,7 +204,15 @@
       "longAgo": "Zeit für eine Wiederholung",
       "random": "mal was anderes",
       "rest": ""
-    }
+    },
+    "freeDish": "ohne Rezept",
+    "freeDishHint": "Für Fertiggerichte, Essen gehen oder alles ohne Rezept: nur ein Name. Er bekommt eine Kochaufgabe, und beim Abschluss kannst du den Namen auf die Einkaufsliste setzen.",
+    "freeDishPlaceholder": "z. B. Tiefkühlpizza",
+    "leftoversOrderError": "Reste müssen nach dem Gericht kommen: an einem späteren Tag oder bei einer späteren Mahlzeit am selben Tag.",
+    "leftoversNoSlot": "Nach diesem Gericht ist in dieser Woche keine Mahlzeit mehr frei.",
+    "saveFailed": "Das hat nicht geklappt. Bitte erneut versuchen.",
+    "householdStepBanner": "Schritt 1 der Haushaltsplanung ({{range}}): Plane zuerst die Mahlzeiten. Mit „Plan abschließen“ entstehen die Kochaufgaben, danach geht es mit der Haushaltsplanung weiter.",
+    "skipToHousehold": "Überspringen — weiter zur Haushaltsplanung"
   },
   "tasks": {
     "title": "Haushaltsplan",
@@ -408,7 +414,10 @@
     "sendTestEmail": "Test-E-Mail senden",
     "sendTestPush": "Test-Push senden",
     "testSending": "Wird gesendet...",
-    "testFailed": "Etwas ist schiefgelaufen."
+    "testFailed": "Etwas ist schiefgelaufen.",
+    "notificationLanguage": "Sprache der Benachrichtigungen",
+    "notificationLanguageHint": "Gilt für E-Mails und Push-Benachrichtigungen, unabhängig von der Sprache der App.",
+    "pushIosHint": "Push kommt auch an, wenn die App geschlossen ist oder du nicht eingeloggt bist. Auf dem iPhone geht das nur, wenn du die Seite zum Home-Bildschirm hinzufügst, sie dort öffnest, dich einloggst und Push hier aktivierst."
   },
   "recipeConfig": {
     "title": "Rezepte & Einkaufslisten",
@@ -456,5 +465,19 @@
   "mealPlanning": {
     "title": "Wöchentliche Kochplanung",
     "description": "Legt fest, wann die wiederkehrende Erinnerung erscheint, die Mahlzeiten der nächsten Woche zu planen. Sie erscheint auch als Aufgabe an diesem Tag; „Jetzt planen“ öffnet den Kochplan."
+  },
+  "cookingStep": {
+    "step": "Schritt 1",
+    "title": "Kochplanung",
+    "explanation": "Plane zuerst die Mahlzeiten der Woche — aus jedem Gericht wird eine Kochaufgabe, die du danach direkt zuweisen kannst.",
+    "none": "Für diese Woche ist noch nichts geplant.",
+    "drafts_one": "{{count}} Gericht ist geplant, hat aber noch keine Kochaufgabe.",
+    "drafts_other": "{{count}} Gerichte sind geplant, haben aber noch keine Kochaufgabe.",
+    "done_one": "Kochplanung ist abgeschlossen ({{count}} Gericht).",
+    "done_other": "Kochplanung ist abgeschlossen ({{count}} Gerichte).",
+    "open": "Kochplanung öffnen",
+    "review": "Kochplanung ansehen",
+    "skip": "Überspringen",
+    "continue": "Weiter zur Haushaltsplanung"
   }
 }

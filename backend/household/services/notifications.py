@@ -7,32 +7,70 @@ from django.core.mail import send_mail
 
 from pywebpush import webpush, WebPushException
 
-from ..models import NotificationPreference, PushSubscription, NotificationLog
+from ..models import HouseholdMember, NotificationPreference, PushSubscription, NotificationLog
 
 logger = logging.getLogger(__name__)
 
-# Keyed by NotificationPreference.NOTIFICATION_TYPE_CHOICES -- add an entry
-# here whenever a new notification type is introduced.
+# Keyed by language, then by NotificationPreference.NOTIFICATION_TYPE_CHOICES --
+# add an entry for *every* language whenever a new notification type is
+# introduced. Each member picks their language in Settings (German default).
 NOTIFICATION_MESSAGES = {
-    'task_due_today': {
-        'subject': 'Task due today: {title}',
-        'body': '"{title}" is due today.',
+    'de': {
+        'task_due_today': {
+            'subject': 'Heute fällig: {title}',
+            'body': '„{title}“ ist heute fällig.',
+        },
+        'household_planning_due': {
+            'subject': 'Wöchentliche Haushaltsplanung ist fällig',
+            'body': 'Zeit, die Haushaltsaufgaben für nächste Woche zu planen.',
+        },
+        'meal_planning_due': {
+            'subject': 'Kochplanung für nächste Woche ist fällig',
+            'body': 'Zeit, die Mahlzeiten für nächste Woche zu planen.',
+        },
+        'cooking_today': {
+            'subject': 'Heute kochen wir: {title}',
+            'body': 'Heute kochen wir {title}.',
+        },
     },
-    'household_planning_due': {
-        'subject': "Weekly household planning is due",
-        'body': "It's time to plan next week's household tasks.",
-    },
-    # The two cooking notifications are worded in German (the household's
-    # default language); the older ones above are still English.
-    'meal_planning_due': {
-        'subject': 'Kochplanung für nächste Woche ist fällig',
-        'body': 'Zeit, die Mahlzeiten für nächste Woche zu planen.',
-    },
-    'cooking_today': {
-        'subject': 'Heute kochen wir: {title}',
-        'body': 'Heute kochen wir {title}.',
+    'en': {
+        'task_due_today': {
+            'subject': 'Task due today: {title}',
+            'body': '"{title}" is due today.',
+        },
+        'household_planning_due': {
+            'subject': 'Weekly household planning is due',
+            'body': "It's time to plan next week's household tasks.",
+        },
+        'meal_planning_due': {
+            'subject': 'Meal planning for next week is due',
+            'body': "It's time to plan next week's meals.",
+        },
+        'cooking_today': {
+            'subject': "Cooking today: {title}",
+            'body': "Today we're cooking {title}.",
+        },
     },
 }
+
+TEST_MESSAGES = {
+    'de': {'subject': 'HUSEHOLD Test-Benachrichtigung', 'email': 'Das ist eine Test-E-Mail aus den HUSEHOLD-Einstellungen.',
+           'push': 'Das ist eine Test-Push-Benachrichtigung.'},
+    'en': {'subject': 'HUSEHOLD test notification', 'email': 'This is a test email from HUSEHOLD notification settings.',
+           'push': 'This is a test push notification.'},
+}
+
+DEFAULT_LANGUAGE = 'de'
+
+
+def notification_language(user):
+    """The language this user wants notifications in (their HouseholdMember
+    setting); German for accounts without a member profile. Read straight
+    from the database rather than through user.householdmember, so a change
+    made a moment ago is never masked by a cached relation."""
+    language = HouseholdMember.objects.filter(user=user).values_list('notification_language', flat=True).first()
+    return language if language in NOTIFICATION_MESSAGES else DEFAULT_LANGUAGE
+
 
 # Which notification type a task produces, by its system_action; anything not
 # listed is an ordinary task ('task_due_today').
@@ -60,11 +98,12 @@ def notify_task_due(instance):
     user, type, channel) combination a one-time send."""
     notification_type = NOTIFICATION_TYPE_BY_SYSTEM_ACTION.get(instance.system_action, 'task_due_today')
     title = instance.definition.title if instance.definition else instance.standalone_title
-    messages = NOTIFICATION_MESSAGES[notification_type]
-    subject = messages['subject'].format(title=title)
-    body = messages['body'].format(title=title)
 
     for user in _recipients(instance):
+        # Worded per recipient, so a household can read them in two languages.
+        messages = NOTIFICATION_MESSAGES[notification_language(user)][notification_type]
+        subject = messages['subject'].format(title=title)
+        body = messages['body'].format(title=title)
         pref, _ = NotificationPreference.objects.get_or_create(user=user, notification_type=notification_type)
 
         if pref.email_enabled and user.email:
@@ -82,13 +121,15 @@ def notify_task_due(instance):
 def send_test_email(user):
     """Used by the Settings 'send test email' button -- a manual one-off
     check, so unlike notify_task_due it doesn't touch NotificationLog."""
-    return _send_email(user, 'HUSEHOLD test notification', 'This is a test email from HUSEHOLD notification settings.')
+    texts = TEST_MESSAGES[notification_language(user)]
+    return _send_email(user, texts['subject'], texts['email'])
 
 
 def send_test_push(user):
     """Used by the Settings 'send test push' button -- see send_test_email."""
     subscriptions = list(PushSubscription.objects.filter(user=user))
-    return _send_push_all(subscriptions, 'HUSEHOLD test notification', 'This is a test push notification.')
+    texts = TEST_MESSAGES[notification_language(user)]
+    return _send_push_all(subscriptions, texts['subject'], texts['push'])
 
 
 def _send_once(instance, user, notification_type, channel, send_fn):

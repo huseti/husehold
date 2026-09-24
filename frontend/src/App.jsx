@@ -17,8 +17,9 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('access_token');
-    setIsAuthenticated(!!token);
+    // A stored refresh token is enough: an expired access token is swapped for
+    // a new one on the first API call (see services/api.js).
+    setIsAuthenticated(!!(localStorage.getItem('access_token') || localStorage.getItem('refresh_token')));
     setLoading(false);
   }, []);
 

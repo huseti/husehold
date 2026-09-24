@@ -4,6 +4,7 @@ import Navbar from '../components/Navbar';
 import RecipeConfig from '../components/RecipeConfig';
 import {
   householdSettingsService, notificationPreferenceService, pushSubscriptionService, notificationTestService,
+  memberService,
 } from '../services/api';
 import { urlBase64ToUint8Array, isPushSupported } from '../utils/push';
 
@@ -39,6 +40,8 @@ export default function Settings() {
   const timezoneOptions = getTimezoneOptions();
 
   const [preferences, setPreferences] = useState([]);
+  // null for an account without a household member profile (e.g. admin-only).
+  const [member, setMember] = useState(null);
   const [pushDeviceSubscribed, setPushDeviceSubscribed] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
   const [pushError, setPushError] = useState('');
@@ -53,6 +56,7 @@ export default function Settings() {
       setTimezoneValue(res.data.timezone);
     });
     notificationPreferenceService.getAll().then((res) => setPreferences(res.data));
+    memberService.getMe().then((res) => setMember(res.data)).catch(() => {});
 
     if (isPushSupported()) {
       navigator.serviceWorker.ready.then((registration) =>
@@ -67,6 +71,11 @@ export default function Settings() {
     );
     setPreferences(updated);
     await notificationPreferenceService.update(updated);
+  };
+
+  const handleNotificationLanguageChange = async (code) => {
+    const response = await memberService.update(member.id, { notification_language: code });
+    setMember(response.data);
   };
 
   const handleEnablePush = async () => {
@@ -193,6 +202,22 @@ export default function Settings() {
         <div className="bg-white rounded-lg shadow p-6 mb-8">
           <h3 className="text-lg font-semibold mb-4">{t('settings.notifications')}</h3>
 
+          {member && (
+            <div className="mb-5">
+              <label className="block text-xs text-gray-500 mb-1">{t('settings.notificationLanguage')}</label>
+              <select
+                value={member.notification_language}
+                onChange={(e) => handleNotificationLanguageChange(e.target.value)}
+                className="border rounded px-3 py-2 text-sm"
+              >
+                {LANGUAGES.map(({ code, labelKey }) => (
+                  <option key={code} value={code}>{t(labelKey)}</option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-400 mt-1">{t('settings.notificationLanguageHint')}</p>
+            </div>
+          )}
+
           <table className="w-full text-sm mb-4">
             <thead>
               <tr className="text-left text-xs text-gray-500">
@@ -227,6 +252,8 @@ export default function Settings() {
               })}
             </tbody>
           </table>
+
+          <p className="text-xs text-gray-400 mb-3">{t('settings.pushIosHint')}</p>
 
           {isPushSupported() ? (
             pushDeviceSubscribed ? (

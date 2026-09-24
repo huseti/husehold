@@ -20,6 +20,9 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'corsheaders',
+    # Required by simplejwt for ROTATE_REFRESH_TOKENS (it records each issued
+    # refresh token); see SIMPLE_JWT below.
+    'rest_framework_simplejwt.token_blacklist',
     'household',
 ]
 
@@ -102,7 +105,16 @@ REST_FRAMEWORK = {
 # JWT Configuration
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    # "Stay logged in": the frontend swaps the refresh token for a fresh access
+    # token whenever the old one expires, and every refresh also issues a new
+    # refresh token (rotation) -- so a session only ends after 180 days without
+    # opening the app, not after a fixed date.
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=180),
+    'ROTATE_REFRESH_TOKENS': True,
+    # The superseded refresh token is deliberately NOT blacklisted: two tabs (or
+    # the browser and the home-screen app) can refresh at the same moment, and
+    # blacklisting would log the loser out.
+    'BLACKLIST_AFTER_ROTATION': False,
     'ALGORITHM': 'HS256',
     'SIGNING_KEY': SECRET_KEY,
 }

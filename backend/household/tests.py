@@ -1213,7 +1213,8 @@ class CookingPlanEntryTests(CookingFixtureMixin, TestCase):
     def test_editing_an_entry_moves_its_task_and_follows_recipe_changes(self):
         entry = self._finalized()
         leftovers = self.client.post('/api/cooking-plan-entries/', {
-            'date': str(self.monday), 'meal_category': self.lunch.id, 'kind': 'leftovers', 'source_entry': entry.id,
+            'date': str(self.monday + timedelta(days=3)), 'meal_category': self.lunch.id,
+            'kind': 'leftovers', 'source_entry': entry.id,
         }, format='json').data
         salad = self.recipe('Salat', [self.dinner])
         new_day = self.monday + timedelta(days=2)
@@ -1456,3 +1457,272 @@ class CookingNotificationTests(CookingFixtureMixin, TestCase):
 
         self.assertIn('cooking_today', types)
         self.assertIn('meal_planning_due', types)
+
+
+class LeftoversOrderTests(CookingFixtureMixin, TestCase):
+    """Leftovers must come after the dish: a later day, or a later meal the same day."""
+
+    def setUp(self):
+        self.setUpCooking()
+        self.pasta = self.recipe('Pasta', [self.dinner, self.lunch])
+        self.monday = self.today - timedelta(days=self.today.weekday())
+
+    def _leftovers(self, source, day, meal):
+        return self.client.post('/api/cooking-plan-entries/', {
+            'date': str(day), 'meal_category': meal.id, 'kind': 'leftovers', 'source_entry': source['id'],
+        }, format='json')
+
+    def test_same_meal_same_day_is_rejected(self):
+        dish = self.add_entry(self.pasta, self.monday, meal=self.lunch).data
+
+        response = self._leftovers(dish, self.monday, self.lunch)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('leftovers', response.data)
+
+    def test_earlier_meal_on_the_same_day_is_rejected_but_a_later_one_is_fine(self):
+        dish = self.add_entry(self.pasta, self.monday, meal=self.dinner).data
+        cooked_at_lunch = self.add_entry(self.pasta, self.monday + timedelta(days=1), meal=self.lunch).data
+
+        before = self._leftovers(dish, self.monday, self.lunch)
+        cook_lunch_eat_dinner = self._leftovers(cooked_at_lunch, self.monday + timedelta(days=1), self.dinner)
+        next_day = self._leftovers(dish, self.monday + timedelta(days=1), self.lunch)
+
+        self.assertEqual(before.status_code, 400)
+        self.assertEqual(cook_lunch_eat_dinner.status_code, 201)  # cook at lunch, leftovers in the evening
+        self.assertEqual(next_day.status_code, 201)
+
+    def test_an_earlier_day_is_rejected(self):
+        dish = self.add_entry(self.pasta, self.monday + timedelta(days=2)).data
+
+        self.assertEqual(self._leftovers(dish, self.monday + timedelta(days=1), self.dinner).status_code, 400)
+
+    def test_moving_leftovers_before_or_onto_their_dish_is_rejected(self):
+        dish = self.add_entry(self.pasta, self.monday + timedelta(days=1), meal=self.lunch).data
+        leftovers = self._leftovers(dish, self.monday + timedelta(days=1), self.dinner).data
+
+        onto = self.client.patch(f"/api/cooking-plan-entries/{leftovers['id']}/", {'meal_category': self.lunch.id}, format='json')
+        before = self.client.patch(f"/api/cooking-plan-entries/{leftovers['id']}/", {'date': str(self.monday)}, format='json')
+        later = self.client.patch(f"/api/cooking-plan-entries/{leftovers['id']}/", {'date': str(self.monday + timedelta(days=3))}, format='json')
+
+        self.assertEqual((onto.status_code, before.status_code, later.status_code), (400, 400, 200))
+
+    def test_moving_the_dish_past_or_onto_its_leftovers_is_rejected(self):
+        dish = self.add_entry(self.pasta, self.monday, meal=self.lunch).data
+        self._leftovers(dish, self.monday, self.dinner)  # same day, later meal
+
+        onto = self.client.patch(f"/api/cooking-plan-entries/{dish['id']}/", {'meal_category': self.dinner.id}, format='json')
+        past = self.client.patch(f"/api/cooking-plan-entries/{dish['id']}/", {'date': str(self.monday + timedelta(days=1))}, format='json')
+        earlier = self.client.patch(f"/api/cooking-plan-entries/{dish['id']}/", {'notes': 'ok'}, format='json')
+
+        self.assertEqual((onto.status_code, past.status_code, earlier.status_code), (400, 400, 200))
+
+    def test_dragging_the_cook_task_past_the_leftovers_is_refused(self):
+        dish = self.add_entry(self.pasta, self.monday).data
+        self._leftovers(dish, self.monday + timedelta(days=2), self.lunch)
+        self.client.post('/api/cooking-plan-entries/finalize/', {
+            'start': str(self.monday), 'end': str(self.monday + timedelta(days=6)),
+        }, format='json')
+        entry = CookingPlanEntry.objects.get(pk=dish['id'])
+
+        refused = self.client.post(f'/api/task-instances/{entry.task_instance_id}/postpone/',
+                                   {'scheduled_date': str(self.monday + timedelta(days=3))}, format='json')
+        fine = self.client.post(f'/api/task-instances/{entry.task_instance_id}/postpone/',
+                                {'scheduled_date': str(self.monday + timedelta(days=1))}, format='json')
+
+        self.assertEqual(refused.status_code, 400)
+        self.assertIn('leftovers', refused.data)
+        self.assertEqual(fine.status_code, 200)
+        self.assertEqual(CookingPlanEntry.objects.get(pk=dish['id']).date, self.monday + timedelta(days=1))
+
+    def test_snoozing_the_dish_takes_its_leftovers_along_and_undo_brings_them_back(self):
+        dish = self.add_entry(self.pasta, self.monday).data
+        leftovers = self._leftovers(dish, self.monday + timedelta(days=1), self.lunch).data
+        self.client.post('/api/cooking-plan-entries/finalize/', {
+            'start': str(self.monday), 'end': str(self.monday + timedelta(days=6)),
+        }, format='json')
+        task_id = CookingPlanEntry.objects.get(pk=dish['id']).task_instance_id
+
+        self.client.post(f'/api/task-instances/{task_id}/snooze/')
+        self.assertEqual(CookingPlanEntry.objects.get(pk=dish['id']).date, self.monday + timedelta(days=7))
+        self.assertEqual(CookingPlanEntry.objects.get(pk=leftovers['id']).date, self.monday + timedelta(days=8))
+
+        self.client.post(f'/api/task-instances/{task_id}/reopen/')
+        self.assertEqual(CookingPlanEntry.objects.get(pk=dish['id']).date, self.monday)
+        self.assertEqual(CookingPlanEntry.objects.get(pk=leftovers['id']).date, self.monday + timedelta(days=1))
+
+
+class FreeDishTests(CookingFixtureMixin, TestCase):
+    def setUp(self):
+        self.setUpCooking()
+        self.monday = self.today - timedelta(days=self.today.weekday())
+        self.range = {'start': str(self.monday), 'end': str(self.monday + timedelta(days=6))}
+
+    def _free(self, title='Tiefkühlpizza', day=None, **extra):
+        return self.client.post('/api/cooking-plan-entries/', {
+            'date': str(day or self.monday), 'meal_category': self.dinner.id, 'kind': 'free', 'title': title, **extra,
+        }, format='json')
+
+    def test_a_free_dish_needs_a_name_and_no_recipe(self):
+        recipe = self.recipe('Pasta', [self.dinner])
+
+        ok = self._free()
+        nameless = self._free(title='  ')
+        with_recipe = self._free(recipe=recipe.id)
+
+        self.assertEqual(ok.status_code, 201)
+        self.assertEqual((ok.data['recipe_title'], ok.data['recipe'], ok.data['servings']), ('Tiefkühlpizza', None, 2))
+        self.assertEqual(nameless.status_code, 400)
+        self.assertEqual(with_recipe.status_code, 400)
+
+    def test_finalizing_gives_it_a_task_and_ticking_it_off_needs_no_recipe(self):
+        entry = self._free().data
+        self.client.post('/api/cooking-plan-entries/finalize/', self.range, format='json')
+        task = HouseholdTaskInstance.objects.get()
+        self.assertEqual((task.standalone_title, task.system_action), ('Tiefkühlpizza', 'cook_meal'))
+
+        done = self.client.post(f'/api/task-instances/{task.id}/complete/')
+
+        self.assertEqual(done.status_code, 200)
+        self.assertIsNone(done.data['cooking_entry']['recipe'])
+        self.assertIsNone(done.data['cooking_entry']['my_rating'])  # nothing to rate
+        self.assertTrue(done.data['cooking_entry']['is_cooked'])
+        self.assertEqual(MealEvent.objects.count(), 0)
+        listed = self.client.get(f"/api/cooking-plan-entries/{entry['id']}/").data
+        self.assertTrue(listed['is_cooked'])
+
+    def test_its_name_goes_on_the_shopping_list_until_it_is_cooked(self):
+        entry = self._free().data
+
+        preview = self.client.get('/api/cooking-plan-entries/shopping-preview/', self.range).data
+
+        self.assertEqual(len(preview), 1)
+        self.assertEqual(preview[0]['recipe_title'], 'Tiefkühlpizza')
+        self.assertEqual([(l['ingredient_name'], l['quantity'], l['excluded_by_default']) for l in preview[0]['lines']],
+                         [('Tiefkühlpizza', None, False)])
+
+        shopping_list = ShoppingList.objects.first()
+        added = self.client.post(f'/api/shopping-lists/{shopping_list.id}/add-ingredients/', {'lines': [
+            {'ingredient': None, 'title': 'Tiefkühlpizza', 'quantity': None, 'unit': None},
+        ]}, format='json')
+        self.assertEqual(added.data, {'created': 1, 'merged': 0})
+
+        self.client.post('/api/cooking-plan-entries/finalize/', self.range, format='json')
+        self.client.post(f"/api/task-instances/{CookingPlanEntry.objects.get(pk=entry['id']).task_instance_id}/complete/")
+        self.assertEqual(self.client.get('/api/cooking-plan-entries/shopping-preview/', self.range).data, [])
+
+    def test_renaming_follows_into_task_and_leftovers(self):
+        entry = self._free().data
+        leftovers = self.client.post('/api/cooking-plan-entries/', {
+            'date': str(self.monday + timedelta(days=1)), 'meal_category': self.lunch.id,
+            'kind': 'leftovers', 'source_entry': entry['id'],
+        }, format='json').data
+        self.client.post('/api/cooking-plan-entries/finalize/', self.range, format='json')
+
+        self.client.patch(f"/api/cooking-plan-entries/{entry['id']}/", {'title': 'Pizza Margherita'}, format='json')
+        blank = self.client.patch(f"/api/cooking-plan-entries/{entry['id']}/", {'title': ''}, format='json')
+
+        self.assertEqual(leftovers['recipe_title'], 'Tiefkühlpizza')
+        self.assertEqual(CookingPlanEntry.objects.get(pk=leftovers['id']).display_title, 'Pizza Margherita')
+        self.assertEqual(HouseholdTaskInstance.objects.get().standalone_title, 'Pizza Margherita')
+        self.assertEqual(blank.status_code, 400)
+
+    def test_a_recipe_cannot_be_attached_later(self):
+        entry = self._free().data
+        recipe = self.recipe('Pasta', [self.dinner])
+
+        self.client.patch(f"/api/cooking-plan-entries/{entry['id']}/", {'recipe': recipe.id}, format='json')
+
+        self.assertIsNone(CookingPlanEntry.objects.get(pk=entry['id']).recipe)
+
+
+class NotificationLanguageTests(CookingFixtureMixin, TestCase):
+    def setUp(self):
+        self.setUpCooking()
+        self.task = HouseholdTaskInstance.objects.create(
+            standalone_title='Pasta', system_action='cook_meal', occurrence_date=self.today, scheduled_date=self.today,
+        )
+
+    def _subjects_by_recipient(self):
+        from django.core import mail
+        return {m.to[0]: m.subject for m in mail.outbox}
+
+    def test_default_is_german_and_each_member_gets_their_own_language(self):
+        from .services.notifications import notify_task_due
+        HouseholdMember.objects.filter(user=self.anna).update(notification_language='en')
+
+        notify_task_due(self.task)
+
+        self.assertEqual(self._subjects_by_recipient(), {
+            'tim@example.com': 'Heute kochen wir: Pasta',
+            'anna@example.com': 'Cooking today: Pasta',
+        })
+
+    def test_every_type_exists_in_every_language(self):
+        from .models import NotificationPreference
+        from .services.notifications import NOTIFICATION_MESSAGES
+        types = {code for code, _ in NotificationPreference.NOTIFICATION_TYPE_CHOICES}
+
+        for language, messages in NOTIFICATION_MESSAGES.items():
+            self.assertEqual(set(messages), types, language)
+            for text in messages.values():
+                self.assertIn('subject', text)
+                self.assertIn('body', text)
+
+    def test_an_account_without_a_member_profile_gets_german(self):
+        from .services.notifications import notification_language
+        admin = User.objects.create_user(username='admin', password='pw')
+
+        self.assertEqual(notification_language(admin), 'de')
+
+    def test_ordinary_tasks_are_translated_too(self):
+        from django.core import mail
+        from .services.notifications import notify_task_due
+        HouseholdMember.objects.filter(user=self.tim).update(notification_language='en')
+        task = HouseholdTaskInstance.objects.create(
+            standalone_title='Müll rausbringen', occurrence_date=self.today, scheduled_date=self.today, assigned_to=self.tim,
+        )
+
+        notify_task_due(task)
+
+        self.assertEqual(mail.outbox[0].subject, 'Task due today: Müll rausbringen')
+
+    def test_test_email_uses_the_users_language(self):
+        from django.core import mail
+        from .services.notifications import send_test_email
+        HouseholdMember.objects.filter(user=self.anna).update(notification_language='en')
+
+        send_test_email(self.tim)
+        send_test_email(self.anna)
+
+        self.assertEqual([m.subject for m in mail.outbox], ['HUSEHOLD Test-Benachrichtigung', 'HUSEHOLD test notification'])
+
+    def test_language_is_a_member_setting_with_validated_choices(self):
+        member = HouseholdMember.objects.get(user=self.tim)
+
+        ok = self.client.patch(f'/api/members/{member.id}/', {'notification_language': 'en'}, format='json')
+        bad = self.client.patch(f'/api/members/{member.id}/', {'notification_language': 'fr'}, format='json')
+
+        self.assertEqual(ok.data['notification_language'], 'en')
+        self.assertEqual(bad.status_code, 400)
+        self.assertEqual(self.client.get('/api/members/me/').data['notification_language'], 'en')
+
+
+class StayLoggedInTests(TestCase):
+    def setUp(self):
+        User.objects.create_user(username='tim', password='pw')
+
+    def test_refreshing_issues_a_new_refresh_token_and_the_session_lasts_half_a_year(self):
+        from datetime import datetime, timezone as dt_timezone
+        from rest_framework_simplejwt.tokens import RefreshToken
+        client = APIClient()
+        pair = client.post('/api/auth/token/', {'username': 'tim', 'password': 'pw'}, format='json').data
+
+        refreshed = client.post('/api/auth/token/refresh/', {'refresh': pair['refresh']}, format='json')
+
+        self.assertEqual(refreshed.status_code, 200)
+        self.assertIn('access', refreshed.data)
+        self.assertIn('refresh', refreshed.data)  # rotation: store this one from now on
+        self.assertNotEqual(refreshed.data['refresh'], pair['refresh'])
+        lifetime = datetime.fromtimestamp(RefreshToken(pair['refresh'])['exp'], dt_timezone.utc) - datetime.now(dt_timezone.utc)
+        self.assertGreater(lifetime.days, 170)

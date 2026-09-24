@@ -22,7 +22,7 @@ def get_cooking_entry(instance):
 
 def create_cook_task(entry, user):
     instance = HouseholdTaskInstance.objects.create(
-        standalone_title=entry.recipe.title,
+        standalone_title=entry.display_title,
         standalone_icon='cooking',
         system_action='cook_meal',
         occurrence_date=entry.date,
@@ -39,8 +39,10 @@ def create_cook_task(entry, user):
 def finalize_range(start, end, user):
     """Creates the cook task for every cook entry in [start, end] that has
     none yet. Idempotent -- safe to run again after adding a dish."""
+    # Free dishes (ready meals, takeaway...) get a task too -- someone still
+    # has to make them -- they just have no recipe to log.
     entries = CookingPlanEntry.objects.filter(
-        kind='cook', task_instance__isnull=True, date__gte=start, date__lte=end,
+        kind__in=('cook', 'free'), task_instance__isnull=True, date__gte=start, date__lte=end,
     ).select_related('recipe')
     count = 0
     for entry in entries:
@@ -55,7 +57,7 @@ def sync_task_from_entry(entry):
     task = entry.task_instance
     if task is None or task.status != 'pending':
         return
-    task.standalone_title = entry.recipe.title
+    task.standalone_title = entry.display_title
     if task.scheduled_date != entry.date or task.is_in_backlog:
         task.scheduled_date = entry.date
         task.is_in_backlog = False
@@ -67,7 +69,8 @@ def log_cooked(instance, user, today=None):
     (or today, if that's still ahead) so a tick-off the next morning still
     counts for the right evening."""
     entry = get_cooking_entry(instance)
-    if entry is None or entry.meal_event_id is not None:
+    # A free dish has no recipe, so there's nothing to put in the cooking log.
+    if entry is None or entry.recipe_id is None or entry.meal_event_id is not None:
         return
     today = today or timezone.localdate()
     event = MealEvent.objects.create(
@@ -92,9 +95,9 @@ def follow_snooze(instance, copy):
     entry = get_cooking_entry(instance)
     if entry is None:
         return
+    shift_entry_and_leftovers(entry, copy.scheduled_date)
     entry.task_instance = copy
-    entry.date = copy.scheduled_date
-    entry.save(update_fields=['task_instance', 'date'])
+    entry.save(update_fields=['task_instance'])
 
 
 def restore_after_unsnooze(instance):
@@ -103,9 +106,9 @@ def restore_after_unsnooze(instance):
     for copy in instance.snoozed_copies.filter(status='pending', is_in_backlog=True):
         entry = get_cooking_entry(copy)
         if entry is not None:
+            shift_entry_and_leftovers(entry, instance.scheduled_date)
             entry.task_instance = instance
-            entry.date = instance.scheduled_date
-            entry.save(update_fields=['task_instance', 'date'])
+            entry.save(update_fields=['task_instance'])
 
 
 def sync_entry_date(instance):
@@ -116,3 +119,37 @@ def sync_entry_date(instance):
         return
     entry.date = instance.scheduled_date
     entry.save(update_fields=['date'])
+
+
+def slot(date, meal_category):
+    """Position of a meal in time: day first, then the meal's own order within
+    the day (breakfast < lunch < dinner). The id only breaks ties between two
+    meal types configured with the same sort_order."""
+    return (date, meal_category.sort_order, meal_category.id)
+
+
+def leftovers_out_of_order(entry, new_date, new_meal):
+    """Leftovers only make sense *after* the dish they come from: a later day,
+    or the same day at a later meal. Returns True if putting `entry` at
+    (new_date, new_meal) would break that -- for a leftovers entry against its
+    dish, for a dish against any of its leftovers."""
+    new_slot = slot(new_date, new_meal)
+    if entry.kind == 'leftovers':
+        source = entry.source_entry
+        return source is not None and new_slot <= slot(source.date, source.meal_category)
+    return any(
+        new_slot >= slot(leftover.date, leftover.meal_category)
+        for leftover in entry.leftover_entries.select_related('meal_category')
+    )
+
+
+def shift_entry_and_leftovers(entry, new_date):
+    """Moves a dish to another day and takes its leftovers along by the same
+    number of days, so their order to each other never changes (used when a
+    snooze carries the dish into next week)."""
+    delta = new_date - entry.date
+    entry.date = new_date
+    entry.save(update_fields=['date'])
+    for leftover in entry.leftover_entries.all():
+        leftover.date = leftover.date + delta
+        leftover.save(update_fields=['date'])

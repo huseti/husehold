@@ -17,6 +17,11 @@ class HouseholdMember(models.Model):
         help_text="Used to color this member's cards in the weekly household plan view.",
     )
     avatar = models.ImageField(upload_to='avatars/', null=True, blank=True)
+    # Language of emails/push notifications -- independent of the UI language
+    # (which lives in the browser); German by default.
+    notification_language = models.CharField(
+        max_length=2, choices=[('de', 'Deutsch'), ('en', 'English')], default='de',
+    )
     joined_date = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -217,12 +222,15 @@ class CookingPlanEntry(models.Model):
     KIND_CHOICES = [
         ('cook', 'Cook'),
         ('leftovers', 'Leftovers'),
+        ('free', 'Free dish (no recipe)'),
     ]
 
     date = models.DateField()
     meal_category = models.ForeignKey(MealTimeCategory, on_delete=models.PROTECT, related_name='plan_entries')
     kind = models.CharField(max_length=10, choices=KIND_CHOICES, default='cook')
-    recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE, related_name='plan_entries')
+    # Null only for a 'free' dish (a ready meal, takeaway...) -- it has just a title.
+    recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE, null=True, blank=True, related_name='plan_entries')
+    title = models.CharField(max_length=200, blank=True, help_text='Only for free dishes without a recipe.')
     # Only for leftovers. Deleting the dish deletes the leftovers of it.
     source_entry = models.ForeignKey(
         'self', on_delete=models.CASCADE, null=True, blank=True, related_name='leftover_entries',
@@ -243,8 +251,12 @@ class CookingPlanEntry(models.Model):
         ordering = ['date', 'meal_category__sort_order', 'id']
         verbose_name_plural = 'cooking plan entries'
 
+    @property
+    def display_title(self):
+        return self.recipe.title if self.recipe_id else self.title
+
     def __str__(self):
-        return f"{self.date} {self.meal_category}: {self.recipe.title}"
+        return f"{self.date} {self.meal_category}: {self.display_title}"
 
 
 class ShoppingList(AuditableMixin):

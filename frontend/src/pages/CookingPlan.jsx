@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   cookingPlanEntryService, cookingPlanConfigService, mealCategoryService, labelService, recipeService,
@@ -11,24 +11,35 @@ import RecipePicker from '../components/RecipePicker';
 import AddToShoppingDialog from '../components/AddToShoppingDialog';
 import CookingPlanSettings from '../components/CookingPlanSettings';
 import { localizedName } from '../utils/localized';
+import { slotKey } from '../utils/mealSlots';
 import { getWeekStart, toISODate, addDays, parseISODate } from '../utils/weekDates';
 
-// The weekly meal plan. The household's recurring "weekly meal planning" task
-// ("Plan now") lands here for the following week; finishing creates one cook
-// task per dish in the household plan, where they get assigned.
+// The weekly meal plan. Two ways in besides the navbar:
+//  - the recurring "weekly meal planning" task's "Plan now" (planWeek + planInstance):
+//    finishing also ticks that reminder off;
+//  - step 1 of the household planning (planWeek + returnTo=household): finishing
+//    -- or skipping -- leads back into the household planning, where the freshly
+//    created cook tasks can be assigned.
+// "Finish plan" creates one cook task per dish and then offers the ingredients
+// for the shopping list.
 export default function CookingPlan() {
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [weekStart, setWeekStart] = useState(() => {
     const planWeek = searchParams.get('planWeek');
     return planWeek ? parseISODate(planWeek) : getWeekStart(new Date());
   });
-  // Set when arriving via the planning reminder's "Plan now" -- finishing
-  // then also ticks that reminder off.
   const [planInstanceId, setPlanInstanceId] = useState(() => {
     const id = searchParams.get('planInstance');
     return id ? Number(id) : null;
   });
+  // Set when this page is step 1 of the household planning.
+  const [householdReturn, setHouseholdReturn] = useState(() => (
+    searchParams.get('returnTo') === 'household'
+      ? { instanceId: searchParams.get('householdInstance') || '' }
+      : null
+  ));
   const [entries, setEntries] = useState([]);
   const [config, setConfig] = useState(null);
   const [meals, setMeals] = useState([]);
@@ -38,7 +49,7 @@ export default function CookingPlan() {
   const [picker, setPicker] = useState(null); // { date, meal }
   const [shoppingDishes, setShoppingDishes] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
-  const [notice, setNotice] = useState(null); // { text, showHouseholdLink }
+  const [notice, setNotice] = useState(null); // { text, showHouseholdLink, error }
 
   useEffect(() => {
     if (searchParams.get('planWeek')) setSearchParams({}, { replace: true });
@@ -84,71 +95,84 @@ export default function CookingPlan() {
     return planned.length > 0 ? planned : meals;
   }, [config, meals]);
 
-  const cookEntries = entries.filter((e) => e.kind === 'cook');
-  const draftCount = cookEntries.filter((e) => !e.task_instance).length;
+  // Dishes that get a cook task: recipes and free dishes (leftovers don't).
+  const dishEntries = entries.filter((e) => e.kind !== 'leftovers');
+  const draftCount = dishEntries.filter((e) => !e.task_instance).length;
+
+  // Leftovers can only be planned after their dish, so the picker offers just
+  // the dishes that come earlier than the slot being filled.
+  const leftoverSources = picker
+    ? dishEntries.filter((entry) => {
+      const entryMeal = meals.find((m) => m.id === entry.meal_category);
+      return entryMeal && slotKey(entry.date, entryMeal) < slotKey(picker.date, picker.meal);
+    })
+    : [];
 
   const dayLabel = (iso) => parseISODate(iso).toLocaleDateString(i18n.language, { weekday: 'long', day: 'numeric', month: 'short' });
   const rangeLabel = `${parseISODate(rangeStart).toLocaleDateString(i18n.language, { day: 'numeric', month: 'short' })} – ${parseISODate(rangeEnd).toLocaleDateString(i18n.language, { day: 'numeric', month: 'short' })}`;
 
-  const handleUpdate = async (id, data) => {
+  const goBackToHousehold = () => {
+    const instance = householdReturn.instanceId ? `&planInstance=${householdReturn.instanceId}` : '';
+    navigate(`/tasks?planWeek=${rangeStart}${instance}&cookingDone=1`);
+  };
+
+  // The three mutations below resolve to null on success, or to the API's error
+  // body, so the entry card can say why something was refused (e.g. leftovers
+  // planned before their dish).
+  const attempt = async (action, errorMessage) => {
     try {
-      await cookingPlanEntryService.update(id, data);
-      await loadEntries();
+      await action();
+      return null;
     } catch (error) {
-      console.error('Error updating entry:', error);
+      console.error(errorMessage, error);
+      return error.response?.data ?? {};
     }
+  };
+
+  const handleUpdate = async (id, data) => {
+    const error = await attempt(() => cookingPlanEntryService.update(id, data), 'Error updating entry:');
+    await loadEntries();
+    return error;
   };
 
   const handleDelete = async (id) => {
-    try {
-      await cookingPlanEntryService.delete(id);
-      await loadEntries();
-    } catch (error) {
-      console.error('Error deleting entry:', error);
-    }
-  };
-
-  const handlePickRecipe = async (recipe) => {
-    try {
-      await cookingPlanEntryService.create({
-        date: picker.date, meal_category: picker.meal.id, recipe: recipe.id, servings: recipe.servings,
-      });
-      setPicker(null);
-      await Promise.all([loadEntries(), loadRecipes()]);
-    } catch (error) {
-      console.error('Error adding dish:', error);
-    }
+    await attempt(() => cookingPlanEntryService.delete(id), 'Error deleting entry:');
+    await loadEntries();
   };
 
   const handleAddLeftovers = async (source, date, mealCategory) => {
-    try {
-      await cookingPlanEntryService.create({
-        date, meal_category: mealCategory, kind: 'leftovers', source_entry: source.id,
-      });
-      await loadEntries();
-    } catch (error) {
-      console.error('Error adding leftovers:', error);
-    }
+    const error = await attempt(() => cookingPlanEntryService.create({
+      date, meal_category: mealCategory, kind: 'leftovers', source_entry: source.id,
+    }), 'Error adding leftovers:');
+    await loadEntries();
+    return error;
+  };
+
+  const handlePickRecipe = async (recipe) => {
+    await attempt(() => cookingPlanEntryService.create({
+      date: picker.date, meal_category: picker.meal.id, recipe: recipe.id, servings: recipe.servings,
+    }), 'Error adding dish:');
+    setPicker(null);
+    await Promise.all([loadEntries(), loadRecipes()]);
+  };
+
+  const handlePickFree = async (title) => {
+    await attempt(() => cookingPlanEntryService.create({
+      date: picker.date, meal_category: picker.meal.id, kind: 'free', title,
+    }), 'Error adding free dish:');
+    setPicker(null);
+    await loadEntries();
   };
 
   const handlePickLeftovers = async (source) => {
-    await handleAddLeftovers(source, picker.date, picker.meal.id);
+    const error = await handleAddLeftovers(source, picker.date, picker.meal.id);
     setPicker(null);
+    if (error) setNotice({ text: t('cookingPlan.leftoversOrderError'), error: true });
   };
 
-  const openShopping = async () => {
-    try {
-      const response = await cookingPlanEntryService.shoppingPreview(rangeStart, rangeEnd);
-      if (response.data.length === 0) {
-        setNotice({ text: t('cookingPlan.noDishesForShopping') });
-        return null;
-      }
-      setShoppingDishes(response.data);
-      return response.data;
-    } catch (error) {
-      console.error('Error loading shopping preview:', error);
-      return null;
-    }
+  const closeShopping = () => {
+    setShoppingDishes(null);
+    if (householdReturn) goBackToHousehold();
   };
 
   const handleFinish = async () => {
@@ -162,10 +186,15 @@ export default function CookingPlan() {
         text: response.data.created > 0
           ? t('cookingPlan.finished', { count: response.data.created })
           : t('cookingPlan.finishedNothingNew'),
-        showHouseholdLink: response.data.created > 0,
+        showHouseholdLink: response.data.created > 0 && !householdReturn,
       });
       await loadEntries();
-      await openShopping();
+
+      // Every dish that still has to be made: which of its ingredients (and
+      // which dishes) are actually needed on the shopping list?
+      const preview = await cookingPlanEntryService.shoppingPreview(rangeStart, rangeEnd);
+      if (preview.data.length > 0) setShoppingDishes(preview.data);
+      else if (householdReturn) goBackToHousehold();
     } catch (error) {
       console.error('Error finishing the plan:', error);
     }
@@ -189,7 +218,16 @@ export default function CookingPlan() {
           </div>
         </div>
 
-        {planInstanceId && (
+        {householdReturn && (
+          <div className="bg-purple-50 text-purple-800 rounded-lg px-4 py-3 mb-4 text-sm flex flex-wrap items-center gap-3">
+            <span className="flex-1">{t('cookingPlan.householdStepBanner', { range: rangeLabel })}</span>
+            <button onClick={goBackToHousehold} className="bg-white text-purple-800 border border-purple-300 px-3 py-1 rounded hover:bg-purple-100">
+              {t('cookingPlan.skipToHousehold')}
+            </button>
+          </div>
+        )}
+
+        {planInstanceId && !householdReturn && (
           <div className="bg-purple-50 text-purple-800 rounded-lg px-4 py-2 mb-4 text-sm">
             {t('cookingPlan.planningBanner', { range: rangeLabel })}
           </div>
@@ -199,16 +237,13 @@ export default function CookingPlan() {
           <button onClick={handleFinish} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
             {draftCount > 0 ? t('cookingPlan.finishWithCount', { count: draftCount }) : t('cookingPlan.finish')}
           </button>
-          <button onClick={openShopping} className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-            {t('cookingPlan.shoppingButton')}
-          </button>
           <button onClick={() => setShowSettings((v) => !v)} className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300">
             {t('cookingPlan.settings')}
           </button>
         </div>
 
         {notice && (
-          <p className="text-sm text-green-700 mb-4">
+          <p className={`text-sm mb-4 ${notice.error ? 'text-red-600' : 'text-green-700'}`}>
             {notice.text}{' '}
             {notice.showHouseholdLink && <Link to="/tasks" className="text-blue-600 hover:underline">{t('cookingPlan.toHouseholdPlan')}</Link>}
           </p>
@@ -238,6 +273,7 @@ export default function CookingPlan() {
                               key={entry.id}
                               entry={entry}
                               meals={shownMeals}
+                              allMeals={meals}
                               weekDays={weekDays}
                               onUpdate={handleUpdate}
                               onDelete={handleDelete}
@@ -267,15 +303,17 @@ export default function CookingPlan() {
           meal={picker.meal}
           recipes={recipes}
           labels={labels}
-          weekCookEntries={cookEntries}
+          weekCookEntries={dishEntries.filter((e) => e.recipe)}
+          leftoverSources={leftoverSources}
           onPickRecipe={handlePickRecipe}
           onPickLeftovers={handlePickLeftovers}
+          onPickFree={handlePickFree}
           onClose={() => setPicker(null)}
         />
       )}
 
       {shoppingDishes && (
-        <AddToShoppingDialog dishes={shoppingDishes} onClose={() => setShoppingDishes(null)} />
+        <AddToShoppingDialog dishes={shoppingDishes} onClose={closeShopping} onDone={() => {}} />
       )}
     </div>
   );

@@ -28,9 +28,9 @@ from .serializers import (
 )
 from .services.task_generation import generate_instances_for_range, monday_of_week_as_datetime
 from .services.cooking_suggestions import build_suggestions
-from .services.cooking_shopping import add_lines_to_list, dish as shopping_dish
+from .services.cooking_shopping import add_lines_to_list, dish as shopping_dish, free_dish
 from .services.cooking_tasks import (
-    finalize_range, follow_snooze, get_cooking_entry, log_cooked, restore_after_unsnooze,
+    finalize_range, follow_snooze, get_cooking_entry, leftovers_out_of_order, log_cooked, restore_after_unsnooze,
     sync_entry_date, sync_task_from_entry, undo_cooked,
 )
 
@@ -458,8 +458,9 @@ class CookingPlanEntryViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         entry = serializer.save()
-        if entry.kind == 'cook':
-            entry.leftover_entries.update(recipe=entry.recipe)
+        if entry.kind in ('cook', 'free'):
+            # Leftovers always show the same dish as their source.
+            entry.leftover_entries.update(recipe=entry.recipe, title=entry.title)
         sync_task_from_entry(entry)
 
     def perform_destroy(self, instance):
@@ -492,16 +493,20 @@ class CookingPlanEntryViewSet(viewsets.ModelViewSet):
         if not start or not end:
             return Response({'detail': 'start and end are required.'}, status=status.HTTP_400_BAD_REQUEST)
         entries = self.get_queryset().filter(
-            kind='cook', meal_event__isnull=True, date__gte=start, date__lte=end,
-        ).prefetch_related('recipe__ingredients__ingredient')
-        return Response([
-            shopping_dish(
-                f'entry-{entry.id}', entry.recipe, entry.servings,
-                entry=entry.id, date=entry.date.isoformat(), meal_category=entry.meal_category_id,
-                meal_category_name_de=entry.meal_category.name_de, meal_category_name_en=entry.meal_category.name_en,
-            )
-            for entry in entries
-        ])
+            kind__in=('cook', 'free'), meal_event__isnull=True, date__gte=start, date__lte=end,
+        ).exclude(task_instance__status='done').prefetch_related('recipe__ingredients__ingredient')
+        dishes = []
+        for entry in entries:
+            extra = {
+                'entry': entry.id, 'date': entry.date.isoformat(), 'meal_category': entry.meal_category_id,
+                'meal_category_name_de': entry.meal_category.name_de, 'meal_category_name_en': entry.meal_category.name_en,
+            }
+            if entry.recipe_id:
+                dishes.append(shopping_dish(f'entry-{entry.id}', entry.recipe, entry.servings, **extra))
+            else:
+                # A ready meal etc.: its name goes on the list as it is.
+                dishes.append(free_dish(f'entry-{entry.id}', entry.title, entry.servings, **extra))
+        return Response(dishes)
 
 class MealEventViewSet(viewsets.ModelViewSet):
     """Log of recipes actually cooked. Filter with ?recipe=<id>, ?date=<day>
@@ -712,6 +717,12 @@ class HouseholdTaskInstanceViewSet(viewsets.ModelViewSet):
         change -- occurrence_date stays put so the original slot doesn't
         get regenerated as a duplicate."""
         instance = self.get_object()
+        entry = get_cooking_entry(instance)
+        if entry is not None and not request.data.get('is_in_backlog', False):
+            new_date = parse_date(str(request.data.get('scheduled_date') or '')) or instance.scheduled_date
+            if leftovers_out_of_order(entry, new_date, entry.meal_category):
+                return Response({'leftovers': 'Leftovers of this dish would come before it.'},
+                                status=status.HTTP_400_BAD_REQUEST)
         instance.scheduled_date = request.data.get('scheduled_date', instance.scheduled_date)
         instance.is_in_backlog = bool(request.data.get('is_in_backlog', False))
         instance.save()

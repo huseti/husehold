@@ -1,16 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { taskInstanceService, taskDefinitionService, memberService } from '../services/api';
 import Navbar from '../components/Navbar';
 import WeekBoard from '../components/WeekBoard';
 import TaskDefinitionForm from '../components/TaskDefinitionForm';
 import AddSingleTaskForm from '../components/AddSingleTaskForm';
 import CookRatingPrompt from '../components/CookRatingPrompt';
+import CookingStepModal from '../components/CookingStepModal';
 import { getWeekStart, toISODate, addDays, parseISODate } from '../utils/weekDates';
 
 export default function Tasks() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   // Set when arriving here via a weekly-planning task's "Plan now" button
   // (Dashboard or the calendar itself) -- lets Finish Planning mark that
@@ -29,6 +31,8 @@ export default function Tasks() {
   const [showAddSingle, setShowAddSingle] = useState(false);
   // A just-cooked dish the current user hasn't rated yet -- see CookRatingPrompt.
   const [ratingPromptEntry, setRatingPromptEntry] = useState(null);
+  // Step 1 of every household planning: the cooking plan for the same week.
+  const [showCookingStep, setShowCookingStep] = useState(false);
 
   useEffect(() => {
     const planWeek = searchParams.get('planWeek');
@@ -37,6 +41,8 @@ export default function Tasks() {
       setWeekStart(parseISODate(planWeek));
       setMode('planning');
       if (planInstance) setPlanningSourceInstanceId(Number(planInstance));
+      // Coming back from the cooking plan (cookingDone) means step 1 is behind us.
+      if (!searchParams.get('cookingDone')) setShowCookingStep(true);
       setSearchParams({}, { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -101,6 +107,12 @@ export default function Tasks() {
   const handleStartPlanning = () => {
     if (!canPlanThisWeek) return;
     setMode('planning');
+    setShowCookingStep(true);
+  };
+
+  const openCookingPlan = () => {
+    const instance = planningSourceInstanceId ? `&householdInstance=${planningSourceInstanceId}` : '';
+    navigate(`/cooking-plan?planWeek=${toISODate(weekStart)}&returnTo=household${instance}`);
   };
 
   const handleFinishPlanning = async () => {
@@ -141,13 +153,16 @@ export default function Tasks() {
       loadWeek();
     } catch (error) {
       console.error('Error moving task:', error);
+      // A cook task can't be dragged behind the leftovers planned from it.
+      if (error.response?.data?.leftovers) window.alert(t('cookingPlan.leftoversOrderError'));
     }
   };
 
   const handleComplete = async (id) => {
     const response = await taskInstanceService.complete(id);
     const cookingEntry = response.data.cooking_entry;
-    if (cookingEntry && cookingEntry.my_rating === null) setRatingPromptEntry(cookingEntry);
+    // A free dish (no recipe) has nothing to rate.
+    if (cookingEntry && cookingEntry.recipe && cookingEntry.my_rating === null) setRatingPromptEntry(cookingEntry);
     loadWeek();
   };
 
@@ -284,6 +299,13 @@ export default function Tasks() {
         )}
       </main>
       <CookRatingPrompt entry={ratingPromptEntry} onClose={() => setRatingPromptEntry(null)} />
+      {mode === 'planning' && showCookingStep && (
+        <CookingStepModal
+          weekStart={weekStart}
+          onOpenCookingPlan={openCookingPlan}
+          onSkip={() => setShowCookingStep(false)}
+        />
+      )}
     </div>
   );
 }

@@ -17,14 +17,51 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+const endSession = () => {
+  localStorage.removeItem('access_token');
+  localStorage.removeItem('refresh_token');
+  window.location.href = '/login';
+};
+
+// One refresh at a time: when the access token has expired, a page usually
+// fires several requests at once, and they must all wait for the same new
+// token instead of each spending the refresh token.
+let refreshInFlight = null;
+
+function refreshAccessToken() {
+  const refresh = localStorage.getItem('refresh_token');
+  if (!refresh) return Promise.reject(new Error('No refresh token'));
+  // Plain axios (not `api`) so this call can't trigger the interceptor below.
+  return axios.post(`${API_URL}/auth/token/refresh/`, { refresh }).then((response) => {
+    localStorage.setItem('access_token', response.data.access);
+    // The server rotates the refresh token on every use -- keep the new one,
+    // that's what makes the session slide forward for as long as the app is used.
+    if (response.data.refresh) localStorage.setItem('refresh_token', response.data.refresh);
+    return response.data.access;
+  });
+}
+
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
-      window.location.href = '/login';
+  async (error) => {
+    const original = error.config;
+    // Login / refresh calls answer 401 for bad credentials -- that's for the
+    // login page to show, not a reason to refresh or log out.
+    const isAuthCall = original?.url?.startsWith('/auth/');
+    if (error.response?.status !== 401 || !original || isAuthCall) return Promise.reject(error);
+
+    if (!original._retried) {
+      original._retried = true;
+      try {
+        refreshInFlight = refreshInFlight || refreshAccessToken().finally(() => { refreshInFlight = null; });
+        const token = await refreshInFlight;
+        original.headers.Authorization = `Bearer ${token}`;
+        return api(original);
+      } catch {
+        // The refresh token is gone or expired (or the server said no).
+      }
     }
+    endSession();
     return Promise.reject(error);
   }
 );

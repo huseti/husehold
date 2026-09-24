@@ -10,7 +10,7 @@ import WeekPreview from '../components/WeekPreview';
 import OverviewPanel from '../components/OverviewPanel';
 import TaskIcon from '../components/icons/taskIcons';
 import CookRatingPrompt from '../components/CookRatingPrompt';
-import { getDisplayTitle, canSnoozeInstance, getPlanNowPath, mealName } from '../utils/taskDisplay';
+import { getDisplayTitle, canSnoozeInstance, getPlanNowPath } from '../utils/taskDisplay';
 import { getWeekStart, toISODate, addDays } from '../utils/weekDates';
 import { isExpiringSoon } from '../utils/voucherDisplay';
 
@@ -40,7 +40,7 @@ export default function Dashboard() {
       const [shoppingRes, recipesRes, mealsRes, tasksRes, meRes, settingsRes, vouchersRes] = await Promise.all([
         shoppingService.getAll(),
         recipeService.getAll(),
-        cookingPlanEntryService.getRange(todayISO, toISODate(addDays(new Date(), 6))),
+        cookingPlanEntryService.getRange(toISODate(weekDays[0]), toISODate(weekDays[6])),
         taskInstanceService.getRange(toISODate(fetchStart), toISODate(weekDays[6])),
         authService.getMe(),
         householdSettingsService.get(),
@@ -48,9 +48,10 @@ export default function Dashboard() {
       ]);
       setShopping(shoppingRes.data.results || []);
       setRecipeCount(recipesRes.data.count ?? (recipesRes.data.results || recipesRes.data || []).length);
-      const upcomingMeals = mealsRes.data.results || [];
-      setMealEntries(upcomingMeals);
-      setMealCount(upcomingMeals.filter((entry) => entry.kind === 'cook').length);
+      const weekMeals = mealsRes.data.results || [];
+      setMealEntries(weekMeals);
+      // Planned meals this week; leftovers are a re-run of a dish, not another meal to cook.
+      setMealCount(weekMeals.filter((entry) => entry.kind !== 'leftovers').length);
       setTasks(tasksRes.data.results || tasksRes.data || []);
       setCurrentUser(meRes.data);
       setHouseholdName(settingsRes.data.household_name);
@@ -69,7 +70,7 @@ export default function Dashboard() {
   const handleComplete = async (id) => {
     const response = await taskInstanceService.complete(id);
     const cookingEntry = response.data.cooking_entry;
-    if (cookingEntry && cookingEntry.my_rating === null) setRatingPromptEntry(cookingEntry);
+    if (cookingEntry && cookingEntry.recipe && cookingEntry.my_rating === null) setRatingPromptEntry(cookingEntry);
     loadData();
   };
 
@@ -102,7 +103,6 @@ export default function Dashboard() {
     (task) => task.status === 'pending' && !task.is_in_backlog && task.scheduled_date < todayISO,
   ).length;
 
-  const todayMeals = mealEntries.filter((entry) => entry.date === todayISO);
 
   const renderTaskRow = (task, { overdue = false, today = false } = {}) => {
     const planNowPath = getPlanNowPath(task);
@@ -190,29 +190,7 @@ export default function Dashboard() {
           />
         </div>
 
-        {todayMeals.length > 0 && (
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-semibold mb-4">{t('dashboard.cookingToday')}</h2>
-            <ul className="space-y-2">
-              {todayMeals.map((entry) => (
-                <li key={entry.id} className="flex items-center gap-2 text-sm">
-                  <TaskIcon icon="cooking" className="text-gray-500 flex-shrink-0" />
-                  <span className="text-gray-500 w-28 flex-shrink-0">{mealName(entry, i18n)}</span>
-                  <span className={`font-medium ${entry.is_cooked ? 'line-through text-gray-400' : 'text-gray-800'}`}>
-                    {entry.kind === 'leftovers' ? t('cookingPlan.leftoversOf', { title: entry.recipe_title }) : entry.recipe_title}
-                  </span>
-                  <span className="text-gray-400">{t('cookingPlan.servingsShort', { count: entry.servings })}</span>
-                  {entry.assigned_to_username && <span className="text-gray-500">· {entry.assigned_to_username}</span>}
-                </li>
-              ))}
-            </ul>
-            <Link to="/cooking-plan" className="mt-4 inline-block text-blue-500 hover:text-blue-700 font-medium">
-              {t('dashboard.viewAll')}
-            </Link>
-          </div>
-        )}
-
-        <WeekPreview weekDays={weekDays} instances={tasks} />
+        <WeekPreview weekDays={weekDays} instances={tasks} meals={mealEntries} />
       </main>
       <CookRatingPrompt entry={ratingPromptEntry} onClose={() => setRatingPromptEntry(null)} />
     </div>

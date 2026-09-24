@@ -1,7 +1,7 @@
 ﻿from django.utils import timezone
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .services.cooking_tasks import get_cooking_entry
+from .services.cooking_tasks import get_cooking_entry, leftovers_out_of_order, slot
 from .models import (
     HouseholdMember, HouseholdSettings, ShoppingList, ShoppingListItem, Recipe,
     HouseholdTaskDefinition, HouseholdTaskInstance, HouseholdTaskEvent,
@@ -19,7 +19,7 @@ class HouseholdMemberSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = HouseholdMember
-        fields = ('id', 'user', 'role', 'color_hex', 'avatar', 'joined_date')
+        fields = ('id', 'user', 'role', 'color_hex', 'avatar', 'notification_language', 'joined_date')
 
 class HouseholdSettingsSerializer(serializers.ModelSerializer):
     class Meta:
@@ -382,11 +382,18 @@ class CookingPlanConfigSerializer(serializers.ModelSerializer):
         )
         read_only_fields = ('updated_at',)
 
+def _entry_is_cooked(entry):
+    """Cooked = its meal was logged, or (for a free dish, which has nothing to
+    log) its cook task was ticked off."""
+    if entry.meal_event_id is not None:
+        return True
+    return entry.task_instance_id is not None and entry.task_instance.status == 'done'
+
 class CookingPlanEntrySerializer(serializers.ModelSerializer):
-    recipe_title = serializers.CharField(source='recipe.title', read_only=True)
+    recipe_title = serializers.CharField(source='display_title', read_only=True)
     meal_category_name_de = serializers.CharField(source='meal_category.name_de', read_only=True)
     meal_category_name_en = serializers.CharField(source='meal_category.name_en', read_only=True)
-    source_recipe_title = serializers.CharField(source='source_entry.recipe.title', read_only=True, default=None)
+    source_recipe_title = serializers.CharField(source='source_entry.display_title', read_only=True, default=None)
     task_status = serializers.CharField(source='task_instance.status', read_only=True, default=None)
     assigned_to = serializers.IntegerField(source='task_instance.assigned_to_id', read_only=True, default=None)
     assigned_to_username = serializers.CharField(source='task_instance.assigned_to.username', read_only=True, default=None)
@@ -403,17 +410,25 @@ class CookingPlanEntrySerializer(serializers.ModelSerializer):
         model = CookingPlanEntry
         fields = (
             'id', 'date', 'meal_category', 'meal_category_name_de', 'meal_category_name_en',
-            'kind', 'recipe', 'recipe_title', 'source_entry', 'source_recipe_title',
+            'kind', 'recipe', 'title', 'recipe_title', 'source_entry', 'source_recipe_title',
             'servings', 'notes', 'task_instance', 'task_status',
             'assigned_to', 'assigned_to_username', 'assigned_to_color', 'is_cooked',
         )
         # Leftovers copy their dish from source_entry, so recipe is optional
         # on input; the task link is managed by finalize/the task actions.
         read_only_fields = ('task_instance',)
-        extra_kwargs = {'recipe': {'required': False}}
+        extra_kwargs = {'recipe': {'required': False, 'allow_null': True}, 'title': {'required': False}}
 
     def get_is_cooked(self, obj):
-        return obj.meal_event_id is not None
+        return _entry_is_cooked(obj)
+
+    def _order_error(self):
+        # A named key (not just a message) so the UI can show its own
+        # translated explanation.
+        return serializers.ValidationError({
+            'leftovers': 'Leftovers must come after the dish they come from '
+                         '(a later day, or a later meal on the same day).',
+        })
 
     def validate(self, attrs):
         instance = self.instance
@@ -421,32 +436,54 @@ class CookingPlanEntrySerializer(serializers.ModelSerializer):
             # What a row *is* doesn't change; move/re-plan it or delete and re-add.
             attrs.pop('kind', None)
             attrs.pop('source_entry', None)
-            if 'recipe' in attrs and attrs['recipe'] != instance.recipe:
-                if instance.kind == 'leftovers':
-                    raise serializers.ValidationError({'recipe': 'Leftovers follow their dish; change the dish instead.'})
-                if instance.meal_event_id is not None:
+            if instance.kind != 'free':
+                attrs.pop('title', None)
+            if 'recipe' in attrs:
+                if instance.kind != 'cook':
+                    attrs.pop('recipe')  # leftovers follow their dish; free dishes have none
+                elif attrs['recipe'] is None:
+                    raise serializers.ValidationError({'recipe': 'A recipe is required.'})
+                elif attrs['recipe'] != instance.recipe and _entry_is_cooked(instance):
                     raise serializers.ValidationError({'recipe': 'This dish was already cooked.'})
+            if instance.kind == 'free' and not (attrs.get('title', instance.title) or '').strip():
+                raise serializers.ValidationError({'title': 'A free dish needs a name.'})
+            if 'date' in attrs or 'meal_category' in attrs:
+                if leftovers_out_of_order(
+                    instance, attrs.get('date', instance.date), attrs.get('meal_category', instance.meal_category),
+                ):
+                    raise self._order_error()
             return attrs
 
         kind = attrs.get('kind', 'cook')
         if kind == 'leftovers':
             source = attrs.get('source_entry')
-            if source is None or source.kind != 'cook':
+            if source is None or source.kind not in ('cook', 'free'):
                 raise serializers.ValidationError({'source_entry': 'Leftovers need the dish they come from.'})
+            if slot(attrs['date'], attrs['meal_category']) <= slot(source.date, source.meal_category):
+                raise self._order_error()
             attrs['recipe'] = source.recipe
+            attrs['title'] = source.title
             attrs.setdefault('servings', source.servings)
+        elif kind == 'free':
+            attrs['title'] = (attrs.get('title') or '').strip()
+            if not attrs['title']:
+                raise serializers.ValidationError({'title': 'A free dish needs a name.'})
+            if attrs.get('recipe') is not None or attrs.get('source_entry') is not None:
+                raise serializers.ValidationError({'recipe': 'A free dish has no recipe.'})
+            attrs['recipe'] = None
         else:
             if attrs.get('recipe') is None:
                 raise serializers.ValidationError({'recipe': 'A recipe is required.'})
             if attrs.get('source_entry') is not None:
                 raise serializers.ValidationError({'source_entry': 'Only leftovers have a source dish.'})
+            attrs['title'] = ''
             attrs.setdefault('servings', attrs['recipe'].servings)
         return attrs
 
 class TaskCookingEntrySerializer(serializers.ModelSerializer):
     """The slice of a cook entry a task card needs (dish, meal, servings, and
     whether the current user still owes a rating after cooking it)."""
-    recipe_title = serializers.CharField(source='recipe.title', read_only=True)
+    recipe_title = serializers.CharField(source='display_title', read_only=True)
     meal_category_name_de = serializers.CharField(source='meal_category.name_de', read_only=True)
     meal_category_name_en = serializers.CharField(source='meal_category.name_en', read_only=True)
     is_cooked = serializers.SerializerMethodField()
@@ -455,16 +492,16 @@ class TaskCookingEntrySerializer(serializers.ModelSerializer):
     class Meta:
         model = CookingPlanEntry
         fields = (
-            'id', 'recipe', 'recipe_title', 'meal_category', 'meal_category_name_de',
+            'id', 'kind', 'recipe', 'recipe_title', 'meal_category', 'meal_category_name_de',
             'meal_category_name_en', 'servings', 'is_cooked', 'my_rating',
         )
 
     def get_is_cooked(self, obj):
-        return obj.meal_event_id is not None
+        return _entry_is_cooked(obj)
 
     def get_my_rating(self, obj):
         request = self.context.get('request')
-        if request is None:
+        if request is None or obj.recipe_id is None:
             return None
         return RecipeRating.objects.filter(
             recipe_id=obj.recipe_id, rated_by=request.user,

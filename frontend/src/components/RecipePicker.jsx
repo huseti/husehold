@@ -14,11 +14,12 @@ function daysAgo(iso) {
   return Math.round((today - then) / 86400000);
 }
 
-// Choose what to cook for one day + meal: suggestion buckets (craving / best
+// Choose what to eat for one day + meal: suggestion buckets (craving / best
 // rated / not cooked in a while / random / rest), a search over all recipes
-// with a label filter, or "leftovers of" a dish already planned this week.
+// with a label filter, "leftovers of" an earlier dish (`leftoverSources` are
+// only dishes planned *before* this slot), or a free dish without a recipe.
 export default function RecipePicker({
-  dayLabel, meal, recipes, labels, weekCookEntries, onPickRecipe, onPickLeftovers, onClose,
+  dayLabel, meal, recipes, labels, weekCookEntries, leftoverSources, onPickRecipe, onPickLeftovers, onPickFree, onClose,
 }) {
   const { t, i18n } = useTranslation();
   const [tab, setTab] = useState('recipes');
@@ -26,10 +27,11 @@ export default function RecipePicker({
   const [seed, setSeed] = useState(() => Math.floor(Math.random() * 1e6));
   const [search, setSearch] = useState('');
   const [labelFilter, setLabelFilter] = useState('');
+  const [freeTitle, setFreeTitle] = useState('');
 
   // Dishes already planned this week aren't suggested again (searching still finds them).
   const plannedRecipeIds = useMemo(
-    () => [...new Set(weekCookEntries.map((e) => e.recipe))].sort((a, b) => a - b),
+    () => [...new Set(weekCookEntries.map((e) => e.recipe).filter(Boolean))].sort((a, b) => a - b),
     [weekCookEntries],
   );
 
@@ -87,7 +89,7 @@ export default function RecipePicker({
         </div>
 
         <div className="flex gap-6 border-b mb-4">
-          {['recipes', 'leftovers'].map((name) => (
+          {['recipes', 'leftovers', 'free'].map((name) => (
             <button
               key={name}
               onClick={() => setTab(name)}
@@ -98,12 +100,34 @@ export default function RecipePicker({
           ))}
         </div>
 
-        {tab === 'leftovers' ? (
-          weekCookEntries.length === 0 ? (
+        {tab === 'free' ? (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (freeTitle.trim()) onPickFree(freeTitle.trim());
+            }}
+            className="space-y-3"
+          >
+            <p className="text-sm text-gray-500">{t('cookingPlan.freeDishHint')}</p>
+            <input
+              type="text"
+              autoFocus
+              maxLength={200}
+              value={freeTitle}
+              onChange={(e) => setFreeTitle(e.target.value)}
+              placeholder={t('cookingPlan.freeDishPlaceholder')}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            />
+            <button type="submit" disabled={!freeTitle.trim()} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-50">
+              + {t('cookingPlan.add')}
+            </button>
+          </form>
+        ) : tab === 'leftovers' ? (
+          leftoverSources.length === 0 ? (
             <p className="text-gray-500">{t('cookingPlan.leftoversEmpty')}</p>
           ) : (
             <ul className="divide-y">
-              {weekCookEntries.map((entry) => (
+              {leftoverSources.map((entry) => (
                 <li key={entry.id} className="flex items-center gap-3 py-2">
                   <span className="flex-1">
                     <span className="font-medium">{entry.recipe_title}</span>

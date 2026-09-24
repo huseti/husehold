@@ -39,7 +39,6 @@
     "noOpenTasks": "Nothing open — nice.",
     "overdue": "Overdue",
     "dueToday": "Today",
-    "mealsComingSoon": "Meals row — coming with the Cooking Plan.",
     "calendarComingSoon": "Calendar entries row — coming with Google Calendar sync.",
     "overview": {
       "title": "Overview",
@@ -54,7 +53,7 @@
       "expiringVouchers_one": "{{count}} coupon is about to expire in the next 6 months",
       "expiringVouchers_other": "{{count}} coupons are about to expire in the next 6 months"
     },
-    "cookingToday": "Cooking today"
+    "mealsRow": "Meals"
   },
   "shoppingList": {
     "title": "Shopping List",
@@ -164,8 +163,6 @@
     "finished_other": "{{count}} cooking tasks created — assign them in the household plan.",
     "finishedNothingNew": "Nothing new to create — every dish already has a task.",
     "toHouseholdPlan": "To the household plan →",
-    "shoppingButton": "Ingredients to shopping list",
-    "noDishesForShopping": "There are no dishes left to cook this week.",
     "settings": "Settings",
     "noMeals": "There are no meal types yet. Add them under Settings → Recipes & Shopping Lists.",
     "addDish": "Add dish",
@@ -183,11 +180,12 @@
     "pickerTitle": "{{meal}} · {{day}}",
     "tab": {
       "recipes": "Recipes",
-      "leftovers": "Leftovers"
+      "leftovers": "Leftovers",
+      "free": "No recipe"
     },
     "searchPlaceholder": "Search recipes or ingredients...",
     "noSuggestions": "No matching recipes — add some recipes first.",
-    "leftoversEmpty": "No dish to cook is planned this week yet.",
+    "leftoversEmpty": "No dish to cook is planned before this point yet.",
     "lastCookedAgo_one": "last cooked {{count}} day ago",
     "lastCookedAgo_other": "last cooked {{count}} days ago",
     "cookedToday": "cooked today",
@@ -206,7 +204,15 @@
       "longAgo": "time for a repeat",
       "random": "something different",
       "rest": ""
-    }
+    },
+    "freeDish": "no recipe",
+    "freeDishHint": "For ready meals, eating out or anything without a recipe: just a name. It gets a cooking task, and when you finish the plan you can put the name on the shopping list.",
+    "freeDishPlaceholder": "e.g. frozen pizza",
+    "leftoversOrderError": "Leftovers must come after the dish: on a later day, or at a later meal on the same day.",
+    "leftoversNoSlot": "There is no meal left this week after this dish.",
+    "saveFailed": "That did not work. Please try again.",
+    "householdStepBanner": "Step 1 of the household planning ({{range}}): plan the meals first. “Finish plan” creates the cooking tasks, then the household planning continues.",
+    "skipToHousehold": "Skip — continue to household planning"
   },
   "tasks": {
     "title": "Household Plan",
@@ -408,7 +414,10 @@
     "sendTestEmail": "Send test email",
     "sendTestPush": "Send test push",
     "testSending": "Sending...",
-    "testFailed": "Something went wrong."
+    "testFailed": "Something went wrong.",
+    "notificationLanguage": "Notification language",
+    "notificationLanguageHint": "Applies to emails and push notifications, independent of the app language.",
+    "pushIosHint": "Push also arrives when the app is closed or you are logged out. On iPhone this only works if you add the page to the Home Screen, open it there, log in and enable push here."
   },
   "recipeConfig": {
     "title": "Recipes & Shopping Lists",
@@ -456,5 +465,19 @@
   "mealPlanning": {
     "title": "Weekly Meal Planning",
     "description": "Decides when the recurring reminder to plan next week’s meals shows up. It also appears as a task on that day; “Plan now” opens the cooking plan."
+  },
+  "cookingStep": {
+    "step": "Step 1",
+    "title": "Meal planning",
+    "explanation": "Plan the week’s meals first — every dish becomes a cooking task you can assign right afterwards.",
+    "none": "Nothing is planned for this week yet.",
+    "drafts_one": "{{count}} dish is planned but has no cooking task yet.",
+    "drafts_other": "{{count}} dishes are planned but have no cooking task yet.",
+    "done_one": "Meal planning is finished ({{count}} dish).",
+    "done_other": "Meal planning is finished ({{count}} dishes).",
+    "open": "Open meal planning",
+    "review": "Review meal planning",
+    "skip": "Skip",
+    "continue": "Continue to household planning"
   }
 }
