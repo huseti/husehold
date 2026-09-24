@@ -61,10 +61,11 @@ graph TD
   end
 
   subgraph Trip["Packing Lists"]
-    UC_t1[Create a trip, add participants]
-    UC_t2[Maintain per-user default items]
-    UC_t3[Check off packed items per person]
-    UC_t4[Browse past trips]
+    UC_t1[Create a packing list, add participants<br/>+ trip dates via a popup]
+    UC_t2[Configure reusable item buckets<br/>-- e.g. "Sommerurlaub"]
+    UC_t3[Add a bucket's items to a list at once]
+    UC_t4[Check off / edit / delete<br/>items on the shared list]
+    UC_t5[Browse past packing lists]
   end
 
   subgraph Vouch["Vouchers"]
@@ -123,6 +124,7 @@ graph TD
   Member --> UC_t2
   Member --> UC_t3
   Member --> UC_t4
+  Member --> UC_t5
   Member --> UC_v1
   Member --> UC_v2
   Member --> UC_v3
@@ -484,7 +486,7 @@ Free dishes (no recipe -- ready meals etc.), leftovers restricted to a slot *aft
 
 `CookingPlanEntry.shopping_added_at` tracks whether a dish's ingredients were already sent to a shopping list -- the shopping-preview dialog now shows "already on the list" and leaves those dishes unticked by default instead of quietly offering to add them again every time the plan is finalized (still tickable to add/top up again on purpose). Shopping list items gained inline editing (title/quantity/unit) -- previously only toggle-complete and delete existed.
 5. **Home dashboard** *(built and deployed 2026-09-24)* — extended beyond the original "My Open Household Tasks" + Overview KPIs + `WeekPreview`, all still frontend-only (no new endpoint, no stored progress field): a combined `TasksPanel` (own open tasks, then the rest of the household's overdue tasks in the same card, so a separate overdue panel wasn't needed), `ProgressPanel` (this week's completion -- overall bar plus one per member, `skipped`/`snoozed` excluded from both numerator and denominator), and `TodaysMealsPanel` (today's `CookingPlanEntry` rows with a one-click "mark cooked" that reuses the existing `taskInstanceService.complete` + rating-prompt flow). Grid is 2x2 (`TasksPanel`, `OverviewPanel`, `ProgressPanel`, `TodaysMealsPanel`) above the untouched `WeekPreview`. `TaskRow` extracted into its own component so the inline complete/skip/snooze actions aren't duplicated between panels.
-6. **Packing Lists** *(built 2026-09-24, not yet deployed; redesigned same day after Tim's feedback)* — `PackingList`/`PackingListParticipant`/`PackingListItem` (one flat, shared checklist per list, not split per participant) plus `PackingBucket`/`PackingBucketItem` (`AuditableMixin`, shared household config, replacing the earlier per-user default-items idea) -- adding a bucket to a list (`PackingListViewSet.add_bucket`) copies its items as a one-time snapshot, editing the bucket template afterward never changes lists it was already added to. `/packing-lists` page mirrors the Shopping List page's UX (pill-tab list picker, inline "Reiseeinstellungen" panel analogous to "Listeneinstellungen", simple add/toggle/edit/delete items), Upcoming/Past pill grouping kept from the original design. Creating a list: type just the name inline, then `CreatePackingListModal` collects the mandatory dates + at least one participant before the list is actually persisted (`PackingListViewSet.perform_create` 400s on zero participants) -- nothing incomplete is ever saved. `/packing-buckets` config screen (reachable via a button on the packing-lists page, not tucked into Settings) manages buckets and their items, mirroring the same list-detail pattern. Navbar link and a dashboard `OverviewPanel` KPI row (upcoming packing-list count). Independent of every other domain, per section 3.
+6. **Packing Lists** *(built and deployed 2026-09-24; redesigned same day after Tim's feedback)* — `PackingList`/`PackingListParticipant`/`PackingListItem` (one flat, shared checklist per list, not split per participant) plus `PackingBucket`/`PackingBucketItem` (`AuditableMixin`, shared household config, replacing the earlier per-user default-items idea) -- adding a bucket to a list (`PackingListViewSet.add_bucket`) copies its items as a one-time snapshot, editing the bucket template afterward never changes lists it was already added to. `/packing-lists` page mirrors the Shopping List page's UX (pill-tab list picker, inline "Reiseeinstellungen" panel analogous to "Listeneinstellungen", simple add/toggle/edit/delete items), Upcoming/Past pill grouping kept from the original design. Creating a list: type just the name inline, then `CreatePackingListModal` collects the mandatory dates + at least one participant before the list is actually persisted (`PackingListViewSet.perform_create` 400s on zero participants) -- nothing incomplete is ever saved. `/packing-buckets` config screen (reachable via a button on the packing-lists page, not tucked into Settings) manages buckets and their items, mirroring the same list-detail pattern. Navbar link and a dashboard `OverviewPanel` KPI row (upcoming packing-list count). A bucket can only be added to a given list once (`PackingList.added_buckets` guards against a second add-bucket call), and item names are deduplicated case-insensitively within a list -- manual add/rename of a duplicate name is rejected (400), a bucket add silently skips items that already match an existing name instead of erroring, since it's a batch operation. Independent of every other domain, per section 3.
 7. **Config screens** — built alongside each domain as it lands.
 8. **Analytics** — pure queries over everything above, including Vouchers.
 9. **Deferred bundle:** Google Calendar one-way sync, recipe import from photo/Instagram. **Notifications built ahead of schedule** (see below) once HTTPS landed on the Pi.
