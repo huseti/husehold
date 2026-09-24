@@ -53,7 +53,21 @@
       "expiringVouchers_one": "{{count}} Gutschein läuft in den nächsten 6 Monaten ab",
       "expiringVouchers_other": "{{count}} Gutscheine laufen in den nächsten 6 Monaten ab"
     },
-    "mealsRow": "Mahlzeiten"
+    "mealsRow": "Mahlzeiten",
+    "householdOverdue": {
+      "title": "Überfällig im Haushalt",
+      "none": "Nichts überfällig — sehr gut."
+    },
+    "progress": {
+      "title": "Fortschritt diese Woche",
+      "overall": "Gesamt"
+    },
+    "todaysMeals": {
+      "title": "Heutige Mahlzeiten",
+      "none": "Für heute nichts geplant.",
+      "markCooked": "Als gekocht markieren",
+      "cooked": "Gekocht"
+    }
   },
   "shoppingList": {
     "title": "Einkaufsliste",

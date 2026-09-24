@@ -478,7 +478,7 @@ Free dishes (no recipe -- ready meals etc.), leftovers restricted to a slot *aft
 ### Further follow-up (2026-09-24, later)
 
 `CookingPlanEntry.shopping_added_at` tracks whether a dish's ingredients were already sent to a shopping list -- the shopping-preview dialog now shows "already on the list" and leaves those dishes unticked by default instead of quietly offering to add them again every time the plan is finalized (still tickable to add/top up again on purpose). Shopping list items gained inline editing (title/quantity/unit) -- previously only toggle-complete and delete existed.
-5. **Home dashboard** — read-only aggregation once there's real data.
+5. **Home dashboard** *(built and deployed 2026-09-24)* — extended beyond the original "My Open Household Tasks" + Overview KPIs + `WeekPreview`, all still frontend-only (no new endpoint, no stored progress field): a combined `TasksPanel` (own open tasks, then the rest of the household's overdue tasks in the same card, so a separate overdue panel wasn't needed), `ProgressPanel` (this week's completion -- overall bar plus one per member, `skipped`/`snoozed` excluded from both numerator and denominator), and `TodaysMealsPanel` (today's `CookingPlanEntry` rows with a one-click "mark cooked" that reuses the existing `taskInstanceService.complete` + rating-prompt flow). Grid is 2x2 (`TasksPanel`, `OverviewPanel`, `ProgressPanel`, `TodaysMealsPanel`) above the untouched `WeekPreview`. `TaskRow` extracted into its own component so the inline complete/skip/snooze actions aren't duplicated between panels.
 6. **Packing Lists** — independent, can slot in anytime.
 7. **Config screens** — built alongside each domain as it lands.
 8. **Analytics** — pure queries over everything above, including Vouchers.

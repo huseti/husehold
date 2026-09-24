@@ -53,7 +53,21 @@
       "expiringVouchers_one": "{{count}} coupon is about to expire in the next 6 months",
       "expiringVouchers_other": "{{count}} coupons are about to expire in the next 6 months"
     },
-    "mealsRow": "Meals"
+    "mealsRow": "Meals",
+    "householdOverdue": {
+      "title": "Overdue in the household",
+      "none": "Nothing overdue — nice."
+    },
+    "progress": {
+      "title": "Progress this week",
+      "overall": "Overall"
+    },
+    "todaysMeals": {
+      "title": "Today's meals",
+      "none": "Nothing planned for today.",
+      "markCooked": "Mark cooked",
+      "cooked": "Cooked"
+    }
   },
   "shoppingList": {
     "title": "Shopping List",
