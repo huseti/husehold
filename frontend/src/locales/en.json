@@ -85,7 +85,8 @@
     "lastBought": "last on {{date}}",
     "reAdd": "Add again",
     "reAdded": "\"{{title}}\" added to \"{{list}}\".",
-    "historyFor": "History of \"{{list}}\" — pick another list above to see its history."
+    "historyFor": "History of \"{{list}}\" — pick another list above to see its history.",
+    "editItem": "Edit item"
   },
   "recipes": {
     "title": "Recipes",
@@ -447,7 +448,8 @@
     "staple": "staple",
     "add": "Add to list ({{count}})",
     "result": "{{created}} added, {{merged}} topped up.",
-    "failed": "Could not add the ingredients. Please try again."
+    "failed": "Could not add the ingredients. Please try again.",
+    "alreadyOnList": "Already on the list"
   },
   "cookingSettings": {
     "title": "Cooking plan settings",

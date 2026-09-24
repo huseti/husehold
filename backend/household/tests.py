@@ -806,6 +806,21 @@ class ShoppingApiTests(TestCase):
         self.assertEqual(cleared.data['deleted'], 1)
         self.assertEqual(second.items.count(), 1)
 
+    def test_item_quantity_unit_and_title_are_editable(self):
+        shopping_list = ShoppingList.objects.first()
+        litre = UnitOfMeasure.objects.get(abbreviation_de='l')
+        item = ShoppingListItem.objects.create(
+            shopping_list=shopping_list, title='Milch', quantity='1', unit=litre, created_by=self.user,
+        )
+
+        response = self.client.patch(f'/api/shopping/{item.id}/', {
+            'title': 'Hafermilch', 'quantity': '2', 'unit': litre.id,
+        }, format='json')
+
+        self.assertEqual(response.status_code, 200)
+        item.refresh_from_db()
+        self.assertEqual((item.title, item.quantity, item.unit), ('Hafermilch', Decimal('2'), litre))
+
 
 class BilingualNamesTests(TestCase):
     def setUp(self):
@@ -1366,6 +1381,32 @@ class CookingShoppingTests(CookingFixtureMixin, TestCase):
 
         self.assertEqual(len(preview), 1)  # not the leftovers, not the already-cooked one
         self.assertEqual((preview[0]['entry'], preview[0]['servings'], preview[0]['lines'][0]['quantity']), (cook['id'], 4, 400.0))
+        self.assertFalse(preview[0]['already_added'])
+
+    def test_adding_ingredients_with_entries_flags_them_as_already_added(self):
+        pasta = self._dish('Pasta', [{'ingredient_name': 'Spaghetti', 'quantity': '200', 'unit': self.gram.id}])
+        cook = self.add_entry(pasta, self.monday, servings=4).data
+
+        self.client.post(f'/api/shopping-lists/{self.list.id}/add-ingredients/', {
+            'lines': [{'ingredient': None, 'title': 'Spaghetti', 'quantity': 800, 'unit': self.gram.id}],
+            'entries': [cook['id']],
+        }, format='json')
+        preview = self.client.get(
+            f'/api/cooking-plan-entries/shopping-preview/?start={self.monday}&end={self.monday + timedelta(days=6)}',
+        ).data
+
+        self.assertTrue(preview[0]['already_added'])
+        self.assertIsNotNone(CookingPlanEntry.objects.get(pk=cook['id']).shopping_added_at)
+
+    def test_adding_without_entries_does_not_flag_anything(self):
+        pasta = self._dish('Pasta', [{'ingredient_name': 'Spaghetti', 'quantity': '200', 'unit': self.gram.id}])
+        cook = self.add_entry(pasta, self.monday, servings=4).data
+
+        self.client.post(f'/api/shopping-lists/{self.list.id}/add-ingredients/', {
+            'lines': [{'ingredient': None, 'title': 'Spaghetti', 'quantity': 800, 'unit': self.gram.id}],
+        }, format='json')
+
+        self.assertIsNone(CookingPlanEntry.objects.get(pk=cook['id']).shopping_added_at)
 
     def test_adding_merges_same_ingredient_and_unit_and_tops_up_open_items(self):
         flour = Ingredient.objects.create(name='Mehl')

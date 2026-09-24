@@ -14,7 +14,10 @@ export default function AddToShoppingDialog({ dishes, onClose, onDone }) {
   const [lists, setLists] = useState([]);
   const [units, setUnits] = useState([]);
   const [listId, setListId] = useState('');
-  const [dishOn, setDishOn] = useState(() => Object.fromEntries(dishes.map((d) => [d.key, true])));
+  // A dish already sent to a list before is left unticked -- shown as
+  // "already on the list" instead of being silently added again -- but can
+  // still be ticked back on to add it (or a changed quantity) once more.
+  const [dishOn, setDishOn] = useState(() => Object.fromEntries(dishes.map((d) => [d.key, !d.already_added])));
   const [lineOn, setLineOn] = useState(() => Object.fromEntries(
     dishes.flatMap((d) => d.lines.map((line, i) => [`${d.key}:${i}`, !line.excluded_by_default])),
   ));
@@ -39,11 +42,13 @@ export default function AddToShoppingDialog({ dishes, onClose, onDone }) {
     }))
     : []));
 
+  const includedEntryIds = dishes.filter((d) => dishOn[d.key] && d.entry).map((d) => d.entry);
+
   const handleAdd = async () => {
     setBusy(true);
     setError('');
     try {
-      const response = await shoppingListService.addIngredients(listId, selectedLines);
+      const response = await shoppingListService.addIngredients(listId, selectedLines, includedEntryIds);
       setResult(response.data);
       onDone?.();
     } catch (err) {
@@ -96,6 +101,11 @@ export default function AddToShoppingDialog({ dishes, onClose, onDone }) {
                       {d.date && ` · ${new Date(`${d.date}T00:00:00`).toLocaleDateString(i18n.language, { weekday: 'short', day: 'numeric', month: 'short' })}`}
                       {d.meal_category_name_de && ` · ${mealName(d, i18n)}`}
                     </span>
+                    {d.already_added && (
+                      <span className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full">
+                        {t('shoppingDialog.alreadyOnList')}
+                      </span>
+                    )}
                   </label>
                   {d.lines.length === 0 ? (
                     <p className="text-sm text-gray-400 mt-2 ml-6">{t('shoppingDialog.noIngredients')}</p>

@@ -203,13 +203,20 @@ class ShoppingListViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'], url_path='add-ingredients')
     def add_ingredients(self, request, pk=None):
-        """Body: {lines: [{ingredient, title, quantity, unit}, ...]} -- the
-        ingredients the user ticked in the cooking plan / recipe dialog. Same
-        ingredient + unit is merged into one item (see cooking_shopping)."""
+        """Body: {lines: [{ingredient, title, quantity, unit}, ...], entries?: [id, ...]}
+        -- the ingredients the user ticked in the cooking plan / recipe dialog.
+        Same ingredient + unit is merged into one item (see cooking_shopping).
+        `entries` (optional) are the cooking-plan dishes these lines came from
+        -- stamped as added so the shopping-preview dialog can show "already
+        on the list" instead of silently offering to add them again."""
         lines = request.data.get('lines')
         if not isinstance(lines, list):
             return Response({'detail': 'lines must be a list.'}, status=status.HTTP_400_BAD_REQUEST)
-        return Response(add_lines_to_list(self.get_object(), lines, request.user))
+        result = add_lines_to_list(self.get_object(), lines, request.user)
+        entry_ids = request.data.get('entries')
+        if isinstance(entry_ids, list) and entry_ids:
+            CookingPlanEntry.objects.filter(id__in=entry_ids).update(shopping_added_at=timezone.now())
+        return Response(result)
 
     @action(detail=True, methods=['post'], url_path='clear-completed')
     def clear_completed(self, request, pk=None):
@@ -500,6 +507,7 @@ class CookingPlanEntryViewSet(viewsets.ModelViewSet):
             extra = {
                 'entry': entry.id, 'date': entry.date.isoformat(), 'meal_category': entry.meal_category_id,
                 'meal_category_name_de': entry.meal_category.name_de, 'meal_category_name_en': entry.meal_category.name_en,
+                'already_added': entry.shopping_added_at is not None,
             }
             if entry.recipe_id:
                 dishes.append(shopping_dish(f'entry-{entry.id}', entry.recipe, entry.servings, **extra))

@@ -23,6 +23,8 @@ export default function ShoppingList() {
   const [showSettings, setShowSettings] = useState(false);
   const [listName, setListName] = useState('');
   const [view, setView] = useState('list');
+  const [editingItemId, setEditingItemId] = useState(null);
+  const [editForm, setEditForm] = useState(emptyItem);
 
   const selected = lists.find((l) => l.id === selectedId) || null;
 
@@ -151,6 +153,25 @@ export default function ShoppingList() {
       reloadItems();
     } catch (error) {
       console.error('Error deleting item:', error);
+    }
+  };
+
+  const startEditItem = (item) => {
+    setEditingItemId(item.id);
+    setEditForm({ title: item.title, quantity: item.quantity ?? '', unit: item.unit ?? '' });
+  };
+
+  const saveEditItem = async () => {
+    try {
+      await shoppingService.update(editingItemId, {
+        title: editForm.title,
+        quantity: editForm.quantity === '' ? null : editForm.quantity,
+        unit: editForm.unit === '' ? null : Number(editForm.unit),
+      });
+      setEditingItemId(null);
+      reloadItems();
+    } catch (error) {
+      console.error('Error updating item:', error);
     }
   };
 
@@ -291,21 +312,56 @@ export default function ShoppingList() {
                 {items.length === 0 && <p className="p-4 text-gray-500">{t('shoppingList.emptyList')}</p>}
                 <ul className="divide-y">
                   {items.map((item) => (
-                    <li key={item.id} className="p-4 flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={item.is_completed}
-                        onChange={() => handleToggle(item.id)}
-                        className="mr-4"
-                      />
-                      <div className={`flex-1 ${item.is_completed ? 'line-through text-gray-400' : ''}`}>
-                        {item.quantity !== null && (
-                          <span className="font-medium">{Number(item.quantity)} {unitLabel(units.find((u) => u.id === item.unit), i18n.language)} </span>
-                        )}
-                        {item.title}
-                        {item.description && <p className="text-sm text-gray-500">{item.description}</p>}
-                      </div>
-                      <button onClick={() => handleDeleteItem(item.id)} className="text-gray-300 hover:text-red-600 px-1" aria-label={t('shoppingList.deleteItem')}>✕</button>
+                    <li key={item.id} className="p-4">
+                      {editingItemId === item.id ? (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <input
+                            type="number" step="any" min="0"
+                            value={editForm.quantity}
+                            onChange={(e) => setEditForm({ ...editForm, quantity: e.target.value })}
+                            className="w-20 px-3 py-1.5 border border-gray-300 rounded-lg"
+                          />
+                          <select
+                            value={editForm.unit}
+                            onChange={(e) => setEditForm({ ...editForm, unit: e.target.value })}
+                            className="w-24 px-2 py-1.5 border border-gray-300 rounded-lg"
+                          >
+                            <option value="">{t('shoppingList.noUnit')}</option>
+                            {units.map((u) => <option key={u.id} value={u.id}>{unitLabel(u, i18n.language)}</option>)}
+                          </select>
+                          <input
+                            type="text"
+                            value={editForm.title}
+                            onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                            className="flex-1 min-w-32 px-3 py-1.5 border border-gray-300 rounded-lg"
+                            required
+                          />
+                          <button onClick={saveEditItem} className="bg-green-600 text-white px-3 py-1.5 rounded hover:bg-green-700 text-sm">
+                            {t('recipes.save')}
+                          </button>
+                          <button onClick={() => setEditingItemId(null)} className="bg-gray-200 text-gray-700 px-3 py-1.5 rounded hover:bg-gray-300 text-sm">
+                            {t('recipes.cancel')}
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={item.is_completed}
+                            onChange={() => handleToggle(item.id)}
+                            className="mr-4"
+                          />
+                          <div className={`flex-1 ${item.is_completed ? 'line-through text-gray-400' : ''}`}>
+                            {item.quantity !== null && (
+                              <span className="font-medium">{Number(item.quantity)} {unitLabel(units.find((u) => u.id === item.unit), i18n.language)} </span>
+                            )}
+                            {item.title}
+                            {item.description && <p className="text-sm text-gray-500">{item.description}</p>}
+                          </div>
+                          <button onClick={() => startEditItem(item)} className="text-gray-300 hover:text-blue-600 px-1" aria-label={t('shoppingList.editItem')}>✎</button>
+                          <button onClick={() => handleDeleteItem(item.id)} className="text-gray-300 hover:text-red-600 px-1" aria-label={t('shoppingList.deleteItem')}>✕</button>
+                        </div>
+                      )}
                     </li>
                   ))}
                 </ul>

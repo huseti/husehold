@@ -85,7 +85,8 @@
     "lastBought": "zuletzt am {{date}}",
     "reAdd": "Erneut hinzufügen",
     "reAdded": "„{{title}}“ zu „{{list}}“ hinzugefügt.",
-    "historyFor": "Verlauf von „{{list}}“ — wähle oben eine andere Liste, um deren Verlauf zu sehen."
+    "historyFor": "Verlauf von „{{list}}“ — wähle oben eine andere Liste, um deren Verlauf zu sehen.",
+    "editItem": "Artikel bearbeiten"
   },
   "recipes": {
     "title": "Rezepte",
@@ -447,7 +448,8 @@
     "staple": "Grundzutat",
     "add": "Zur Liste hinzufügen ({{count}})",
     "result": "{{created}} neu hinzugefügt, {{merged}} ergänzt.",
-    "failed": "Das Hinzufügen hat nicht geklappt. Bitte erneut versuchen."
+    "failed": "Das Hinzufügen hat nicht geklappt. Bitte erneut versuchen.",
+    "alreadyOnList": "Bereits auf der Liste"
   },
   "cookingSettings": {
     "title": "Einstellungen für den Kochplan",

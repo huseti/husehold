@@ -80,7 +80,9 @@ export const shoppingListService = {
   update: (id, data) => api.patch(`/shopping-lists/${id}/`, data),
   delete: (id) => api.delete(`/shopping-lists/${id}/`),
   clearCompleted: (id) => api.post(`/shopping-lists/${id}/clear-completed/`),
-  addIngredients: (id, lines) => api.post(`/shopping-lists/${id}/add-ingredients/`, { lines }),
+  addIngredients: (id, lines, entries) => api.post(`/shopping-lists/${id}/add-ingredients/`, {
+    lines, ...(entries?.length ? { entries } : {}),
+  }),
 };
 
 export const purchaseService = {

@@ -237,6 +237,11 @@ class CookingPlanEntry(models.Model):
     )
     servings = models.PositiveIntegerField(default=2)
     notes = models.CharField(max_length=200, blank=True)
+    # Set when this dish's ingredients (or its free-dish name) were sent to a
+    # shopping list -- lets the shopping-preview dialog show "already on the
+    # list" instead of silently offering to add it again every time the plan
+    # is finalized. Not cleared on re-add; only ever moves forward.
+    shopping_added_at = models.DateTimeField(null=True, blank=True)
     # CASCADE on purpose: deleting the cook task from the household plan takes
     # the dish out of the meal plan too ("one entry = one task").
     task_instance = models.OneToOneField(
