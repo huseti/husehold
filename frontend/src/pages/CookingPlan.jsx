@@ -26,9 +26,20 @@ export default function CookingPlan() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  // Planning only ever makes sense for the current or the next week --
+  // anything earlier is already history, and further out there's nothing
+  // yet to react to (ratings, what's already been eaten this week, ...).
+  const thisWeekStart = getWeekStart(new Date());
+  const nextWeekStart = addDays(thisWeekStart, 7);
+  const clampToPlannableWeek = (date) => (
+    toISODate(date) < toISODate(thisWeekStart) ? thisWeekStart
+      : toISODate(date) > toISODate(nextWeekStart) ? nextWeekStart
+        : date
+  );
+
   const [weekStart, setWeekStart] = useState(() => {
     const planWeek = searchParams.get('planWeek');
-    return planWeek ? parseISODate(planWeek) : getWeekStart(new Date());
+    return clampToPlannableWeek(planWeek ? parseISODate(planWeek) : thisWeekStart);
   });
   const [planInstanceId, setPlanInstanceId] = useState(() => {
     const id = searchParams.get('planInstance');
@@ -212,9 +223,17 @@ export default function CookingPlan() {
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <h2 className="text-3xl font-bold">{t('cookingPlan.title')}</h2>
           <div className="flex items-center gap-2">
-            <button onClick={() => setWeekStart(addDays(weekStart, -7))} className="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300">←</button>
+            <button
+              onClick={() => setWeekStart(thisWeekStart)}
+              disabled={toISODate(weekStart) === toISODate(thisWeekStart)}
+              className="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-40 disabled:cursor-not-allowed"
+            >←</button>
             <span className="text-sm text-gray-600">{rangeLabel}</span>
-            <button onClick={() => setWeekStart(addDays(weekStart, 7))} className="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300">→</button>
+            <button
+              onClick={() => setWeekStart(nextWeekStart)}
+              disabled={toISODate(weekStart) === toISODate(nextWeekStart)}
+              className="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-40 disabled:cursor-not-allowed"
+            >→</button>
           </div>
         </div>
 
