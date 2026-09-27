@@ -8,6 +8,7 @@ import TaskDefinitionForm from '../components/TaskDefinitionForm';
 import AddSingleTaskForm from '../components/AddSingleTaskForm';
 import CookRatingPrompt from '../components/CookRatingPrompt';
 import CookingStepModal from '../components/CookingStepModal';
+import GearIcon from '../components/icons/gearIcon';
 import { getWeekStart, toISODate, addDays, parseISODate } from '../utils/weekDates';
 
 export default function Tasks() {
@@ -225,8 +226,13 @@ export default function Tasks() {
               >
                 {t('weeklyPlanning.startNow')}
               </button>
-              <button onClick={() => setMode('config')} className="px-3 py-1 rounded bg-blue-500 text-white hover:bg-blue-600">
-                {t('tasks.manageRecurringTasks')}
+              <button
+                onClick={() => setMode('config')}
+                className="ml-1 text-gray-500 hover:text-gray-800 text-xl p-1"
+                title={t('common.configure')}
+                aria-label={t('common.configure')}
+              >
+                <GearIcon />
               </button>
             </div>
           )}

@@ -532,6 +532,9 @@ class PackingList(models.Model):
     # to the same list -- the items it copied in are independent afterward
     # (see PackingBucket's docstring), this is just a one-time-add guard.
     added_buckets = models.ManyToManyField('PackingBucket', blank=True, related_name='+')
+    # Manual archive, same convention as Voucher -- independent of the
+    # upcoming/past date split, toggled via PackingListViewSet.toggle_archived.
+    is_archived = models.BooleanField(default=False)
 
     class Meta:
         ordering = ['-start_date']

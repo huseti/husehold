@@ -10,7 +10,6 @@ export default function RecipeConfig() {
 
   return (
     <div className="bg-white rounded-lg shadow p-6 mb-8">
-      <h3 className="text-xl font-semibold mb-1">{t('recipeConfig.title')}</h3>
       <p className="text-sm text-gray-500 mb-3">{t('recipeConfig.hint')}</p>
 
       <LookupEditor

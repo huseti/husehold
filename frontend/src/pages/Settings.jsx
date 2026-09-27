@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import Navbar from '../components/Navbar';
-import RecipeConfig from '../components/RecipeConfig';
 import {
   householdSettingsService, notificationPreferenceService, pushSubscriptionService, notificationTestService,
   memberService,
@@ -301,8 +300,6 @@ export default function Settings() {
             </p>
           )}
         </div>
-
-        <RecipeConfig />
 
         <p className="text-gray-600">{t('settings.comingSoon')}</p>
       </main>

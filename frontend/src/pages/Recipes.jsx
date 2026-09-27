@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 import {
   recipeService, mealEventService, unitService, ingredientService, labelService, mealCategoryService,
 } from '../services/api';
@@ -8,6 +9,7 @@ import StarRating from '../components/StarRating';
 import RecipeForm from '../components/RecipeForm';
 import RecipeDetail from '../components/RecipeDetail';
 import AddToShoppingDialog from '../components/AddToShoppingDialog';
+import GearIcon from '../components/icons/gearIcon';
 import { localizedName } from '../utils/localized';
 
 export default function Recipes() {
@@ -142,12 +144,22 @@ export default function Recipes() {
       <main className="max-w-4xl mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-3xl font-bold">{t('recipes.title')}</h2>
-          <button
-            onClick={() => setMode({ type: 'edit', recipe: null })}
-            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-          >
-            + {t('recipes.newButton')}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setMode({ type: 'edit', recipe: null })}
+              className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+            >
+              + {t('recipes.newButton')}
+            </button>
+            <Link
+              to="/recipe-shopping-config"
+              className="text-gray-500 hover:text-gray-800 text-xl p-2"
+              title={t('common.configure')}
+              aria-label={t('common.configure')}
+            >
+              <GearIcon />
+            </Link>
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-3 mb-6">

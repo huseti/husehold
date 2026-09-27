@@ -12,6 +12,7 @@ import Vouchers from './pages/Vouchers';
 import PackingLists from './pages/PackingLists';
 import PackingBuckets from './pages/PackingBuckets';
 import Analytics from './pages/Analytics';
+import RecipeShoppingConfig from './pages/RecipeShoppingConfig';
 import Settings from './pages/Settings';
 
 function App() {
@@ -45,6 +46,7 @@ function App() {
             <Route path="/packing-lists" element={<PackingLists />} />
             <Route path="/packing-buckets" element={<PackingBuckets />} />
             <Route path="/analytics" element={<Analytics />} />
+            <Route path="/recipe-shopping-config" element={<RecipeShoppingConfig />} />
             <Route path="/settings" element={<Settings />} />
           </>
         ) : (

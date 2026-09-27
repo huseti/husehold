@@ -1866,6 +1866,16 @@ class PackingListTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(packing_list.items.count(), 1)
 
+    def test_toggle_archived_on_a_packing_list(self):
+        packing_list = PackingList.objects.create(name='Beach week', start_date=self.today, end_date=self.today)
+
+        archived = self.client.post(f'/api/packing-lists/{packing_list.id}/toggle-archived/')
+        self.assertEqual(archived.status_code, 200)
+        self.assertTrue(archived.data['is_archived'])
+
+        unarchived = self.client.post(f'/api/packing-lists/{packing_list.id}/toggle-archived/')
+        self.assertFalse(unarchived.data['is_archived'])
+
     def test_add_bucket_skips_items_that_duplicate_an_existing_item_by_name(self):
         bucket = PackingBucket.objects.create(name='Sommerurlaub')
         PackingBucketItem.objects.create(bucket=bucket, text='sonnencreme')

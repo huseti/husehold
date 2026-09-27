@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 import {
   shoppingService, shoppingListService, unitService, ingredientService,
 } from '../services/api';
 import Navbar from '../components/Navbar';
 import PurchaseHistory from '../components/PurchaseHistory';
+import GearIcon from '../components/icons/gearIcon';
 import { unitLabel } from '../utils/localized';
 
 const emptyItem = { title: '', quantity: '', unit: '' };
@@ -195,7 +197,17 @@ export default function ShoppingList() {
       <Navbar />
 
       <main className="max-w-4xl mx-auto px-4 py-8">
-        <h2 className="text-3xl font-bold mb-6">{t('shoppingList.title')}</h2>
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-3xl font-bold">{t('shoppingList.title')}</h2>
+          <Link
+            to="/recipe-shopping-config"
+            className="text-gray-500 hover:text-gray-800 text-xl p-2"
+            title={t('common.configure')}
+            aria-label={t('common.configure')}
+          >
+            <GearIcon />
+          </Link>
+        </div>
 
         <div className="flex gap-6 border-b mb-6">
           {['list', 'history'].map((tab) => (

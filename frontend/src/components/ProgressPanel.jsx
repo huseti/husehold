@@ -12,6 +12,7 @@ export default function ProgressPanel({ weekDone, weekTotal, members, weekTasks 
       id: member.user.id,
       name: member.user.first_name || member.user.username,
       color: member.color_hex,
+      avatar: member.avatar,
       done: mine.filter((task) => task.status === 'done').length,
       total: mine.length,
     };
@@ -29,12 +30,25 @@ export default function ProgressPanel({ weekDone, weekTotal, members, weekTasks 
       </div>
       <ul className="space-y-2">
         {perMember.map((member) => (
-          <li key={member.id}>
-            <div className="flex justify-between text-xs text-gray-500 mb-1">
-              <span>{member.name}</span>
-              <span>{member.done}/{member.total}</span>
+          <li key={member.id} className="flex items-center gap-2">
+            <span
+              className="h-6 w-6 rounded-full overflow-hidden flex items-center justify-center text-[10px] text-white font-semibold flex-shrink-0"
+              style={{ backgroundColor: member.color }}
+              title={member.name}
+            >
+              {member.avatar ? (
+                <img src={member.avatar} alt={member.name} className="h-full w-full object-cover" />
+              ) : (
+                member.name?.[0]?.toUpperCase()
+              )}
+            </span>
+            <div className="flex-1 min-w-0">
+              <div className="flex justify-between text-xs text-gray-500 mb-1">
+                <span>{member.name}</span>
+                <span>{member.done}/{member.total}</span>
+              </div>
+              <ProgressBar done={member.done} total={member.total} colorHex={member.color} />
             </div>
-            <ProgressBar done={member.done} total={member.total} colorHex={member.color} />
           </li>
         ))}
       </ul>

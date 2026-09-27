@@ -6,6 +6,7 @@ import {
 } from '../services/api';
 import Navbar from '../components/Navbar';
 import CreatePackingListModal from '../components/CreatePackingListModal';
+import GearIcon from '../components/icons/gearIcon';
 import { toISODate } from '../utils/weekDates';
 
 function errorMessage(error) {
@@ -183,6 +184,17 @@ export default function PackingLists() {
     }
   };
 
+  const handleToggleArchive = async () => {
+    setError('');
+    try {
+      await packingListService.toggleArchived(selectedId);
+      await reloadLists();
+    } catch (err) {
+      console.error('Error archiving packing list:', err);
+      setError(errorMessage(err));
+    }
+  };
+
   const handleAddBucket = async (e) => {
     e.preventDefault();
     if (!bucketToAdd) return;
@@ -203,15 +215,17 @@ export default function PackingLists() {
 
   const todayISO = toISODate(new Date());
   const byStartAsc = (a, b) => a.start_date.localeCompare(b.start_date);
-  const upcoming = lists.filter((l) => l.end_date >= todayISO).sort(byStartAsc);
-  const past = lists.filter((l) => l.end_date < todayISO).sort((a, b) => byStartAsc(b, a));
+  const active = lists.filter((l) => !l.is_archived);
+  const upcoming = active.filter((l) => l.end_date >= todayISO).sort(byStartAsc);
+  const past = active.filter((l) => l.end_date < todayISO).sort((a, b) => byStartAsc(b, a));
+  const archived = lists.filter((l) => l.is_archived).sort((a, b) => byStartAsc(b, a));
   const availableBuckets = selected ? buckets.filter((b) => !selected.added_bucket_ids.includes(b.id)) : [];
 
   const renderPill = (list) => (
     <button
       key={list.id}
       onClick={() => { setSelectedId(list.id); setShowSettings(false); }}
-      className={`px-4 py-2 rounded-full text-sm border ${list.id === selectedId ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'}`}
+      className={`px-4 py-2 rounded-full text-sm border ${list.id === selectedId ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'} ${list.is_archived ? 'opacity-60' : ''}`}
     >
       {list.name}
     </button>
@@ -224,8 +238,13 @@ export default function PackingLists() {
       <main className="max-w-4xl mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-3xl font-bold">{t('packingLists.title')}</h2>
-          <Link to="/packing-buckets" className="text-sm text-blue-600 hover:underline">
-            {t('packingLists.manageBuckets')}
+          <Link
+            to="/packing-buckets"
+            className="text-gray-500 hover:text-gray-800 text-xl p-2"
+            title={t('common.configure')}
+            aria-label={t('common.configure')}
+          >
+            <GearIcon />
           </Link>
         </div>
 
@@ -246,6 +265,17 @@ export default function PackingLists() {
               {past.map(renderPill)}
             </div>
           </div>
+        )}
+
+        {archived.length > 0 && (
+          <details className="mb-4">
+            <summary className="text-sm font-medium text-gray-500 cursor-pointer">
+              {t('packingLists.archived')} ({archived.length})
+            </summary>
+            <div className="flex flex-wrap items-center gap-2 mt-2">
+              {archived.map(renderPill)}
+            </div>
+          </details>
         )}
 
         <form onSubmit={openCreateModal} className="flex gap-2 mb-8">
@@ -320,9 +350,14 @@ export default function PackingLists() {
                     })}
                   </div>
                 </div>
-                <button onClick={handleDeleteList} className="text-sm text-red-600 hover:underline">
-                  {t('packingLists.deleteList')}
-                </button>
+                <div className="flex gap-4">
+                  <button onClick={handleToggleArchive} className="text-sm text-gray-600 hover:underline">
+                    {selected.is_archived ? t('packingLists.unarchive') : t('packingLists.archive')}
+                  </button>
+                  <button onClick={handleDeleteList} className="text-sm text-red-600 hover:underline">
+                    {t('packingLists.deleteList')}
+                  </button>
+                </div>
               </div>
             )}
 

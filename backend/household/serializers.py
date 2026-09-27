@@ -311,7 +311,7 @@ class PackingListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PackingList
-        fields = ('id', 'name', 'start_date', 'end_date', 'participants', 'items', 'added_bucket_ids')
+        fields = ('id', 'name', 'start_date', 'end_date', 'is_archived', 'participants', 'items', 'added_bucket_ids')
 
 class PackingBucketItemSerializer(serializers.ModelSerializer):
     class Meta:

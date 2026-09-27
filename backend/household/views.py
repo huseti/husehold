@@ -670,6 +670,13 @@ class PackingListViewSet(viewsets.ModelViewSet):
         packing_list.added_buckets.add(bucket)
         return Response(PackingListSerializer(packing_list).data)
 
+    @action(detail=True, methods=['post'], url_path='toggle-archived')
+    def toggle_archived(self, request, pk=None):
+        packing_list = self.get_object()
+        packing_list.is_archived = not packing_list.is_archived
+        packing_list.save()
+        return Response(PackingListSerializer(packing_list).data)
+
 class PackingListItemViewSet(viewsets.ModelViewSet):
     serializer_class = PackingListItemSerializer
     permission_classes = [permissions.IsAuthenticated]

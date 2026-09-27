@@ -6,7 +6,8 @@
     "editImage": "Edit Image",
     "systemSettings": "System Settings",
     "removeImage": "Remove photo",
-    "uploadNewPhoto": "Upload new photo"
+    "uploadNewPhoto": "Upload new photo",
+    "configure": "Configure"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -17,6 +18,7 @@
     "vouchers": "Vouchers",
     "packingLists": "Packing Lists",
     "analytics": "Analytics",
+    "more": "More",
     "settings": "Settings"
   },
   "login": {
@@ -54,8 +56,8 @@
       "overdueTasks_other": "{{count}} overdue tasks",
       "expiringVouchers_one": "{{count}} coupon is about to expire in the next 6 months",
       "expiringVouchers_other": "{{count}} coupons are about to expire in the next 6 months",
-      "upcomingPackingLists_one": "{{count}} upcoming packing list",
-      "upcomingPackingLists_other": "{{count}} upcoming packing lists"
+      "upcomingPackingLists_one": "{{count}} upcoming trip",
+      "upcomingPackingLists_other": "{{count}} upcoming trips"
     },
     "mealsRow": "Meals",
     "householdOverdue": {
@@ -396,6 +398,9 @@
     "createFailed": "Could not create the list. Please try again.",
     "upcoming": "Upcoming",
     "past": "Past",
+    "archived": "Archive",
+    "archive": "Archive",
+    "unarchive": "Unarchive",
     "noUpcomingLists": "No upcoming packing lists yet -- add one above.",
     "noLists": "No packing list selected.",
     "listSettings": "Trip settings",

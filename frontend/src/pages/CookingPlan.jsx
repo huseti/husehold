@@ -10,6 +10,7 @@ import CookingEntryCard from '../components/CookingEntryCard';
 import RecipePicker from '../components/RecipePicker';
 import AddToShoppingDialog from '../components/AddToShoppingDialog';
 import CookingPlanSettings from '../components/CookingPlanSettings';
+import GearIcon from '../components/icons/gearIcon';
 import { localizedName } from '../utils/localized';
 import { slotKey } from '../utils/mealSlots';
 import { getWeekStart, toISODate, addDays, parseISODate } from '../utils/weekDates';
@@ -220,7 +221,7 @@ export default function CookingPlan() {
       <Navbar />
 
       <main className="max-w-4xl mx-auto px-4 py-8">
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
           <h2 className="text-3xl font-bold">{t('cookingPlan.title')}</h2>
           <div className="flex items-center gap-2">
             <button
@@ -234,6 +235,17 @@ export default function CookingPlan() {
               disabled={toISODate(weekStart) === toISODate(nextWeekStart)}
               className="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-40 disabled:cursor-not-allowed"
             >→</button>
+            <button onClick={handleFinish} className="ml-2 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+              {draftCount > 0 ? t('cookingPlan.finishWithCount', { count: draftCount }) : t('cookingPlan.finish')}
+            </button>
+            <button
+              onClick={() => setShowSettings((v) => !v)}
+              className="text-gray-500 hover:text-gray-800 text-xl p-2"
+              title={t('common.configure')}
+              aria-label={t('common.configure')}
+            >
+              <GearIcon />
+            </button>
           </div>
         </div>
 
@@ -251,15 +263,6 @@ export default function CookingPlan() {
             {t('cookingPlan.planningBanner', { range: rangeLabel })}
           </div>
         )}
-
-        <div className="flex flex-wrap gap-2 mb-6">
-          <button onClick={handleFinish} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
-            {draftCount > 0 ? t('cookingPlan.finishWithCount', { count: draftCount }) : t('cookingPlan.finish')}
-          </button>
-          <button onClick={() => setShowSettings((v) => !v)} className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300">
-            {t('cookingPlan.settings')}
-          </button>
-        </div>
 
         {notice && (
           <p className={`text-sm mb-4 ${notice.error ? 'text-red-600' : 'text-green-700'}`}>
