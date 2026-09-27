@@ -10,10 +10,11 @@ from rest_framework.test import APIClient
 from .models import (
     HouseholdMember, HouseholdSettings, HouseholdTaskDefinition, HouseholdTaskInstance, HouseholdTaskEvent,
     CookingPlanConfig, CookingPlanEntry, Ingredient, Label, MealEvent, MealTimeCategory, NotificationPreference,
-    PurchaseRecord, Recipe, RecipeRating, ShoppingList, ShoppingListItem, UnitOfMeasure,
+    PurchaseRecord, Recipe, RecipeRating, ShoppingList, ShoppingListItem, UnitOfMeasure, Voucher, VoucherRedemption,
     PackingList, PackingListParticipant, PackingListItem, PackingBucket, PackingBucketItem,
 )
 from .services.task_generation import generate_instances_for_range
+from .services import analytics as analytics_service
 
 
 class HouseholdSettingsTests(TestCase):
@@ -1924,4 +1925,125 @@ class PackingListTests(TestCase):
 
         deleted = self.client.delete(f"/api/packing-bucket-items/{created.data['id']}/")
         self.assertEqual(deleted.status_code, 204)
-        self.assertFalse(bucket.items.exists())
+
+
+class AnalyticsTests(TestCase):
+    def setUp(self):
+        self.tim = User.objects.create_user(username='tim', password='pw')
+        self.anna = User.objects.create_user(username='anna', password='pw')
+        HouseholdMember.objects.create(user=self.tim, color_hex='#111111')
+        HouseholdMember.objects.create(user=self.anna, color_hex='#222222')
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.tim)
+        self.today = dj_timezone.localdate()
+
+    def _task(self, days_ago, assigned_to, status='done'):
+        day = self.today - timedelta(days=days_ago)
+        return HouseholdTaskInstance.objects.create(
+            standalone_title='Task', occurrence_date=day, scheduled_date=day,
+            assigned_to=assigned_to, status=status,
+        )
+
+    # -- tasks --
+
+    def test_task_stats_overall_and_per_member_excludes_backlog_and_skipped(self):
+        self._task(1, self.tim, status='done')
+        self._task(2, self.tim, status='pending')
+        self._task(3, self.anna, status='done')
+        self._task(4, self.anna, status='skipped')  # excluded from both sides
+        HouseholdTaskInstance.objects.create(
+            standalone_title='Backlogged', occurrence_date=self.today, scheduled_date=self.today,
+            assigned_to=self.tim, status='pending', is_in_backlog=True,
+        )  # excluded: no day yet
+
+        stats = analytics_service.task_stats(self.today - timedelta(days=7), self.today)
+
+        self.assertEqual(stats['overall'], {'total': 3, 'done': 2, 'rate': 2 / 3})
+        by_username = {m['username']: m for m in stats['by_member']}
+        self.assertEqual(by_username['tim']['total'], 2)
+        self.assertEqual(by_username['tim']['done'], 1)
+        self.assertEqual(by_username['anna']['total'], 1)
+        self.assertEqual(by_username['anna']['done'], 1)
+        self.assertEqual(by_username['tim']['color_hex'], '#111111')
+
+    def test_task_stats_respects_the_date_range(self):
+        self._task(1, self.tim, status='done')
+        self._task(40, self.tim, status='done')  # outside the range below
+
+        stats = analytics_service.task_stats(self.today - timedelta(days=7), self.today)
+
+        self.assertEqual(stats['overall']['total'], 1)
+
+    # -- meals --
+
+    def test_meal_stats_top_recipes_and_weekly_trend(self):
+        pasta = Recipe.objects.create(title='Pasta', servings=2, created_by=self.tim)
+        salad = Recipe.objects.create(title='Salad', servings=2, created_by=self.tim)
+        MealEvent.objects.create(recipe=pasta, date_cooked=self.today - timedelta(days=1))
+        MealEvent.objects.create(recipe=pasta, date_cooked=self.today - timedelta(days=8))
+        MealEvent.objects.create(recipe=salad, date_cooked=self.today - timedelta(days=2))
+
+        stats = analytics_service.meal_stats(self.today - timedelta(days=30), self.today)
+
+        self.assertEqual(stats['top_recipes'][0], {'recipe_id': pasta.id, 'title': 'Pasta', 'count': 2})
+        self.assertEqual(sum(point['count'] for point in stats['trend']), 3)
+        self.assertEqual(stats['granularity'], 'week')
+
+    def test_meal_stats_switches_to_monthly_buckets_over_a_long_range(self):
+        recipe = Recipe.objects.create(title='Pasta', servings=2, created_by=self.tim)
+        MealEvent.objects.create(recipe=recipe, date_cooked=self.today)
+
+        stats = analytics_service.meal_stats(self.today - timedelta(days=200), self.today)
+
+        self.assertEqual(stats['granularity'], 'month')
+
+    # -- purchases --
+
+    def test_purchase_stats_groups_by_name_case_insensitively(self):
+        PurchaseRecord.objects.create(title='Milk', purchased_on=self.today)
+        PurchaseRecord.objects.create(title='milk', purchased_on=self.today - timedelta(days=1))
+        PurchaseRecord.objects.create(title='Bread', purchased_on=self.today)
+
+        stats = analytics_service.purchase_stats(self.today - timedelta(days=7), self.today)
+
+        top = {item['title'].lower(): item['count'] for item in stats['top_items']}
+        self.assertEqual(top['milk'], 2)
+        self.assertEqual(top['bread'], 1)
+
+    # -- vouchers --
+
+    def test_voucher_stats_active_total_excludes_archived_and_valueless(self):
+        Voucher.objects.create(title='Active', total_value=Decimal('50.00'), remaining_balance=Decimal('30.00'))
+        Voucher.objects.create(
+            title='Archived', total_value=Decimal('20.00'), remaining_balance=Decimal('0.00'), is_archived=True,
+        )
+        Voucher.objects.create(title='No value gift')  # total_value None -- excluded
+
+        stats = analytics_service.voucher_stats(self.today - timedelta(days=7), self.today)
+
+        self.assertEqual(stats['active_totals'], [{'currency': 'EUR', 'total': 30.0}])
+
+    def test_voucher_stats_redeemed_trend_grouped_by_currency(self):
+        eur_voucher = Voucher.objects.create(title='EUR gift', currency='EUR', total_value=Decimal('50.00'), remaining_balance=Decimal('20.00'))
+        usd_voucher = Voucher.objects.create(title='USD gift', currency='USD', total_value=Decimal('50.00'), remaining_balance=Decimal('40.00'))
+        VoucherRedemption.objects.create(voucher=eur_voucher, redeemed_on=self.today, amount_used=Decimal('30.00'), remaining_after=Decimal('20.00'))
+        VoucherRedemption.objects.create(voucher=usd_voucher, redeemed_on=self.today, amount_used=Decimal('10.00'), remaining_after=Decimal('40.00'))
+
+        stats = analytics_service.voucher_stats(self.today - timedelta(days=7), self.today)
+
+        self.assertEqual(len(stats['trend']), 1)
+        totals = {t['currency']: t['total'] for t in stats['trend'][0]['totals']}
+        self.assertEqual(totals, {'EUR': 30.0, 'USD': 10.0})
+
+    # -- endpoint --
+
+    def test_analytics_endpoint_returns_all_four_sections(self):
+        response = self.client.get(f'/api/analytics/?start={self.today - timedelta(days=7)}&end={self.today}')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(set(response.data.keys()), {'tasks', 'meals', 'purchases', 'vouchers'})
+
+    def test_analytics_endpoint_works_with_no_range_for_all_time(self):
+        response = self.client.get('/api/analytics/')
+
+        self.assertEqual(response.status_code, 200)

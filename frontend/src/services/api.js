@@ -244,4 +244,8 @@ export const packingBucketItemService = {
   delete: (id) => api.delete(`/packing-bucket-items/${id}/`),
 };
 
+export const analyticsService = {
+  get: (start, end) => api.get('/analytics/', { params: { start, end } }),
+};
+
 export default api;

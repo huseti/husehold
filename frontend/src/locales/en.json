@@ -16,6 +16,7 @@
     "tasks": "Household Plan",
     "vouchers": "Vouchers",
     "packingLists": "Packing Lists",
+    "analytics": "Analytics",
     "settings": "Settings"
   },
   "login": {
@@ -496,6 +497,34 @@
     "addButton": "Add",
     "deleteItem": "Delete",
     "emptyBucket": "No items in this bucket yet."
+  },
+  "analytics": {
+    "title": "Analytics",
+    "loadFailed": "Could not load the stats. Please try again.",
+    "noData": "No data yet in this period.",
+    "tasks": {
+      "title": "Household Tasks",
+      "overall": "{{done}} of {{total}} done ({{rate}}%)"
+    },
+    "meals": {
+      "title": "Cooking Plan",
+      "topRecipes": "Most-cooked recipes",
+      "trend": "Meals over time",
+      "timesCooked_one": "cooked {{count}}×",
+      "timesCooked_other": "cooked {{count}}×"
+    },
+    "purchases": {
+      "title": "Shopping",
+      "topItems": "Most-bought items",
+      "trend": "Purchases over time",
+      "timesBought_one": "bought {{count}}×",
+      "timesBought_other": "bought {{count}}×"
+    },
+    "vouchers": {
+      "title": "Vouchers",
+      "activeTotal": "Current total value of active vouchers",
+      "redeemedTrend": "Redeemed value over time"
+    }
   },
   "shoppingDialog": {
     "title": "Ingredients to shopping list",

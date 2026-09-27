@@ -33,6 +33,7 @@ from .serializers import (
 )
 from .services.task_generation import generate_instances_for_range, monday_of_week_as_datetime
 from .services.cooking_suggestions import build_suggestions
+from .services.analytics import build_analytics
 from .services.cooking_shopping import add_lines_to_list, dish as shopping_dish, free_dish
 from .services.cooking_tasks import (
     finalize_range, follow_snooze, get_cooking_entry, leftovers_out_of_order, log_cooked, restore_after_unsnooze,
@@ -445,6 +446,17 @@ class CookingSuggestionsView(APIView):
             return Response({'detail': 'meal must be the id of a meal category.'}, status=status.HTTP_400_BAD_REQUEST)
         exclude = [int(x) for x in request.query_params.get('exclude', '').split(',') if x.strip().isdigit()]
         return Response(build_suggestions(int(meal), exclude, seed=request.query_params.get('seed')))
+
+class AnalyticsView(APIView):
+    """GET ?start=&end= (inclusive, either or both omittable for an open
+    range) -- household stats across tasks, meals, purchases and vouchers.
+    See services.analytics for the actual queries."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        start = parse_date(request.query_params.get('start') or '')
+        end = parse_date(request.query_params.get('end') or '')
+        return Response(build_analytics(start, end))
 
 class CookingPlanEntryViewSet(viewsets.ModelViewSet):
     """The weekly meal plan. Filter with ?start=&end= (inclusive days).

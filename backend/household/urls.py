@@ -8,6 +8,7 @@ from .views import (
     NotificationPreferencesView, PushSubscriptionViewSet, VapidPublicKeyView,
     TestEmailNotificationView, TestPushNotificationView,
     PackingListViewSet, PackingListItemViewSet, PackingBucketViewSet, PackingBucketItemViewSet,
+    AnalyticsView,
 )
 
 router = DefaultRouter()
@@ -35,6 +36,7 @@ router.register(r'packing-bucket-items', PackingBucketItemViewSet, basename='pac
 urlpatterns = [
     path('cooking-plan-config/', CookingPlanConfigView.as_view(), name='cooking-plan-config'),
     path('cooking-suggestions/', CookingSuggestionsView.as_view(), name='cooking-suggestions'),
+    path('analytics/', AnalyticsView.as_view(), name='analytics'),
     path('household-settings/', HouseholdSettingsView.as_view(), name='household-settings'),
     path('notification-preferences/', NotificationPreferencesView.as_view(), name='notification-preferences'),
     path('vapid-public-key/', VapidPublicKeyView.as_view(), name='vapid-public-key'),

@@ -20,6 +20,7 @@ export default function Navbar() {
           <Link to="/tasks" className="text-gray-600 hover:text-gray-900">{t('nav.tasks')}</Link>
           <Link to="/vouchers" className="text-gray-600 hover:text-gray-900">{t('nav.vouchers')}</Link>
           <Link to="/packing-lists" className="text-gray-600 hover:text-gray-900">{t('nav.packingLists')}</Link>
+          <Link to="/analytics" className="text-gray-600 hover:text-gray-900">{t('nav.analytics')}</Link>
         </div>
         {/* Pinned outside the scrollable link row above so it stays visible
             on narrow screens instead of scrolling off with the rest. */}

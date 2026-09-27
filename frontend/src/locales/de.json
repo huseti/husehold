@@ -16,6 +16,7 @@
     "tasks": "Haushaltsplan",
     "vouchers": "Gutscheine",
     "packingLists": "Packlisten",
+    "analytics": "Statistiken",
     "settings": "Einstellungen"
   },
   "login": {
@@ -496,6 +497,34 @@
     "addButton": "Hinzufügen",
     "deleteItem": "Löschen",
     "emptyBucket": "Noch keine Gegenstände in diesem Bucket."
+  },
+  "analytics": {
+    "title": "Statistiken",
+    "loadFailed": "Statistiken konnten nicht geladen werden. Bitte erneut versuchen.",
+    "noData": "Noch keine Daten in diesem Zeitraum.",
+    "tasks": {
+      "title": "Haushaltsaufgaben",
+      "overall": "{{done}} von {{total}} erledigt ({{rate}}%)"
+    },
+    "meals": {
+      "title": "Kochplan",
+      "topRecipes": "Meistgekochte Rezepte",
+      "trend": "Mahlzeiten über Zeit",
+      "timesCooked_one": "{{count}}× gekocht",
+      "timesCooked_other": "{{count}}× gekocht"
+    },
+    "purchases": {
+      "title": "Einkauf",
+      "topItems": "Meistgekaufte Artikel",
+      "trend": "Einkäufe über Zeit",
+      "timesBought_one": "{{count}}× gekauft",
+      "timesBought_other": "{{count}}× gekauft"
+    },
+    "vouchers": {
+      "title": "Gutscheine",
+      "activeTotal": "Aktueller Gesamtwert aktiver Gutscheine",
+      "redeemedTrend": "Eingelöster Wert über Zeit"
+    }
   },
   "shoppingDialog": {
     "title": "Zutaten zur Einkaufsliste",
