@@ -7,7 +7,8 @@
     "systemSettings": "System Settings",
     "removeImage": "Remove photo",
     "uploadNewPhoto": "Upload new photo",
-    "configure": "Configure"
+    "configure": "Configure",
+    "back": "Back"
   },
   "nav": {
     "dashboard": "Dashboard",

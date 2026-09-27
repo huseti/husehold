@@ -121,12 +121,10 @@ export default function PackingBuckets() {
       <Navbar />
 
       <main className="max-w-4xl mx-auto px-4 py-8">
-        <div className="flex justify-between items-center mb-2">
-          <h2 className="text-3xl font-bold">{t('packingBuckets.title')}</h2>
-          <Link to="/packing-lists" className="text-sm text-blue-600 hover:underline">
-            {t('packingBuckets.backToLists')}
-          </Link>
-        </div>
+        <Link to="/packing-lists" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800 mb-4">
+          ← {t('packingBuckets.backToLists')}
+        </Link>
+        <h2 className="text-3xl font-bold mb-2">{t('packingBuckets.title')}</h2>
         <p className="text-sm text-gray-500 mb-6">{t('packingBuckets.hint')}</p>
 
         {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
