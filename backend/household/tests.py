@@ -1971,8 +1971,33 @@ class AnalyticsTests(TestCase):
         self._task(40, self.tim, status='done')  # outside the range below
 
         stats = analytics_service.task_stats(self.today - timedelta(days=7), self.today)
-
         self.assertEqual(stats['overall']['total'], 1)
+
+    def test_task_stats_on_time_trend_stays_weekly_even_over_a_long_range(self):
+        # Same week: one on-time, one late.
+        monday = self.today - timedelta(days=self.today.weekday())
+        on_time = HouseholdTaskInstance.objects.create(
+            standalone_title='On time', occurrence_date=monday, scheduled_date=monday,
+            assigned_to=self.tim, status='done', completed_at=dj_timezone.now().replace(
+                year=monday.year, month=monday.month, day=monday.day,
+            ),
+        )
+        late = HouseholdTaskInstance.objects.create(
+            standalone_title='Late', occurrence_date=monday, scheduled_date=monday,
+            assigned_to=self.tim, status='done', completed_at=dj_timezone.now().replace(
+                year=monday.year, month=monday.month, day=monday.day,
+            ) + timedelta(days=3),
+        )
+        still_pending = HouseholdTaskInstance.objects.create(
+            standalone_title='Pending', occurrence_date=monday, scheduled_date=monday,
+            assigned_to=self.tim, status='pending',
+        )
+
+        # A 200-day range would use monthly buckets for every other trend.
+        stats = analytics_service.task_stats(self.today - timedelta(days=200), self.today)
+
+        week_point = next(p for p in stats['on_time_trend'] if p['bucket'] == monday.isoformat())
+        self.assertEqual(week_point['rate'], 1 / 3)  # on_time / (on_time + late + pending)
 
     # -- meals --
 

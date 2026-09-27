@@ -32,10 +32,10 @@ def _bucket_key(d, granularity):
 
 
 def task_stats(start, end):
-    """Completion rate overall and per household member, over tasks
-    scheduled in the range. Backlog tasks (no day yet) and skipped/snoozed
-    ones are excluded from both sides of the ratio -- same convention as the
-    Dashboard's weekly ProgressPanel."""
+    """Completion rate overall and per household member, plus an on-time
+    trend, over tasks scheduled in the range. Backlog tasks (no day yet) and
+    skipped/snoozed ones are excluded from both sides of every ratio -- same
+    convention as the Dashboard's weekly ProgressPanel."""
     queryset = HouseholdTaskInstance.objects.filter(is_in_backlog=False).exclude(status__in=['skipped', 'snoozed'])
     if start:
         queryset = queryset.filter(scheduled_date__gte=start)
@@ -59,9 +59,25 @@ def task_stats(start, end):
             'rate': (member_done / member_total) if member_total else 0,
         })
 
+    # Always by calendar week (not the week/month switch used elsewhere) --
+    # explicitly requested this way, and a line chart carries a long, dense
+    # series far better than the bar charts the other trends use.
+    week_buckets = {}
+    for scheduled_date, status, completed_at in queryset.values_list('scheduled_date', 'status', 'completed_at'):
+        key = _bucket_key(scheduled_date, 'week')
+        entry = week_buckets.setdefault(key, {'total': 0, 'on_time': 0})
+        entry['total'] += 1
+        if status == 'done' and completed_at and completed_at.date() <= scheduled_date:
+            entry['on_time'] += 1
+    on_time_trend = [
+        {'bucket': key, 'rate': (v['on_time'] / v['total']) if v['total'] else 0}
+        for key, v in sorted(week_buckets.items())
+    ]
+
     return {
         'overall': {'total': total, 'done': done, 'rate': (done / total) if total else 0},
         'by_member': by_member,
+        'on_time_trend': on_time_trend,
     }
 
 

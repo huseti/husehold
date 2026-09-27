@@ -3,7 +3,9 @@ import { useTranslation } from 'react-i18next';
 import Navbar from '../components/Navbar';
 import StackedBarChart from '../components/charts/StackedBarChart';
 import TrendBarChart from '../components/charts/TrendBarChart';
+import TrendLineChart from '../components/charts/TrendLineChart';
 import RankedList from '../components/charts/RankedList';
+import PieChart from '../components/charts/PieChart';
 import { analyticsService } from '../services/api';
 
 // Same period convention as PurchaseHistory (shoppingList.period.* strings) --
@@ -84,6 +86,28 @@ export default function Analytics() {
                   total={data.tasks.overall.total}
                 />
               ) : <p className="text-gray-400 text-sm">{t('analytics.noData')}</p>}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 mb-2">{t('analytics.tasks.completedByMember')}</p>
+                  {data.tasks.overall.done > 0 ? (
+                    <PieChart
+                      segments={data.tasks.by_member.map((m) => ({ label: m.username, value: m.done, color: m.color_hex }))}
+                    />
+                  ) : <p className="text-gray-400 text-sm">{t('analytics.noData')}</p>}
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-600 mb-2">{t('analytics.tasks.onTimeTrend')}</p>
+                  {data.tasks.on_time_trend.length > 0 ? (
+                    <TrendLineChart
+                      points={data.tasks.on_time_trend.map((p) => ({ bucket: p.bucket, value: p.rate }))}
+                      color="#3b82f6"
+                      formatLabel={formatBucket}
+                      formatValue={(v) => `${Math.round(v * 100)}%`}
+                    />
+                  ) : <p className="text-gray-400 text-sm">{t('analytics.noData')}</p>}
+                </div>
+              </div>
             </section>
 
             <section className="bg-white rounded-lg shadow p-6">

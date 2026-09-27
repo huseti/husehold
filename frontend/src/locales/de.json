@@ -504,7 +504,9 @@
     "noData": "Noch keine Daten in diesem Zeitraum.",
     "tasks": {
       "title": "Haushaltsaufgaben",
-      "overall": "{{done}} von {{total}} erledigt ({{rate}}%)"
+      "overall": "{{done}} von {{total}} erledigt ({{rate}}%)",
+      "completedByMember": "Abgeschlossen je Haushaltsmitglied",
+      "onTimeTrend": "Pünktlich erledigt je Kalenderwoche"
     },
     "meals": {
       "title": "Kochplan",

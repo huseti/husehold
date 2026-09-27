@@ -504,7 +504,9 @@
     "noData": "No data yet in this period.",
     "tasks": {
       "title": "Household Tasks",
-      "overall": "{{done}} of {{total}} done ({{rate}}%)"
+      "overall": "{{done}} of {{total}} done ({{rate}}%)",
+      "completedByMember": "Completed by household member",
+      "onTimeTrend": "Completed on time per calendar week"
     },
     "meals": {
       "title": "Cooking Plan",
