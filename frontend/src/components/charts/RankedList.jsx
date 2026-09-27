@@ -1,23 +1,27 @@
-// Ranked magnitude list (top recipes, top purchased items): each row's bar
-// is scaled to the top item, not to a shared total -- it's a ranking, not a
-// share of a whole. Flat single color, per the project's visual style.
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+
+// Ranked magnitude list (top recipes, top purchased items) as a horizontal
+// bar chart: each row's bar is scaled to the top item, not to a shared
+// total -- it's a ranking, not a share of a whole. Flat single color.
 export default function RankedList({ items, valueLabel, color = '#3b82f6' }) {
   if (items.length === 0) return null;
-  const max = Math.max(...items.map((i) => i.value), 1);
+  const height = Math.max(items.length * 32, 60);
 
   return (
-    <ul className="space-y-2">
-      {items.map((item, i) => (
-        <li key={i}>
-          <div className="flex justify-between text-sm text-gray-700 mb-0.5">
-            <span className="truncate pr-2">{item.label}</span>
-            <span className="text-gray-500 flex-shrink-0">{valueLabel ? valueLabel(item.value) : item.value}</span>
-          </div>
-          <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
-            <div className="h-1.5 rounded-full" style={{ width: `${(item.value / max) * 100}%`, backgroundColor: color }} />
-          </div>
-        </li>
-      ))}
-    </ul>
+    <ResponsiveContainer width="100%" height={height}>
+      <BarChart data={items} layout="vertical" margin={{ top: 0, right: 24, bottom: 0, left: 8 }}>
+        <XAxis type="number" hide />
+        <YAxis
+          type="category"
+          dataKey="label"
+          width={120}
+          tick={{ fontSize: 12, fill: '#374151' }}
+          axisLine={false}
+          tickLine={false}
+        />
+        <Tooltip formatter={(value) => [valueLabel ? valueLabel(value) : value, '']} />
+        <Bar dataKey="value" fill={color} radius={[0, 4, 4, 0]} barSize={10} />
+      </BarChart>
+    </ResponsiveContainer>
   );
 }

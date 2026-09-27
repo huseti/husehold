@@ -1,21 +1,27 @@
-// Flat, single-track stacked bar (no gradients, per the project's visual
-// style) -- one rounded-full bar split proportionally into colored segments,
-// with a legend underneath showing each segment's label, value and share.
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+
+// One thin horizontal bar split into per-member segments (task completion),
+// plus a legend with the absolute value and share underneath. Flat colors
+// per segment (each member's existing color_hex), no gradients.
 export default function StackedBarChart({ segments, total }) {
   const sum = total ?? segments.reduce((s, seg) => s + seg.value, 0);
+  const data = [Object.fromEntries(segments.map((seg) => [seg.label, seg.value]))];
 
   return (
     <div>
-      <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden flex">
-        {sum > 0 && segments.filter((seg) => seg.value > 0).map((seg, i) => (
-          <div
-            key={i}
-            title={`${seg.label}: ${seg.value} (${Math.round((seg.value / sum) * 100)}%)`}
-            style={{ width: `${(seg.value / sum) * 100}%`, backgroundColor: seg.color }}
-            className="h-3 first:rounded-l-full last:rounded-r-full border-r-2 border-white last:border-r-0"
+      <ResponsiveContainer width="100%" height={56}>
+        <BarChart data={data} layout="vertical" margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+          <XAxis type="number" hide domain={[0, sum || 1]} />
+          <YAxis type="category" hide />
+          <Tooltip
+            formatter={(value, name) => [`${value} (${sum ? Math.round((value / sum) * 100) : 0}%)`, name]}
+            labelFormatter={() => ''}
           />
-        ))}
-      </div>
+          {segments.map((seg) => (
+            <Bar key={seg.label} dataKey={seg.label} stackId="a" fill={seg.color} radius={[4, 4, 4, 4]} />
+          ))}
+        </BarChart>
+      </ResponsiveContainer>
       <ul className="mt-2 space-y-1">
         {segments.map((seg, i) => (
           <li key={i} className="flex items-center justify-between text-sm">

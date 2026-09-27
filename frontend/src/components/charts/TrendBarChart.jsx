@@ -1,28 +1,28 @@
-// Flat, single-color bar chart for a value-over-time trend (no gradients,
-// per the project's visual style). Plain divs, not SVG -- bar heights are
-// percentages of the tallest bar, plain `title` attributes stand in for a
-// hover tooltip (this app has no chart library and no dark mode to support).
-const MAX_LABELS = 7;
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
+// Single-series value-over-time bar chart (meals/week, purchases/week,
+// redeemed voucher value/week). Flat single color, no gradients.
 export default function TrendBarChart({ points, color = '#3b82f6', formatLabel, formatValue }) {
   if (points.length === 0) return null;
-  const max = Math.max(...points.map((p) => p.value), 1);
-  const labelEvery = Math.max(1, Math.ceil(points.length / MAX_LABELS));
 
   return (
-    <div className="flex items-end gap-1 h-32">
-      {points.map((p, i) => (
-        <div key={p.bucket} className="flex-1 flex flex-col items-center justify-end h-full min-w-0">
-          <div
-            title={`${formatLabel(p.bucket)}: ${formatValue ? formatValue(p.value) : p.value}`}
-            style={{ height: `${Math.max((p.value / max) * 100, p.value > 0 ? 4 : 0)}%`, backgroundColor: p.value > 0 ? color : 'transparent' }}
-            className="w-full rounded-t"
-          />
-          <span className="text-[10px] text-gray-400 mt-1 truncate w-full text-center">
-            {i % labelEvery === 0 ? formatLabel(p.bucket) : ''}
-          </span>
-        </div>
-      ))}
-    </div>
+    <ResponsiveContainer width="100%" height={160}>
+      <BarChart data={points} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+        <XAxis
+          dataKey="bucket"
+          tickFormatter={formatLabel}
+          tick={{ fontSize: 10, fill: '#9ca3af' }}
+          axisLine={false}
+          tickLine={false}
+          interval="preserveStartEnd"
+        />
+        <YAxis hide />
+        <Tooltip
+          labelFormatter={formatLabel}
+          formatter={(value) => [formatValue ? formatValue(value) : value, '']}
+        />
+        <Bar dataKey="value" fill={color} radius={[4, 4, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
   );
 }
