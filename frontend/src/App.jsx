@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard';
 import ShoppingList from './pages/ShoppingList';
 import Recipes from './pages/Recipes';
 import CookingPlan from './pages/CookingPlan';
+import CookingPlanConfig from './pages/CookingPlanConfig';
 import Tasks from './pages/Tasks';
 import Vouchers from './pages/Vouchers';
 import PackingLists from './pages/PackingLists';
@@ -41,6 +42,7 @@ function App() {
             <Route path="/shopping" element={<ShoppingList />} />
             <Route path="/recipes" element={<Recipes />} />
             <Route path="/cooking-plan" element={<CookingPlan />} />
+            <Route path="/cooking-plan-config" element={<CookingPlanConfig />} />
             <Route path="/tasks" element={<Tasks />} />
             <Route path="/vouchers" element={<Vouchers />} />
             <Route path="/packing-lists" element={<PackingLists />} />

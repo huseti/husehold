@@ -201,6 +201,15 @@ export default function Tasks() {
       <Navbar />
 
       <main className="max-w-7xl mx-auto px-4 py-8">
+        {mode === 'config' && (
+          <button
+            onClick={() => setMode('calendar')}
+            className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800 mb-4"
+          >
+            ← {t('common.back')}
+          </button>
+        )}
+
         <div className="flex items-center justify-between mb-6 flex-wrap gap-2">
           <h2 className="text-3xl font-bold">
             {mode === 'planning' ? t('weeklyPlanning.title') : mode === 'config' ? t('tasks.configTitle') : t('tasks.title')}

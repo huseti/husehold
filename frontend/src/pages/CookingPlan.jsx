@@ -9,7 +9,6 @@ import Navbar from '../components/Navbar';
 import CookingEntryCard from '../components/CookingEntryCard';
 import RecipePicker from '../components/RecipePicker';
 import AddToShoppingDialog from '../components/AddToShoppingDialog';
-import CookingPlanSettings from '../components/CookingPlanSettings';
 import GearIcon from '../components/icons/gearIcon';
 import { localizedName } from '../utils/localized';
 import { slotKey } from '../utils/mealSlots';
@@ -60,7 +59,6 @@ export default function CookingPlan() {
   const [loading, setLoading] = useState(true);
   const [picker, setPicker] = useState(null); // { date, meal }
   const [shoppingDishes, setShoppingDishes] = useState(null);
-  const [showSettings, setShowSettings] = useState(false);
   const [notice, setNotice] = useState(null); // { text, showHouseholdLink, error }
 
   useEffect(() => {
@@ -238,14 +236,14 @@ export default function CookingPlan() {
             <button onClick={handleFinish} className="ml-2 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
               {draftCount > 0 ? t('cookingPlan.finishWithCount', { count: draftCount }) : t('cookingPlan.finish')}
             </button>
-            <button
-              onClick={() => setShowSettings((v) => !v)}
+            <Link
+              to="/cooking-plan-config"
               className="text-gray-500 hover:text-gray-800 text-xl p-2"
               title={t('common.configure')}
               aria-label={t('common.configure')}
             >
               <GearIcon />
-            </button>
+            </Link>
           </div>
         </div>
 
@@ -269,10 +267,6 @@ export default function CookingPlan() {
             {notice.text}{' '}
             {notice.showHouseholdLink && <Link to="/tasks" className="text-blue-600 hover:underline">{t('cookingPlan.toHouseholdPlan')}</Link>}
           </p>
-        )}
-
-        {showSettings && config && (
-          <CookingPlanSettings config={config} meals={meals} onSaved={setConfig} />
         )}
 
         {meals.length === 0 && <p className="text-gray-500">{t('cookingPlan.noMeals')}</p>}

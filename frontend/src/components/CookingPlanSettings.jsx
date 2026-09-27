@@ -53,10 +53,7 @@ export default function CookingPlanSettings({ config, meals, onSaved }) {
 
   return (
     <form onSubmit={save} className="bg-white rounded-lg shadow p-5 mb-6 space-y-4">
-      <div>
-        <h3 className="font-semibold">{t('cookingSettings.title')}</h3>
-        <p className="text-xs text-gray-500">{t('cookingSettings.hint')}</p>
-      </div>
+      <p className="text-xs text-gray-500">{t('cookingSettings.hint')}</p>
 
       <div>
         <p className="text-sm text-gray-600 mb-1">{t('cookingSettings.plannedMeals')}</p>
