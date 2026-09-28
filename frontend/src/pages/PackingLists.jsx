@@ -5,9 +5,10 @@ import {
   packingListService, packingItemService, packingBucketService, memberService,
 } from '../services/api';
 import Navbar from '../components/Navbar';
-import CreatePackingListModal from '../components/CreatePackingListModal';
+import PackingListFormModal from '../components/PackingListFormModal';
 import GearIcon from '../components/icons/gearIcon';
 import CopyIcon from '../components/icons/copyIcon';
+import EditIcon from '../components/icons/editIcon';
 import { toISODate } from '../utils/weekDates';
 
 function errorMessage(error) {
@@ -27,13 +28,8 @@ export default function PackingLists() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const [newListName, setNewListName] = useState('');
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [copySource, setCopySource] = useState(null);
-  const [showSettings, setShowSettings] = useState(false);
-  const [listName, setListName] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  // { mode: 'create' | 'copy' | 'edit', list: <source/target list, or null for create> }
+  const [modal, setModal] = useState(null);
 
   const [itemText, setItemText] = useState('');
   const [editingItemId, setEditingItemId] = useState(null);
@@ -65,12 +61,6 @@ export default function PackingLists() {
     init();
   }, []);
 
-  useEffect(() => {
-    setListName(selected?.name ?? '');
-    setStartDate(selected?.start_date ?? '');
-    setEndDate(selected?.end_date ?? '');
-  }, [selected?.id, selected?.name, selected?.start_date, selected?.end_date]);
-
   const reloadLists = async () => {
     const res = await packingListService.getAll();
     const loaded = res.data.results || [];
@@ -78,72 +68,27 @@ export default function PackingLists() {
     return loaded;
   };
 
-  const handleCreate = async (data) => {
-    const res = copySource
-      ? await packingListService.copy(copySource.id, data)
-      : await packingListService.create(data);
+  const handleSaveModal = async (data) => {
+    let res;
+    if (modal.mode === 'copy') res = await packingListService.copy(modal.list.id, data);
+    else if (modal.mode === 'edit') res = await packingListService.update(modal.list.id, data);
+    else res = await packingListService.create(data);
     await reloadLists();
     setSelectedId(res.data.id);
-    setShowCreateModal(false);
-    setNewListName('');
-    setCopySource(null);
+    setModal(null);
   };
 
-  const openCreateModal = (e) => {
-    e.preventDefault();
-    if (!newListName.trim()) return;
-    setCopySource(null);
-    setShowCreateModal(true);
+  const handleDeleteModalList = async () => {
+    await packingListService.delete(modal.list.id);
+    const remaining = await reloadLists();
+    if (selectedId === modal.list.id) setSelectedId(remaining[0]?.id ?? null);
+    setModal(null);
   };
 
-  const openCopyModal = (list) => {
-    setCopySource(list);
-    setShowCreateModal(true);
-  };
-
-  const closeCreateModal = () => {
-    setShowCreateModal(false);
-    setCopySource(null);
-  };
-
-  const updateSelected = async (changes) => {
-    setError('');
-    try {
-      await packingListService.update(selectedId, changes);
-      await reloadLists();
-    } catch (err) {
-      console.error('Error updating packing list:', err);
-      setError(errorMessage(err));
-    }
-  };
-
-  const handleDeleteList = async () => {
-    if (!selected || !window.confirm(t('packingLists.confirmDeleteList', { name: selected.name }))) return;
-    setError('');
-    try {
-      await packingListService.delete(selectedId);
-      const remaining = await reloadLists();
-      setShowSettings(false);
-      setSelectedId(remaining[0]?.id ?? null);
-    } catch (err) {
-      console.error('Error deleting packing list:', err);
-      setError(errorMessage(err));
-    }
-  };
-
-  const toggleSelectedParticipant = async (userId, isParticipant) => {
-    setError('');
-    try {
-      if (isParticipant) {
-        await packingListService.removeParticipant(selectedId, userId);
-      } else {
-        await packingListService.addParticipant(selectedId, userId);
-      }
-      await reloadLists();
-    } catch (err) {
-      console.error('Error updating participants:', err);
-      setError(errorMessage(err));
-    }
+  const handleToggleArchiveModalList = async () => {
+    await packingListService.toggleArchived(modal.list.id);
+    await reloadLists();
+    setModal(null);
   };
 
   const handleAddItem = async (e) => {
@@ -200,17 +145,6 @@ export default function PackingLists() {
     }
   };
 
-  const handleToggleArchive = async () => {
-    setError('');
-    try {
-      await packingListService.toggleArchived(selectedId);
-      await reloadLists();
-    } catch (err) {
-      console.error('Error archiving packing list:', err);
-      setError(errorMessage(err));
-    }
-  };
-
   const handleAddBucket = async (e) => {
     e.preventDefault();
     if (!bucketToAdd) return;
@@ -242,16 +176,24 @@ export default function PackingLists() {
       key={list.id}
       className={`flex items-center gap-1 pl-4 pr-1 py-1 rounded-full text-sm border ${list.id === selectedId ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'} ${list.is_archived ? 'opacity-60' : ''}`}
     >
-      <button onClick={() => { setSelectedId(list.id); setShowSettings(false); }}>
+      <button onClick={() => setSelectedId(list.id)}>
         {list.name}
       </button>
       <button
-        onClick={() => openCopyModal(list)}
+        onClick={() => setModal({ mode: 'copy', list })}
         className={`p-1.5 rounded-full ${list.id === selectedId ? 'hover:bg-gray-700' : 'hover:bg-gray-200'}`}
         title={t('packingLists.copyToNewList')}
         aria-label={t('packingLists.copyToNewList')}
       >
         <CopyIcon />
+      </button>
+      <button
+        onClick={() => setModal({ mode: 'edit', list })}
+        className={`p-1.5 rounded-full ${list.id === selectedId ? 'hover:bg-gray-700' : 'hover:bg-gray-200'}`}
+        title={t('packingLists.editList')}
+        aria-label={t('packingLists.editList')}
+      >
+        <EditIcon />
       </button>
     </span>
   );
@@ -263,14 +205,22 @@ export default function PackingLists() {
       <main className="max-w-4xl mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-3xl font-bold">{t('packingLists.title')}</h2>
-          <Link
-            to="/packing-buckets"
-            className="text-gray-500 hover:text-gray-800 text-xl p-2"
-            title={t('common.configure')}
-            aria-label={t('common.configure')}
-          >
-            <GearIcon />
-          </Link>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setModal({ mode: 'create', list: null })}
+              className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+            >
+              + {t('packingLists.newButton')}
+            </button>
+            <Link
+              to="/packing-buckets"
+              className="text-gray-500 hover:text-gray-800 text-xl p-2"
+              title={t('common.configure')}
+              aria-label={t('common.configure')}
+            >
+              <GearIcon />
+            </Link>
+          </div>
         </div>
 
         {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
@@ -303,88 +253,11 @@ export default function PackingLists() {
           </details>
         )}
 
-        <form onSubmit={openCreateModal} className="flex gap-2 mb-8">
-          <input
-            type="text"
-            value={newListName}
-            onChange={(e) => setNewListName(e.target.value)}
-            placeholder={t('packingLists.newListPlaceholder')}
-            className="px-3 py-2 border border-gray-300 rounded-full text-sm w-56"
-            required
-          />
-          <button type="submit" className="bg-green-600 text-white px-3 py-2 rounded-full text-sm hover:bg-green-700">+</button>
-        </form>
-
-        {!selected && <p className="text-gray-500">{t('packingLists.noLists')}</p>}
+        {!selected && <p className="text-gray-500 mt-6">{t('packingLists.noLists')}</p>}
 
         {selected && (
           <>
-            <div className="flex justify-between items-center mb-3">
-              <h3 className="text-xl font-semibold">{selected.name}</h3>
-              <button onClick={() => setShowSettings((v) => !v)} className="text-sm text-blue-600">
-                {t('packingLists.listSettings')}
-              </button>
-            </div>
-
-            {showSettings && (
-              <div className="bg-white rounded-lg shadow p-5 mb-6 space-y-4">
-                <input
-                  type="text"
-                  value={listName}
-                  onChange={(e) => setListName(e.target.value)}
-                  onBlur={() => listName.trim() && listName !== selected.name && updateSelected({ name: listName })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                />
-                <div className="flex gap-3">
-                  <div className="flex-1">
-                    <label className="block text-xs text-gray-500 mb-1">{t('packingLists.formStartDate')}</label>
-                    <input
-                      type="date"
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                      onBlur={() => startDate && startDate !== selected.start_date && updateSelected({ start_date: startDate })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <label className="block text-xs text-gray-500 mb-1">{t('packingLists.formEndDate')}</label>
-                    <input
-                      type="date"
-                      value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                      onBlur={() => endDate && endDate !== selected.end_date && updateSelected({ end_date: endDate })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 mb-1">{t('packingLists.formParticipants')}</p>
-                  <div className="flex flex-wrap gap-4">
-                    {members.map((member) => {
-                      const isParticipant = selected.participants.some((p) => p.user === member.user.id);
-                      return (
-                        <label key={member.user.id} className="flex items-center gap-2 text-sm">
-                          <input
-                            type="checkbox"
-                            checked={isParticipant}
-                            onChange={() => toggleSelectedParticipant(member.user.id, isParticipant)}
-                          />
-                          {member.user.username}
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
-                <div className="flex gap-4">
-                  <button onClick={handleToggleArchive} className="text-sm text-gray-600 hover:underline">
-                    {selected.is_archived ? t('packingLists.unarchive') : t('packingLists.archive')}
-                  </button>
-                  <button onClick={handleDeleteList} className="text-sm text-red-600 hover:underline">
-                    {t('packingLists.deleteList')}
-                  </button>
-                </div>
-              </div>
-            )}
+            <h3 className="text-xl font-semibold mb-3">{selected.name}</h3>
 
             <div className="bg-white rounded-lg shadow p-4 mb-6 space-y-3">
               <form onSubmit={handleAddItem} className="flex gap-2">
@@ -470,14 +343,34 @@ export default function PackingLists() {
         )}
       </main>
 
-      {showCreateModal && (
-        <CreatePackingListModal
-          initialName={copySource ? t('packingLists.copyNamePlaceholder', { name: copySource.name }) : newListName}
-          initialParticipantIds={copySource ? copySource.participants.map((p) => p.user) : []}
-          isCopy={!!copySource}
+      {modal?.mode === 'create' && (
+        <PackingListFormModal mode="create" members={members} onClose={() => setModal(null)} onSave={handleSaveModal} />
+      )}
+
+      {modal?.mode === 'copy' && (
+        <PackingListFormModal
+          mode="copy"
+          initialName={t('packingLists.copyNamePlaceholder', { name: modal.list.name })}
+          initialParticipantIds={modal.list.participants.map((p) => p.user)}
           members={members}
-          onClose={closeCreateModal}
-          onCreate={handleCreate}
+          onClose={() => setModal(null)}
+          onSave={handleSaveModal}
+        />
+      )}
+
+      {modal?.mode === 'edit' && (
+        <PackingListFormModal
+          mode="edit"
+          initialName={modal.list.name}
+          initialStartDate={modal.list.start_date}
+          initialEndDate={modal.list.end_date}
+          initialParticipantIds={modal.list.participants.map((p) => p.user)}
+          isArchived={modal.list.is_archived}
+          members={members}
+          onClose={() => setModal(null)}
+          onSave={handleSaveModal}
+          onDelete={handleDeleteModalList}
+          onToggleArchive={handleToggleArchiveModalList}
         />
       )}
     </div>

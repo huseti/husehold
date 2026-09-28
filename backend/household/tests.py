@@ -1812,6 +1812,38 @@ class PackingListTests(TestCase):
         self.assertEqual(removed.status_code, 200)
         self.assertFalse(PackingListParticipant.objects.filter(packing_list=packing_list, user=self.anna).exists())
 
+    def test_update_with_participant_ids_syncs_them_to_match_exactly(self):
+        packing_list = PackingList.objects.create(name='Beach week', start_date=self.today, end_date=self.today)
+        PackingListParticipant.objects.create(packing_list=packing_list, user=self.tim)
+
+        response = self.client.patch(f'/api/packing-lists/{packing_list.id}/', {
+            'name': 'Beach week', 'start_date': self.today, 'end_date': self.today,
+            'participant_ids': [self.anna.id],
+        }, format='json')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            set(packing_list.participants.values_list('user_id', flat=True)), {self.anna.id},
+        )
+
+    def test_update_without_participant_ids_leaves_participants_untouched(self):
+        packing_list = PackingList.objects.create(name='Beach week', start_date=self.today, end_date=self.today)
+        PackingListParticipant.objects.create(packing_list=packing_list, user=self.tim)
+
+        response = self.client.patch(f'/api/packing-lists/{packing_list.id}/', {'name': 'Beach week 2'}, format='json')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(PackingListParticipant.objects.filter(packing_list=packing_list, user=self.tim).exists())
+
+    def test_update_cannot_clear_all_participants(self):
+        packing_list = PackingList.objects.create(name='Beach week', start_date=self.today, end_date=self.today)
+        PackingListParticipant.objects.create(packing_list=packing_list, user=self.tim)
+
+        response = self.client.patch(f'/api/packing-lists/{packing_list.id}/', {'participant_ids': []}, format='json')
+
+        self.assertEqual(response.status_code, 400)
+        self.assertTrue(PackingListParticipant.objects.filter(packing_list=packing_list, user=self.tim).exists())
+
     def test_items_are_a_single_flat_list_not_split_per_participant(self):
         packing_list = PackingList.objects.create(name='Beach week', start_date=self.today, end_date=self.today)
         PackingListParticipant.objects.create(packing_list=packing_list, user=self.tim)

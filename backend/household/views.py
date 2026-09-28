@@ -634,6 +634,22 @@ class PackingListViewSet(viewsets.ModelViewSet):
         for user_id in participant_ids:
             PackingListParticipant.objects.create(packing_list=packing_list, user_id=user_id)
 
+    def perform_update(self, serializer):
+        """participant_ids is optional here (unlike create) -- omitting it
+        leaves participants untouched, e.g. a plain PATCH from elsewhere.
+        The edit form always sends the full set, synced to match exactly."""
+        has_participant_ids = 'participant_ids' in self.request.data
+        participant_ids = set(self.request.data.get('participant_ids') or [])
+        if has_participant_ids and not participant_ids:
+            raise DRFValidationError({'participant_ids': 'At least one participant is required.'})
+        packing_list = serializer.save()
+        if not has_participant_ids:
+            return
+        current_ids = set(packing_list.participants.values_list('user_id', flat=True))
+        for user_id in participant_ids - current_ids:
+            PackingListParticipant.objects.create(packing_list=packing_list, user_id=user_id)
+        packing_list.participants.filter(user_id__in=current_ids - participant_ids).delete()
+
     @action(detail=True, methods=['post'])
     def copy(self, request, pk=None):
         """Creates a new packing list, its items copied from this one (all
