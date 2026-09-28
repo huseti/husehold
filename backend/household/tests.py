@@ -1,6 +1,7 @@
 import tempfile
 from datetime import date, timedelta
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.contrib.auth.models import User
 from django.test import TestCase, override_settings
@@ -12,9 +13,11 @@ from .models import (
     CookingPlanConfig, CookingPlanEntry, Ingredient, Label, MealEvent, MealTimeCategory, NotificationPreference,
     PurchaseRecord, Recipe, RecipeRating, ShoppingList, ShoppingListItem, UnitOfMeasure, Voucher, VoucherRedemption,
     PackingList, PackingListParticipant, PackingListItem, PackingBucket, PackingBucketItem,
+    GoogleCalendarLink, CalendarEvent,
 )
 from .services.task_generation import generate_instances_for_range
 from .services import analytics as analytics_service
+from .services import google_calendar as google_calendar_service
 
 
 class HouseholdSettingsTests(TestCase):
@@ -2160,3 +2163,220 @@ class AnalyticsTests(TestCase):
         response = self.client.get('/api/analytics/')
 
         self.assertEqual(response.status_code, 200)
+
+
+class GoogleCalendarLinkTests(TestCase):
+    """API-level: status/settings singleton, the OAuth connect/callback
+    handshake, and the read-only events endpoint. See GoogleCalendarSyncTests
+    for the sync() service logic itself."""
+
+    def setUp(self):
+        self.tim = User.objects.create_user(username='tim', password='pw')
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.tim)
+
+    def test_load_returns_the_same_singleton(self):
+        self.assertEqual(GoogleCalendarLink.load().pk, GoogleCalendarLink.load().pk)
+
+    def test_status_endpoint_reflects_disconnected_by_default(self):
+        response = self.client.get('/api/google-calendar/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.data['is_connected'])
+
+    def test_patch_toggles_sync_enabled(self):
+        response = self.client.patch('/api/google-calendar/', {'sync_enabled': False}, format='json')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(GoogleCalendarLink.load().sync_enabled)
+
+    def test_delete_disconnects_and_clears_cached_events(self):
+        link = GoogleCalendarLink.load()
+        link.refresh_token = 'sometoken'
+        link.save()
+        CalendarEvent.objects.create(
+            link=link, external_event_id='e1', title='Trip',
+            start_datetime=dj_timezone.now(), end_datetime=dj_timezone.now(),
+        )
+
+        response = self.client.delete('/api/google-calendar/')
+
+        self.assertEqual(response.status_code, 200)
+        link.refresh_from_db()
+        self.assertFalse(link.is_connected)
+        self.assertEqual(link.events.count(), 0)
+
+    def test_connect_url_requires_authentication(self):
+        anon_client = APIClient()
+
+        response = anon_client.get('/api/google-calendar/connect-url/')
+
+        self.assertEqual(response.status_code, 401)
+
+    @override_settings(GOOGLE_CLIENT_ID='test-client-id')
+    def test_connect_url_contains_client_id_and_a_state(self):
+        response = self.client.get('/api/google-calendar/connect-url/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('client_id=test-client-id', response.data['url'])
+        self.assertIn('state=', response.data['url'])
+
+    def test_callback_without_a_valid_state_redirects_with_error(self):
+        response = self.client.get('/api/google-calendar/callback/?state=bogus&code=abc')
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('google_calendar=error', response.url)
+        self.assertFalse(GoogleCalendarLink.load().is_connected)
+
+    @patch.object(google_calendar_service, 'exchange_code')
+    def test_callback_with_a_valid_state_saves_the_refresh_token(self, mock_exchange):
+        mock_exchange.return_value = {'refresh_token': 'brand-new-token', 'access_token': 'a'}
+        state = self.client.get('/api/google-calendar/connect-url/').data['url'].split('state=')[1]
+
+        response = self.client.get(f'/api/google-calendar/callback/?state={state}&code=abc')
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('google_calendar=connected', response.url)
+        link = GoogleCalendarLink.load()
+        self.assertEqual(link.refresh_token, 'brand-new-token')
+        self.assertTrue(link.sync_enabled)
+
+    @patch.object(google_calendar_service, 'exchange_code')
+    def test_callback_without_a_refresh_token_redirects_with_error(self, mock_exchange):
+        # Google only returns a refresh_token on first consent unless
+        # prompt=consent forces it -- if that's ever missing, don't silently
+        # "connect" with nothing to sync from.
+        mock_exchange.return_value = {'access_token': 'a'}
+        state = self.client.get('/api/google-calendar/connect-url/').data['url'].split('state=')[1]
+
+        response = self.client.get(f'/api/google-calendar/callback/?state={state}&code=abc')
+
+        self.assertIn('google_calendar=error', response.url)
+        self.assertFalse(GoogleCalendarLink.load().is_connected)
+
+    def test_state_is_single_use(self):
+        state = self.client.get('/api/google-calendar/connect-url/').data['url'].split('state=')[1]
+        with patch.object(google_calendar_service, 'exchange_code', return_value={'refresh_token': 't'}):
+            self.client.get(f'/api/google-calendar/callback/?state={state}&code=abc')
+
+        second = self.client.get(f'/api/google-calendar/callback/?state={state}&code=abc')
+
+        self.assertIn('google_calendar=error', second.url)
+
+    def test_calendar_events_filtered_by_date_range(self):
+        link = GoogleCalendarLink.load()
+        in_range = CalendarEvent.objects.create(
+            link=link, external_event_id='in', title='In range',
+            start_datetime=dj_timezone.make_aware(dj_timezone.datetime(2026, 6, 10, 9, 0)),
+            end_datetime=dj_timezone.make_aware(dj_timezone.datetime(2026, 6, 10, 10, 0)),
+        )
+        CalendarEvent.objects.create(
+            link=link, external_event_id='out', title='Out of range',
+            start_datetime=dj_timezone.make_aware(dj_timezone.datetime(2026, 7, 1, 9, 0)),
+            end_datetime=dj_timezone.make_aware(dj_timezone.datetime(2026, 7, 1, 10, 0)),
+        )
+
+        response = self.client.get('/api/calendar-events/?start=2026-06-01&end=2026-06-30')
+
+        self.assertEqual([e['id'] for e in response.data['results']], [in_range.id])
+
+
+class GoogleCalendarSyncTests(TestCase):
+    """The sync() service function -- filtering (cancelled/declined),
+    all-day parsing, and replacing the previous window's snapshot."""
+
+    def _events_response(self, items):
+        response = type('R', (), {})()
+        response.raise_for_status = lambda: None
+        response.json = lambda: {'items': items}
+        return response
+
+    def _token_response(self, access_token='new-access-token'):
+        response = type('R', (), {})()
+        response.raise_for_status = lambda: None
+        response.json = lambda: {'access_token': access_token}
+        return response
+
+    def test_sync_returns_none_when_not_connected(self):
+        self.assertIsNone(google_calendar_service.sync())
+
+    def test_sync_returns_none_when_disabled(self):
+        link = GoogleCalendarLink.load()
+        link.refresh_token = 'token'
+        link.sync_enabled = False
+        link.save()
+
+        self.assertIsNone(google_calendar_service.sync())
+
+    @patch('household.services.google_calendar.requests.get')
+    @patch('household.services.google_calendar.requests.post')
+    def test_sync_filters_cancelled_and_declined_events(self, mock_post, mock_get):
+        link = GoogleCalendarLink.load()
+        link.refresh_token = 'token'
+        link.save()
+        mock_post.return_value = self._token_response()
+        mock_get.return_value = self._events_response([
+            {
+                'id': 'kept', 'summary': 'Kept event', 'status': 'confirmed',
+                'start': {'dateTime': '2026-06-10T09:00:00+02:00'}, 'end': {'dateTime': '2026-06-10T10:00:00+02:00'},
+            },
+            {
+                'id': 'cancelled', 'summary': 'Cancelled event', 'status': 'cancelled',
+                'start': {'dateTime': '2026-06-11T09:00:00+02:00'}, 'end': {'dateTime': '2026-06-11T10:00:00+02:00'},
+            },
+            {
+                'id': 'declined', 'summary': 'Declined event', 'status': 'confirmed',
+                'start': {'dateTime': '2026-06-12T09:00:00+02:00'}, 'end': {'dateTime': '2026-06-12T10:00:00+02:00'},
+                'attendees': [{'self': True, 'responseStatus': 'declined'}],
+            },
+            {
+                'id': 'tentative', 'summary': 'Tentative event', 'status': 'confirmed',
+                'start': {'dateTime': '2026-06-13T09:00:00+02:00'}, 'end': {'dateTime': '2026-06-13T10:00:00+02:00'},
+                'attendees': [{'self': True, 'responseStatus': 'tentative'}],
+            },
+        ])
+
+        count = google_calendar_service.sync()
+
+        self.assertEqual(count, 2)
+        self.assertEqual(
+            set(CalendarEvent.objects.values_list('external_event_id', flat=True)), {'kept', 'tentative'},
+        )
+        link.refresh_from_db()
+        self.assertIsNotNone(link.last_synced_at)
+
+    @patch('household.services.google_calendar.requests.get')
+    @patch('household.services.google_calendar.requests.post')
+    def test_sync_parses_all_day_events(self, mock_post, mock_get):
+        link = GoogleCalendarLink.load()
+        link.refresh_token = 'token'
+        link.save()
+        mock_post.return_value = self._token_response()
+        mock_get.return_value = self._events_response([
+            {
+                'id': 'trip', 'summary': 'Weekend trip', 'status': 'confirmed',
+                'start': {'date': '2026-06-20'}, 'end': {'date': '2026-06-22'},
+            },
+        ])
+
+        google_calendar_service.sync()
+
+        event = CalendarEvent.objects.get(external_event_id='trip')
+        self.assertTrue(event.is_all_day)
+
+    @patch('household.services.google_calendar.requests.get')
+    @patch('household.services.google_calendar.requests.post')
+    def test_sync_removes_events_no_longer_returned(self, mock_post, mock_get):
+        link = GoogleCalendarLink.load()
+        link.refresh_token = 'token'
+        link.save()
+        CalendarEvent.objects.create(
+            link=link, external_event_id='stale', title='Removed on Google',
+            start_datetime=dj_timezone.now(), end_datetime=dj_timezone.now() + timedelta(hours=1),
+        )
+        mock_post.return_value = self._token_response()
+        mock_get.return_value = self._events_response([])
+
+        google_calendar_service.sync()
+
+        self.assertFalse(CalendarEvent.objects.filter(external_event_id='stale').exists())

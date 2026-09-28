@@ -8,6 +8,7 @@ from .models import (
     NotificationPreference, PushSubscription, Voucher, VoucherRedemption,
     UnitOfMeasure, Ingredient, Label, MealTimeCategory, RecipeIngredient, RecipeRating, MealEvent, PurchaseRecord, CookingPlanConfig, CookingPlanEntry,
     PackingList, PackingListParticipant, PackingListItem, PackingBucket, PackingBucketItem,
+    GoogleCalendarLink, CalendarEvent,
 )
 
 class UserSerializer(serializers.ModelSerializer):
@@ -547,3 +548,15 @@ class TaskCookingEntrySerializer(serializers.ModelSerializer):
         return RecipeRating.objects.filter(
             recipe_id=obj.recipe_id, rated_by=request.user,
         ).values_list('score', flat=True).first()
+
+class GoogleCalendarLinkSerializer(serializers.ModelSerializer):
+    is_connected = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = GoogleCalendarLink
+        fields = ('id', 'is_connected', 'sync_enabled', 'last_synced_at')
+
+class CalendarEventSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CalendarEvent
+        fields = ('id', 'title', 'start_datetime', 'end_datetime', 'is_all_day')

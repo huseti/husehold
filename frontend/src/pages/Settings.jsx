@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import {
   householdSettingsService, notificationPreferenceService, pushSubscriptionService, notificationTestService,
-  memberService,
+  memberService, googleCalendarService,
 } from '../services/api';
 import { urlBase64ToUint8Array, isPushSupported } from '../utils/push';
 
@@ -33,6 +34,7 @@ function getTimezoneOptions() {
 
 export default function Settings() {
   const { t, i18n } = useTranslation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [householdName, setHouseholdName] = useState('');
   const [timezoneValue, setTimezoneValue] = useState('Europe/Berlin');
   const [saved, setSaved] = useState(false);
@@ -49,6 +51,12 @@ export default function Settings() {
   const [testEmailBusy, setTestEmailBusy] = useState(false);
   const [testPushBusy, setTestPushBusy] = useState(false);
 
+  const [googleCalendar, setGoogleCalendar] = useState(null);
+  const [googleCalendarBusy, setGoogleCalendarBusy] = useState(false);
+  const [googleCalendarNotice, setGoogleCalendarNotice] = useState(null);
+
+  const loadGoogleCalendar = () => googleCalendarService.getStatus().then((res) => setGoogleCalendar(res.data));
+
   useEffect(() => {
     householdSettingsService.get().then((res) => {
       setHouseholdName(res.data.household_name);
@@ -56,6 +64,7 @@ export default function Settings() {
     });
     notificationPreferenceService.getAll().then((res) => setPreferences(res.data));
     memberService.getMe().then((res) => setMember(res.data)).catch(() => {});
+    loadGoogleCalendar();
 
     if (isPushSupported()) {
       navigator.serviceWorker.ready.then((registration) =>
@@ -63,6 +72,46 @@ export default function Settings() {
       );
     }
   }, []);
+
+  useEffect(() => {
+    const result = searchParams.get('google_calendar');
+    if (!result) return;
+    setGoogleCalendarNotice(result === 'connected' ? { ok: true } : { ok: false });
+    setSearchParams({}, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleConnectGoogleCalendar = async () => {
+    setGoogleCalendarBusy(true);
+    try {
+      const { data } = await googleCalendarService.getConnectUrl();
+      window.location.href = data.url;
+    } catch {
+      setGoogleCalendarBusy(false);
+      setGoogleCalendarNotice({ ok: false });
+    }
+  };
+
+  const handleToggleGoogleCalendarSync = async () => {
+    setGoogleCalendarBusy(true);
+    try {
+      await googleCalendarService.setSyncEnabled(!googleCalendar.sync_enabled);
+      await loadGoogleCalendar();
+    } finally {
+      setGoogleCalendarBusy(false);
+    }
+  };
+
+  const handleDisconnectGoogleCalendar = async () => {
+    if (!window.confirm(t('settings.googleCalendarConfirmDisconnect'))) return;
+    setGoogleCalendarBusy(true);
+    try {
+      await googleCalendarService.disconnect();
+      await loadGoogleCalendar();
+    } finally {
+      setGoogleCalendarBusy(false);
+    }
+  };
 
   const handlePreferenceChange = async (notificationType, channel, value) => {
     const updated = preferences.map((pref) =>
@@ -298,6 +347,53 @@ export default function Settings() {
             <p className={`text-sm mt-2 ${testPushStatus.ok ? 'text-green-600' : 'text-red-600'}`}>
               {testPushStatus.message}
             </p>
+          )}
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-6 mb-8">
+          <h3 className="text-lg font-semibold mb-4">{t('settings.googleCalendar')}</h3>
+          <p className="text-sm text-gray-500 mb-4">{t('settings.googleCalendarHint')}</p>
+
+          {googleCalendarNotice && (
+            <p className={`text-sm mb-4 ${googleCalendarNotice.ok ? 'text-green-600' : 'text-red-600'}`}>
+              {t(googleCalendarNotice.ok ? 'settings.googleCalendarConnected' : 'settings.googleCalendarFailed')}
+            </p>
+          )}
+
+          {googleCalendar && (
+            googleCalendar.is_connected ? (
+              <div className="space-y-3">
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={googleCalendar.sync_enabled}
+                    disabled={googleCalendarBusy}
+                    onChange={handleToggleGoogleCalendarSync}
+                  />
+                  {t('settings.googleCalendarSyncEnabled')}
+                </label>
+                <p className="text-xs text-gray-400">
+                  {googleCalendar.last_synced_at
+                    ? t('settings.googleCalendarLastSynced', { time: new Date(googleCalendar.last_synced_at).toLocaleString(i18n.resolvedLanguage) })
+                    : t('settings.googleCalendarNotSyncedYet')}
+                </p>
+                <button
+                  onClick={handleDisconnectGoogleCalendar}
+                  disabled={googleCalendarBusy}
+                  className="text-sm text-red-600 hover:underline disabled:opacity-50"
+                >
+                  {t('settings.googleCalendarDisconnect')}
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={handleConnectGoogleCalendar}
+                disabled={googleCalendarBusy}
+                className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:opacity-50"
+              >
+                {googleCalendarBusy ? t('settings.googleCalendarConnecting') : t('settings.googleCalendarConnectButton')}
+              </button>
+            )
           )}
         </div>
 

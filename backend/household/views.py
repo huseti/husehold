@@ -1,4 +1,5 @@
-﻿from datetime import timedelta
+﻿import secrets
+from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 
 from django.utils import timezone
@@ -10,14 +11,18 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.contrib.auth.models import User
 from django.conf import settings as django_settings
+from django.core.cache import cache
 from django.db.models import ProtectedError, Q
+from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404
+from django.urls import reverse
 from .models import (
     HouseholdMember, HouseholdSettings, ShoppingList, ShoppingListItem, Recipe,
     HouseholdTaskDefinition, HouseholdTaskInstance, HouseholdTaskEvent,
     NotificationPreference, PushSubscription, Voucher, VoucherRedemption,
     UnitOfMeasure, Ingredient, Label, MealTimeCategory, RecipeRating, MealEvent, PurchaseRecord, CookingPlanConfig, CookingPlanEntry,
     PackingList, PackingListParticipant, PackingListItem, PackingBucket, PackingBucketItem,
+    GoogleCalendarLink, CalendarEvent,
 )
 from .serializers import (
     UserSerializer, HouseholdMemberSerializer, HouseholdSettingsSerializer,
@@ -30,6 +35,7 @@ from .serializers import (
     VoucherSerializer,
     PackingListSerializer, PackingListParticipantSerializer, PackingListItemSerializer,
     PackingBucketSerializer, PackingBucketItemSerializer,
+    GoogleCalendarLinkSerializer, CalendarEventSerializer,
 )
 from .services.task_generation import generate_instances_for_range, monday_of_week_as_datetime
 from .services.cooking_suggestions import build_suggestions
@@ -39,6 +45,7 @@ from .services.cooking_tasks import (
     finalize_range, follow_snooze, get_cooking_entry, leftovers_out_of_order, log_cooked, restore_after_unsnooze,
     sync_entry_date, sync_task_from_entry, undo_cooked,
 )
+from .services import google_calendar
 
 
 def _monday_of_week(day):
@@ -762,6 +769,87 @@ class PackingBucketItemViewSet(viewsets.ModelViewSet):
         bucket_id = self.request.query_params.get('bucket')
         if bucket_id:
             queryset = queryset.filter(bucket_id=bucket_id)
+        return queryset
+
+class GoogleCalendarLinkView(APIView):
+    """Singleton status/settings -- get, toggle sync_enabled, or disconnect
+    (clears the stored refresh token and the cached events)."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        return Response(GoogleCalendarLinkSerializer(GoogleCalendarLink.load()).data)
+
+    def patch(self, request):
+        link = GoogleCalendarLink.load()
+        serializer = GoogleCalendarLinkSerializer(link, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    def delete(self, request):
+        link = GoogleCalendarLink.load()
+        link.refresh_token = ''
+        link.save(update_fields=['refresh_token'])
+        link.events.all().delete()
+        return Response(GoogleCalendarLinkSerializer(link).data)
+
+class GoogleCalendarConnectUrlView(APIView):
+    """Builds the Google consent-screen URL for the frontend to navigate to
+    -- a real top-level redirect, not a fetch, since an OAuth flow can't
+    carry our JWT header. The one-time `state`, cached server-side, is how
+    the callback below -- which arrives as a plain, unauthenticated browser
+    navigation from Google -- gets verified as legitimate rather than
+    needing its own auth."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        state = secrets.token_urlsafe(24)
+        cache.set(f'gcal_oauth_state:{state}', True, timeout=600)
+        redirect_uri = request.build_absolute_uri(reverse('google-calendar-callback'))
+        return Response({'url': google_calendar.build_authorize_url(redirect_uri, state)})
+
+class GoogleCalendarCallbackView(APIView):
+    """Google redirects here after its consent screen. Deliberately
+    unauthenticated (a browser navigation carries no Authorization header)
+    -- the one-time `state` from GoogleCalendarConnectUrlView is the actual
+    guard against a forged callback."""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        settings_url = f'{django_settings.FRONTEND_URL}/settings'
+        state = request.query_params.get('state')
+        code = request.query_params.get('code')
+        if not state or not code or not cache.get(f'gcal_oauth_state:{state}'):
+            return HttpResponseRedirect(f'{settings_url}?google_calendar=error')
+        cache.delete(f'gcal_oauth_state:{state}')
+        redirect_uri = request.build_absolute_uri(reverse('google-calendar-callback'))
+        try:
+            tokens = google_calendar.exchange_code(code, redirect_uri)
+            refresh_token = tokens.get('refresh_token')
+            if not refresh_token:
+                raise ValueError('Google did not return a refresh token.')
+        except Exception:
+            return HttpResponseRedirect(f'{settings_url}?google_calendar=error')
+        link = GoogleCalendarLink.load()
+        link.refresh_token = refresh_token
+        link.sync_enabled = True
+        link.save(update_fields=['refresh_token', 'sync_enabled'])
+        return HttpResponseRedirect(f'{settings_url}?google_calendar=connected')
+
+class CalendarEventViewSet(viewsets.ReadOnlyModelViewSet):
+    """?start=&end= (inclusive ISO dates) -- the overlay for a given week,
+    read from the sync cache only; never calls Google directly."""
+    serializer_class = CalendarEventSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = CalendarEvent.objects.all()
+        start = parse_date(self.request.query_params.get('start', ''))
+        end = parse_date(self.request.query_params.get('end', ''))
+        if start:
+            queryset = queryset.filter(end_datetime__date__gte=start)
+        if end:
+            queryset = queryset.filter(start_datetime__date__lte=end)
         return queryset
 
 class HouseholdTaskDefinitionViewSet(viewsets.ModelViewSet):

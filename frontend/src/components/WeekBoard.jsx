@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import BacklogLane from './BacklogLane';
 import TaskDayColumn from './TaskDayColumn';
 import { toISODate, getWeekStart, parseISODate } from '../utils/weekDates';
+import { eventsOnDay } from '../utils/calendarEvents';
 
 // The interactive weekly board (backlog lane(s) + 7 day columns) shared by
 // the Household Plan page's calendar mode and its weekly-planning mode.
@@ -11,7 +12,7 @@ import { toISODate, getWeekStart, parseISODate } from '../utils/weekDates';
 // and unassigned tasks get a visual "needs attention" highlight.
 export default function WeekBoard({
   weekDays, instances, members, onComplete, onSkip, onSnooze, onReassign, onReopen, onDelete, onDragEnd,
-  planningWeekStart,
+  planningWeekStart, calendarEvents = [],
 }) {
   const { t } = useTranslation();
   const backlogInstances = instances.filter((i) => i.is_in_backlog);
@@ -101,6 +102,7 @@ export default function WeekBoard({
               date={day}
               dateISO={iso}
               instances={dayInstances}
+              calendarEvents={eventsOnDay(calendarEvents, iso)}
               members={members}
               onComplete={onComplete}
               onSkip={onSkip}

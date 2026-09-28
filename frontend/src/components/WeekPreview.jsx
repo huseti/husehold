@@ -4,11 +4,12 @@ import TaskIcon from './icons/taskIcons';
 import ExpandIcon from './icons/expandIcon';
 import { toISODate } from '../utils/weekDates';
 import { getDisplayTitle, mealName } from '../utils/taskDisplay';
+import { eventsOnDay } from '../utils/calendarEvents';
 
-// Read-only weekly overview for the Dashboard: a row of household tasks and a
-// second row of planned meals per day (a row for synced calendar entries
-// follows with the Google Calendar phase).
-export default function WeekPreview({ weekDays, instances, meals = [] }) {
+// Read-only weekly overview for the Dashboard: a row of household tasks, a
+// row of planned meals, and a row of synced Google Calendar events -- all
+// per day.
+export default function WeekPreview({ weekDays, instances, meals = [], calendarEvents = [] }) {
   const { t, i18n } = useTranslation();
   const backlogCount = instances.filter((i) => i.is_in_backlog).length;
 
@@ -85,9 +86,30 @@ export default function WeekPreview({ weekDays, instances, meals = [] }) {
         <p className="text-xs text-amber-700 mb-2">{t('tasks.backlogCount', { count: backlogCount })}</p>
       )}
 
-      <div className="text-xs text-gray-400 border-t pt-2 space-y-1">
-        <p>{t('dashboard.calendarComingSoon')}</p>
-      </div>
+      {calendarEvents.length > 0 && (
+        <>
+          <h3 className="text-sm font-semibold text-gray-500 mb-1">{t('dashboard.calendarRow')}</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-7 gap-2">
+            {weekDays.map((day) => {
+              const iso = toISODate(day);
+              const dayEvents = eventsOnDay(calendarEvents, iso);
+              if (dayEvents.length === 0) return <div key={iso} />;
+              return (
+                <div key={iso} className="border rounded p-2 min-h-[40px] bg-amber-50">
+                  <div className="text-xs font-semibold text-gray-500 mb-1 sm:hidden">
+                    {day.toLocaleDateString(i18n.resolvedLanguage, { weekday: 'short', day: 'numeric' })}
+                  </div>
+                  <div className="space-y-1">
+                    {dayEvents.map((event) => (
+                      <div key={event.id} className="text-xs text-amber-800 truncate">{event.title}</div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
     </div>
   );
 }

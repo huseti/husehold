@@ -143,3 +143,15 @@ DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'husehold@localhost')
 VAPID_PUBLIC_KEY = os.getenv('VAPID_PUBLIC_KEY', '')
 VAPID_PRIVATE_KEY = os.getenv('VAPID_PRIVATE_KEY', '')
 VAPID_ADMIN_EMAIL = os.getenv('VAPID_ADMIN_EMAIL', 'admin@localhost')
+
+# Google Calendar (one-way, read-only sync) -- from a Google Cloud OAuth
+# client (Web application type); see household/services/google_calendar.py.
+# The redirect URI is derived per-request (request.build_absolute_uri), so
+# both the dev and prod hosts just need to be registered in Google Cloud
+# Console as separate authorized redirect URIs -- no separate env var here.
+GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID', '')
+GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET', '')
+# Where the OAuth callback sends the browser back to once linking is done --
+# same-origin in prod (Nginx serves API + frontend together), but the dev
+# backend (:8000) and frontend (:3000) are different origins.
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')

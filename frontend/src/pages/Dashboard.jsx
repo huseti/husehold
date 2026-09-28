@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   shoppingService, recipeService, cookingPlanEntryService, taskInstanceService, authService, householdSettingsService,
-  voucherService, memberService, packingListService,
+  voucherService, memberService, packingListService, calendarEventService,
 } from '../services/api';
 import Navbar from '../components/Navbar';
 import WeekPreview from '../components/WeekPreview';
@@ -31,6 +31,7 @@ export default function Dashboard() {
   const [currentUser, setCurrentUser] = useState(null);
   const [members, setMembers] = useState([]);
   const [householdName, setHouseholdName] = useState('');
+  const [calendarEvents, setCalendarEvents] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const weekStart = getWeekStart(new Date());
@@ -40,7 +41,7 @@ export default function Dashboard() {
   const loadData = useCallback(async () => {
     try {
       const fetchStart = addDays(weekStart, -OVERDUE_LOOKBACK_DAYS);
-      const [shoppingRes, recipesRes, mealsRes, tasksRes, meRes, settingsRes, vouchersRes, membersRes, packingListsRes] = await Promise.all([
+      const [shoppingRes, recipesRes, mealsRes, tasksRes, meRes, settingsRes, vouchersRes, membersRes, packingListsRes, calendarEventsRes] = await Promise.all([
         shoppingService.getAll(),
         recipeService.getAll(),
         cookingPlanEntryService.getRange(toISODate(weekDays[0]), toISODate(weekDays[6])),
@@ -50,6 +51,7 @@ export default function Dashboard() {
         voucherService.getAll(),
         memberService.getAll(),
         packingListService.getAll(),
+        calendarEventService.getRange(toISODate(weekDays[0]), toISODate(weekDays[6])),
       ]);
       setShopping(shoppingRes.data.results || []);
       setRecipeCount(recipesRes.data.count ?? (recipesRes.data.results || recipesRes.data || []).length);
@@ -63,6 +65,7 @@ export default function Dashboard() {
       setVouchers(vouchersRes.data.results || []);
       setMembers(membersRes.data.results || membersRes.data || []);
       setPackingLists(packingListsRes.data.results || []);
+      setCalendarEvents(calendarEventsRes.data.results || []);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -159,7 +162,7 @@ export default function Dashboard() {
           <TodaysMealsPanel meals={todaysMeals} onMarkCooked={handleComplete} />
         </div>
 
-        <WeekPreview weekDays={weekDays} instances={tasks} meals={mealEntries} />
+        <WeekPreview weekDays={weekDays} instances={tasks} meals={mealEntries} calendarEvents={calendarEvents} />
       </main>
       <CookRatingPrompt entry={ratingPromptEntry} onClose={() => setRatingPromptEntry(null)} />
     </div>

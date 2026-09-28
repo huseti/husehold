@@ -685,3 +685,49 @@ class HouseholdTaskEvent(models.Model):
 
     def __str__(self):
         return f"{self.task_instance} - {self.event_type}"
+
+
+class GoogleCalendarLink(AuditableMixin):
+    """Singleton (pk=1, use .load()) -- one Google Calendar connected on
+    behalf of the whole household, not per-member (config here has no
+    per-user ownership, same as everywhere else -- see PLANNING.md 2a/6C).
+    Read-only, one-way: never written back to Google. The access token is
+    re-derived from refresh_token on each sync run rather than cached,
+    since sync only runs every 15 minutes -- one extra refresh call per run
+    is cheap and avoids tracking a separate expiry."""
+    calendar_id = models.CharField(max_length=255, default='primary')
+    refresh_token = models.CharField(max_length=512, blank=True)
+    sync_enabled = models.BooleanField(default=True)
+    last_synced_at = models.DateTimeField(null=True, blank=True)
+
+    @classmethod
+    def load(cls):
+        link, _ = cls.objects.get_or_create(pk=1)
+        return link
+
+    @property
+    def is_connected(self):
+        return bool(self.refresh_token)
+
+    def __str__(self):
+        return 'Google Calendar link'
+
+
+class CalendarEvent(models.Model):
+    """Read-only mirror of the linked Google Calendar's events within a
+    rolling sync window (see services/google_calendar.py) -- rebuilt each
+    sync run, never written back to Google. Rendered as an overlay in the
+    weekly household plan view."""
+    link = models.ForeignKey(GoogleCalendarLink, on_delete=models.CASCADE, related_name='events')
+    external_event_id = models.CharField(max_length=255)
+    title = models.CharField(max_length=500, blank=True)
+    start_datetime = models.DateTimeField()
+    end_datetime = models.DateTimeField()
+    is_all_day = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['start_datetime']
+        unique_together = ('link', 'external_event_id')
+
+    def __str__(self):
+        return self.title or self.external_event_id

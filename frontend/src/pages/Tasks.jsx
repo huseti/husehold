@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { taskInstanceService, taskDefinitionService, memberService } from '../services/api';
+import { taskInstanceService, taskDefinitionService, memberService, calendarEventService } from '../services/api';
 import Navbar from '../components/Navbar';
 import WeekBoard from '../components/WeekBoard';
 import TaskDefinitionForm from '../components/TaskDefinitionForm';
@@ -28,6 +28,7 @@ export default function Tasks() {
   const [instances, setInstances] = useState([]);
   const [members, setMembers] = useState([]);
   const [definitions, setDefinitions] = useState([]);
+  const [calendarEvents, setCalendarEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddSingle, setShowAddSingle] = useState(false);
   // A just-cooked dish the current user hasn't rated yet -- see CookRatingPrompt.
@@ -98,6 +99,13 @@ export default function Tasks() {
     loadMembers();
     loadDefinitions();
   }, []);
+
+  useEffect(() => {
+    calendarEventService.getRange(toISODate(weekDays[0]), toISODate(weekDays[6]))
+      .then((response) => setCalendarEvents(response.data.results || []))
+      .catch((error) => console.error('Error loading calendar events:', error));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toISODate(weekDays[0]), toISODate(weekDays[6])]);
 
   const handleConfigSaved = () => {
     loadMembers();
@@ -301,6 +309,7 @@ export default function Tasks() {
               weekDays={weekDays}
               instances={instances}
               members={members}
+              calendarEvents={calendarEvents}
               onComplete={handleComplete}
               onSkip={handleSkip}
               onSnooze={handleSnooze}

@@ -9,6 +9,7 @@ from .views import (
     TestEmailNotificationView, TestPushNotificationView,
     PackingListViewSet, PackingListItemViewSet, PackingBucketViewSet, PackingBucketItemViewSet,
     AnalyticsView,
+    GoogleCalendarLinkView, GoogleCalendarConnectUrlView, GoogleCalendarCallbackView, CalendarEventViewSet,
 )
 
 router = DefaultRouter()
@@ -32,6 +33,7 @@ router.register(r'packing-lists', PackingListViewSet, basename='packing-list')
 router.register(r'packing-items', PackingListItemViewSet, basename='packing-item')
 router.register(r'packing-buckets', PackingBucketViewSet, basename='packing-bucket')
 router.register(r'packing-bucket-items', PackingBucketItemViewSet, basename='packing-bucket-item')
+router.register(r'calendar-events', CalendarEventViewSet, basename='calendar-event')
 
 urlpatterns = [
     path('cooking-plan-config/', CookingPlanConfigView.as_view(), name='cooking-plan-config'),
@@ -42,5 +44,8 @@ urlpatterns = [
     path('vapid-public-key/', VapidPublicKeyView.as_view(), name='vapid-public-key'),
     path('notifications/test-email/', TestEmailNotificationView.as_view(), name='test-email-notification'),
     path('notifications/test-push/', TestPushNotificationView.as_view(), name='test-push-notification'),
+    path('google-calendar/', GoogleCalendarLinkView.as_view(), name='google-calendar-link'),
+    path('google-calendar/connect-url/', GoogleCalendarConnectUrlView.as_view(), name='google-calendar-connect-url'),
+    path('google-calendar/callback/', GoogleCalendarCallbackView.as_view(), name='google-calendar-callback'),
     path('', include(router.urls)),
 ]

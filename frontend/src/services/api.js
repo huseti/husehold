@@ -251,4 +251,15 @@ export const analyticsService = {
   get: (start, end) => api.get('/analytics/', { params: { start, end } }),
 };
 
+export const googleCalendarService = {
+  getStatus: () => api.get('/google-calendar/'),
+  getConnectUrl: () => api.get('/google-calendar/connect-url/'),
+  setSyncEnabled: (syncEnabled) => api.patch('/google-calendar/', { sync_enabled: syncEnabled }),
+  disconnect: () => api.delete('/google-calendar/'),
+};
+
+export const calendarEventService = {
+  getRange: (start, end) => api.get('/calendar-events/', { params: { start, end } }),
+};
+
 export default api;

@@ -2,7 +2,10 @@ import { useDroppable } from '@dnd-kit/core';
 import { useTranslation } from 'react-i18next';
 import TaskCard from './TaskCard';
 
-export default function TaskDayColumn({ date, dateISO, instances, members, onComplete, onSkip, onSnooze, onReassign, onReopen, onDelete, attentionHighlight = false }) {
+export default function TaskDayColumn({
+  date, dateISO, instances, members, onComplete, onSkip, onSnooze, onReassign, onReopen, onDelete,
+  attentionHighlight = false, calendarEvents = [],
+}) {
   const { t, i18n } = useTranslation();
   const { setNodeRef, isOver } = useDroppable({ id: dateISO });
 
@@ -17,6 +20,15 @@ export default function TaskDayColumn({ date, dateISO, instances, members, onCom
       <div className="text-sm font-semibold mb-2">
         {weekdayLabel} <span className="text-gray-400 font-normal">{dayLabel}</span>
       </div>
+      {calendarEvents.length > 0 && (
+        <div className="space-y-0.5 mb-2">
+          {calendarEvents.map((event) => (
+            <div key={event.id} className="text-xs text-amber-800 bg-amber-50 rounded px-1.5 py-0.5 truncate">
+              {event.title}
+            </div>
+          ))}
+        </div>
+      )}
       <div className="space-y-2">
         {instances.length === 0 && (
           <p className="text-xs text-gray-400">{t('tasks.noTasks')}</p>

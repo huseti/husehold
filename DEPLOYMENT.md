@@ -221,6 +221,29 @@ Required one-time setup in `backend/.env` on the Pi (see `.env.example`):
 - `EMAIL_HOST`/`EMAIL_PORT`/`EMAIL_HOST_USER`/`EMAIL_HOST_PASSWORD`/`EMAIL_USE_TLS`/`DEFAULT_FROM_EMAIL` -- SMTP credentials for sending email. Leaving `EMAIL_HOST` unset falls back to printing emails to the console instead of erroring.
 - `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`VAPID_ADMIN_EMAIL` -- generate once with `python manage.py generate_vapid_keys` and never regenerate afterwards (it would invalidate every device's existing push subscription).
 
+### 9. Google Calendar setup
+
+One-way, read-only sync of a single shared household calendar into the weekly plan view (see PLANNING.md 2a/6C). Needs a Google Cloud OAuth client, then the same cron pattern as notifications.
+
+1. **Google Cloud Console** (see PLANNING.md item C for the click-by-click version):
+   - Create/select a project, enable the **Google Calendar API**.
+   - Configure the OAuth consent screen: User type "External", scope `calendar.readonly`, and add both household members' Gmail addresses as **test users** (stays in Testing mode indefinitely for a read-only scope -- no Google review needed).
+   - Create an **OAuth client ID** (Web application) with the Pi's origin/redirect URI registered:
+     - Authorized JavaScript origin: `https://husehold.duckdns.org`
+     - Authorized redirect URI: `https://husehold.duckdns.org/api/google-calendar/callback/`
+   - (Optionally add the dev-laptop equivalents -- `http://localhost:3000` / `http://localhost:8000/api/google-calendar/callback/` -- to the same client, so `npm run dev`/`manage.py runserver` can test the flow too.)
+
+2. Add to `backend/.env` on the Pi (see `.env.example`):
+   - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` -- from the OAuth client created above.
+   - `FRONTEND_URL=https://husehold.duckdns.org` -- where the OAuth callback redirects the browser back to once linking finishes (defaults to `http://localhost:3000`, which is wrong for the Pi).
+
+3. Add the sync command to cron (`crontab -e`), same 15-minute cadence as notifications:
+   ```
+   */15 * * * * cd /home/husehold/husehold/backend && venv/bin/python manage.py sync_google_calendar >> /home/husehold/husehold/backend/calendar-sync.log 2>&1
+   ```
+
+4. In the app, a household member connects the calendar from **Settings → Google Calendar** -- a one-time click-through of Google's consent screen. Nothing further to configure; disconnecting/reconnecting and pausing sync are also done from there.
+
 ## Deployment Workflow
 
 The frontend is **built on your laptop**, not on the Pi. A Raspberry Pi 3 only has 1GB RAM, and Vite's bundler can use 300-500MB+ during a build — on top of Django, Gunicorn, and Nginx already running, that risks swap thrashing or the build getting OOM-killed. Building locally is fast and keeps the Pi free to just serve files.
