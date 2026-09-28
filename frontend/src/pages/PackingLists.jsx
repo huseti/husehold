@@ -7,6 +7,7 @@ import {
 import Navbar from '../components/Navbar';
 import CreatePackingListModal from '../components/CreatePackingListModal';
 import GearIcon from '../components/icons/gearIcon';
+import CopyIcon from '../components/icons/copyIcon';
 import { toISODate } from '../utils/weekDates';
 
 function errorMessage(error) {
@@ -28,6 +29,7 @@ export default function PackingLists() {
 
   const [newListName, setNewListName] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [copySource, setCopySource] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
   const [listName, setListName] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -77,17 +79,31 @@ export default function PackingLists() {
   };
 
   const handleCreate = async (data) => {
-    const res = await packingListService.create(data);
+    const res = copySource
+      ? await packingListService.copy(copySource.id, data)
+      : await packingListService.create(data);
     await reloadLists();
     setSelectedId(res.data.id);
     setShowCreateModal(false);
     setNewListName('');
+    setCopySource(null);
   };
 
   const openCreateModal = (e) => {
     e.preventDefault();
     if (!newListName.trim()) return;
+    setCopySource(null);
     setShowCreateModal(true);
+  };
+
+  const openCopyModal = (list) => {
+    setCopySource(list);
+    setShowCreateModal(true);
+  };
+
+  const closeCreateModal = () => {
+    setShowCreateModal(false);
+    setCopySource(null);
   };
 
   const updateSelected = async (changes) => {
@@ -222,13 +238,22 @@ export default function PackingLists() {
   const availableBuckets = selected ? buckets.filter((b) => !selected.added_bucket_ids.includes(b.id)) : [];
 
   const renderPill = (list) => (
-    <button
+    <span
       key={list.id}
-      onClick={() => { setSelectedId(list.id); setShowSettings(false); }}
-      className={`px-4 py-2 rounded-full text-sm border ${list.id === selectedId ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'} ${list.is_archived ? 'opacity-60' : ''}`}
+      className={`flex items-center gap-1 pl-4 pr-1 py-1 rounded-full text-sm border ${list.id === selectedId ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'} ${list.is_archived ? 'opacity-60' : ''}`}
     >
-      {list.name}
-    </button>
+      <button onClick={() => { setSelectedId(list.id); setShowSettings(false); }}>
+        {list.name}
+      </button>
+      <button
+        onClick={() => openCopyModal(list)}
+        className={`p-1.5 rounded-full ${list.id === selectedId ? 'hover:bg-gray-700' : 'hover:bg-gray-200'}`}
+        title={t('packingLists.copyToNewList')}
+        aria-label={t('packingLists.copyToNewList')}
+      >
+        <CopyIcon />
+      </button>
+    </span>
   );
 
   return (
@@ -447,9 +472,11 @@ export default function PackingLists() {
 
       {showCreateModal && (
         <CreatePackingListModal
-          initialName={newListName}
+          initialName={copySource ? t('packingLists.copyNamePlaceholder', { name: copySource.name }) : newListName}
+          initialParticipantIds={copySource ? copySource.participants.map((p) => p.user) : []}
+          isCopy={!!copySource}
           members={members}
-          onClose={() => setShowCreateModal(false)}
+          onClose={closeCreateModal}
           onCreate={handleCreate}
         />
       )}

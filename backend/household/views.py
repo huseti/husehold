@@ -634,6 +634,28 @@ class PackingListViewSet(viewsets.ModelViewSet):
         for user_id in participant_ids:
             PackingListParticipant.objects.create(packing_list=packing_list, user_id=user_id)
 
+    @action(detail=True, methods=['post'])
+    def copy(self, request, pk=None):
+        """Creates a new packing list, its items copied from this one (all
+        unpacked -- it's a new trip). Name/dates/participants are chosen
+        fresh in the create modal, same validation as a normal create;
+        bucket-add history does not carry over, so any bucket -- even one
+        already reflected in the copied items -- can still be added to the
+        new list."""
+        source = self.get_object()
+        participant_ids = request.data.get('participant_ids') or []
+        if not participant_ids:
+            raise DRFValidationError({'participant_ids': 'At least one participant is required.'})
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        new_list = serializer.save()
+        for user_id in participant_ids:
+            PackingListParticipant.objects.create(packing_list=new_list, user_id=user_id)
+        PackingListItem.objects.bulk_create([
+            PackingListItem(packing_list=new_list, text=item.text) for item in source.items.all()
+        ])
+        return Response(self.get_serializer(new_list).data, status=status.HTTP_201_CREATED)
+
     @action(detail=True, methods=['post'], url_path='add-participant')
     def add_participant(self, request, pk=None):
         packing_list = self.get_object()

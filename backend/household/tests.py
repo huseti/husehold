@@ -1876,6 +1876,52 @@ class PackingListTests(TestCase):
         unarchived = self.client.post(f'/api/packing-lists/{packing_list.id}/toggle-archived/')
         self.assertFalse(unarchived.data['is_archived'])
 
+    def test_copy_creates_a_new_list_with_the_items_unpacked(self):
+        source = PackingList.objects.create(name='Sommerurlaub 2025', start_date=self.today, end_date=self.today)
+        PackingListItem.objects.create(packing_list=source, text='Sonnencreme', is_packed=True)
+        PackingListItem.objects.create(packing_list=source, text='Badehose', is_packed=False)
+
+        response = self.client.post(f'/api/packing-lists/{source.id}/copy/', {
+            'name': 'Sommerurlaub 2026', 'start_date': self.today, 'end_date': self.today + timedelta(days=7),
+            'participant_ids': [self.tim.id],
+        }, format='json')
+
+        self.assertEqual(response.status_code, 201)
+        new_list = PackingList.objects.get(pk=response.data['id'])
+        self.assertNotEqual(new_list.id, source.id)
+        self.assertEqual(sorted(new_list.items.values_list('text', flat=True)), ['Badehose', 'Sonnencreme'])
+        self.assertFalse(new_list.items.filter(is_packed=True).exists())
+        # The source list is untouched.
+        self.assertTrue(source.items.filter(text='Sonnencreme', is_packed=True).exists())
+
+    def test_copy_requires_at_least_one_participant(self):
+        source = PackingList.objects.create(name='Sommerurlaub 2025', start_date=self.today, end_date=self.today)
+
+        response = self.client.post(f'/api/packing-lists/{source.id}/copy/', {
+            'name': 'Sommerurlaub 2026', 'start_date': self.today, 'end_date': self.today, 'participant_ids': [],
+        }, format='json')
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(PackingList.objects.count(), 1)
+
+    def test_copy_does_not_carry_over_added_bucket_history(self):
+        bucket = PackingBucket.objects.create(name='Sommerurlaub')
+        PackingBucketItem.objects.create(bucket=bucket, text='Sonnencreme')
+        source = PackingList.objects.create(name='Sommerurlaub 2025', start_date=self.today, end_date=self.today)
+        self.client.post(f'/api/packing-lists/{source.id}/add-bucket/', {'bucket_id': bucket.id}, format='json')
+
+        response = self.client.post(f'/api/packing-lists/{source.id}/copy/', {
+            'name': 'Sommerurlaub 2026', 'start_date': self.today, 'end_date': self.today,
+            'participant_ids': [self.tim.id],
+        }, format='json')
+
+        self.assertEqual(response.status_code, 201)
+        new_list = PackingList.objects.get(pk=response.data['id'])
+        self.assertEqual(list(new_list.added_buckets.all()), [])
+        # So the same bucket can still be added to the copy without a 400.
+        add_again = self.client.post(f'/api/packing-lists/{new_list.id}/add-bucket/', {'bucket_id': bucket.id}, format='json')
+        self.assertEqual(add_again.status_code, 200)
+
     def test_add_bucket_skips_items_that_duplicate_an_existing_item_by_name(self):
         bucket = PackingBucket.objects.create(name='Sommerurlaub')
         PackingBucketItem.objects.create(bucket=bucket, text='sonnencreme')

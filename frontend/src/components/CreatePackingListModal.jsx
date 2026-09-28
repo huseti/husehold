@@ -5,12 +5,14 @@ import { useTranslation } from 'react-i18next';
 // PackingLists.jsx), this modal collects the two things that are mandatory
 // but don't fit a one-line form -- participants and trip dates -- and only
 // then actually creates the list, so an incomplete list is never persisted.
-export default function CreatePackingListModal({ initialName, members, onClose, onCreate }) {
+export default function CreatePackingListModal({
+  initialName, initialParticipantIds = [], members, onClose, onCreate, isCopy = false,
+}) {
   const { t } = useTranslation();
   const [name, setName] = useState(initialName);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [participantIds, setParticipantIds] = useState([]);
+  const [participantIds, setParticipantIds] = useState(initialParticipantIds);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -29,7 +31,7 @@ export default function CreatePackingListModal({ initialName, members, onClose, 
       await onCreate({ name: name.trim(), start_date: startDate, end_date: endDate, participant_ids: participantIds });
     } catch (err) {
       console.error('Error creating packing list:', err);
-      setError(t('packingLists.createFailed'));
+      setError(isCopy ? t('packingLists.copyFailed') : t('packingLists.createFailed'));
       setBusy(false);
     }
   };
@@ -38,7 +40,7 @@ export default function CreatePackingListModal({ initialName, members, onClose, 
     <div className="fixed inset-0 z-50 bg-black/40 overflow-y-auto p-4" onClick={onClose}>
       <div className="bg-white rounded-lg shadow-xl max-w-md mx-auto my-8 p-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-start mb-4">
-          <h3 className="text-xl font-semibold">{t('packingLists.createTitle')}</h3>
+          <h3 className="text-xl font-semibold">{isCopy ? t('packingLists.copyTitle') : t('packingLists.createTitle')}</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-xl leading-none" aria-label={t('recipes.close')}>✕</button>
         </div>
 
@@ -98,7 +100,7 @@ export default function CreatePackingListModal({ initialName, members, onClose, 
               disabled={busy || !canSubmit}
               className="bg-amber-500 text-white px-4 py-2 rounded hover:bg-amber-600 disabled:opacity-50"
             >
-              {t('packingLists.createButton')}
+              {isCopy ? t('packingLists.copyButton') : t('packingLists.createButton')}
             </button>
             <button type="button" onClick={onClose} className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300">
               {t('recipes.cancel')}

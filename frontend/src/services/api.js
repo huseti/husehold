@@ -229,6 +229,7 @@ export const packingListService = {
   removeParticipant: (id, userId) => api.post(`/packing-lists/${id}/remove-participant/`, { user_id: userId }),
   addBucket: (id, bucketId) => api.post(`/packing-lists/${id}/add-bucket/`, { bucket_id: bucketId }),
   toggleArchived: (id) => api.post(`/packing-lists/${id}/toggle-archived/`),
+  copy: (id, data) => api.post(`/packing-lists/${id}/copy/`, data),
 };
 
 export const packingItemService = {
