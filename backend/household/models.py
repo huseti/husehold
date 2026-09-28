@@ -116,7 +116,13 @@ class Recipe(models.Model):
     prep_time = models.IntegerField(help_text="Preparation time in minutes", null=True, blank=True)
     cook_time = models.IntegerField(help_text="Cooking time in minutes", null=True, blank=True)
     servings = models.PositiveIntegerField(default=1)
-    source_url = models.URLField(max_length=500, blank=True)
+    SOURCE_TYPE_CHOICES = [
+        ('manual', 'Manual'), ('website', 'Website'), ('photo', 'Photo'), ('instagram', 'Instagram'),
+    ]
+    # Free text (a link, or "Rezept von Mama") -- source_type is a separate,
+    # user-set flag for how it was added, not derived from the text itself.
+    source = models.CharField(max_length=500, blank=True)
+    source_type = models.CharField(max_length=20, choices=SOURCE_TYPE_CHOICES, default='manual')
     notes = models.TextField(blank=True)
     categories = models.ManyToManyField(MealTimeCategory, blank=True, related_name='recipes')
     labels = models.ManyToManyField(Label, blank=True, related_name='recipes')

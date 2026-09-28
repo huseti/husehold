@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { shoppingListService, unitService } from '../services/api';
+import { shoppingListService, unitService, recipeService } from '../services/api';
 import { unitLabel } from '../utils/localized';
 import { mealName } from '../utils/taskDisplay';
 
@@ -9,11 +9,13 @@ import { mealName } from '../utils/taskDisplay';
 // start unticked). Used for a whole week of the cooking plan and for a
 // single recipe. `dishes` come from the API's shopping preview /
 // recipe shopping-lines: [{ key, recipe_title, servings, lines: [...] }].
-export default function AddToShoppingDialog({ dishes, onClose, onDone }) {
+export default function AddToShoppingDialog({ dishes: initialDishes, onClose, onDone }) {
   const { t, i18n } = useTranslation();
+  const [dishes, setDishes] = useState(initialDishes);
   const [lists, setLists] = useState([]);
   const [units, setUnits] = useState([]);
   const [listId, setListId] = useState('');
+  const [rescaling, setRescaling] = useState({});
   // A dish already sent to a list before is left unticked -- shown as
   // "already on the list" instead of being silently added again -- but can
   // still be ticked back on to add it (or a changed quantity) once more.
@@ -64,6 +66,19 @@ export default function AddToShoppingDialog({ dishes, onClose, onDone }) {
     return `${amount} ${line.ingredient_name}`.trim();
   };
 
+  const changeServings = async (dish, nextServings) => {
+    if (nextServings < 1 || !dish.recipe) return;
+    setRescaling((r) => ({ ...r, [dish.key]: true }));
+    try {
+      const response = await recipeService.shoppingLines(dish.recipe, nextServings);
+      setDishes((list) => list.map((d) => (d.key === dish.key ? { ...d, servings: nextServings, lines: response.data.lines } : d)));
+    } catch (err) {
+      console.error('Error rescaling ingredients:', err);
+    } finally {
+      setRescaling((r) => ({ ...r, [dish.key]: false }));
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-black/40 overflow-y-auto p-4" onClick={onClose}>
       <div className="bg-white rounded-lg shadow-xl max-w-xl mx-auto my-8 p-6" onClick={(e) => e.stopPropagation()}>
@@ -96,9 +111,33 @@ export default function AddToShoppingDialog({ dishes, onClose, onDone }) {
                       onChange={(e) => setDishOn({ ...dishOn, [d.key]: e.target.checked })}
                     />
                     <span>{d.recipe_title}</span>
+                    {d.recipe ? (
+                      <span className="flex items-center gap-1 text-sm font-normal text-gray-400">
+                        <button
+                          type="button"
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); changeServings(d, d.servings - 1); }}
+                          disabled={rescaling[d.key] || d.servings <= 1}
+                          className="w-6 h-6 rounded border border-gray-300 hover:bg-gray-100 disabled:opacity-40"
+                          aria-label="-"
+                        >
+                          −
+                        </button>
+                        {t('cookingPlan.servingsShort', { count: d.servings })}
+                        <button
+                          type="button"
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); changeServings(d, d.servings + 1); }}
+                          disabled={rescaling[d.key]}
+                          className="w-6 h-6 rounded border border-gray-300 hover:bg-gray-100 disabled:opacity-40"
+                          aria-label="+"
+                        >
+                          +
+                        </button>
+                      </span>
+                    ) : (
+                      <span className="text-sm font-normal text-gray-400">{t('cookingPlan.servingsShort', { count: d.servings })}</span>
+                    )}
                     <span className="text-sm font-normal text-gray-400">
-                      {t('cookingPlan.servingsShort', { count: d.servings })}
-                      {d.date && ` · ${new Date(`${d.date}T00:00:00`).toLocaleDateString(i18n.language, { weekday: 'short', day: 'numeric', month: 'short' })}`}
+                      {d.date && `${new Date(`${d.date}T00:00:00`).toLocaleDateString(i18n.language, { weekday: 'short', day: 'numeric', month: 'short' })}`}
                       {d.meal_category_name_de && ` · ${mealName(d, i18n)}`}
                     </span>
                     {d.already_added && (

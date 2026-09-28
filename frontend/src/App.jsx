@@ -6,6 +6,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import ShoppingList from './pages/ShoppingList';
 import Recipes from './pages/Recipes';
+import RecipeHighlight from './pages/RecipeHighlight';
 import CookingPlan from './pages/CookingPlan';
 import CookingPlanConfig from './pages/CookingPlanConfig';
 import Tasks from './pages/Tasks';
@@ -41,6 +42,7 @@ function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/shopping" element={<ShoppingList />} />
             <Route path="/recipes" element={<Recipes />} />
+            <Route path="/recipes/:id/highlight" element={<RecipeHighlight />} />
             <Route path="/cooking-plan" element={<CookingPlan />} />
             <Route path="/cooking-plan-config" element={<CookingPlanConfig />} />
             <Route path="/tasks" element={<Tasks />} />

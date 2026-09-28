@@ -1,8 +1,13 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import StarRating from './StarRating';
+import ExpandIcon from './icons/expandIcon';
 import { formatQuantity, scaleQuantity } from '../utils/recipeDisplay';
 import { localizedName, unitLabel } from '../utils/localized';
+import { asClickableUrl } from '../utils/sourceDisplay';
+
+const SOURCE_TYPE_KEYS = { manual: 'sourceTypeManual', website: 'sourceTypeWebsite', photo: 'sourceTypePhoto', instagram: 'sourceTypeInstagram' };
 
 const todayIso = () => new Date().toLocaleDateString('sv-SE');
 
@@ -10,6 +15,7 @@ export default function RecipeDetail({
   recipe, labels, categories, units, onAddToShopping, onRate, onClearRating, onLogCooked, onDeleteMeal, onEdit, onDelete, onClose,
 }) {
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
   const [servings, setServings] = useState(recipe.servings);
   const [showCookForm, setShowCookForm] = useState(false);
   const [cookDate, setCookDate] = useState(todayIso());
@@ -52,7 +58,17 @@ export default function RecipeDetail({
     <div className="space-y-5">
       <div className="flex justify-between items-start gap-4">
         <h3 className="text-2xl font-bold">{recipe.title}</h3>
-        <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-xl leading-none" aria-label={t('recipes.close')}>✕</button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate(`/recipes/${recipe.id}/highlight?servings=${servings}`)}
+            className="text-gray-500 hover:text-gray-800 text-xl p-1"
+            title={t('recipes.highlightMode')}
+            aria-label={t('recipes.highlightMode')}
+          >
+            <ExpandIcon />
+          </button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-xl leading-none" aria-label={t('recipes.close')}>✕</button>
+        </div>
       </div>
 
       {(recipeCategories.length > 0 || recipeLabels.length > 0) && (
@@ -148,11 +164,15 @@ export default function RecipeDetail({
         </div>
       )}
 
-      {recipe.source_url && (
+      {recipe.source && (
         <p className="text-sm">
-          <a href={recipe.source_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">
-            {t('recipes.source')}: {recipe.source_url}
-          </a>
+          {asClickableUrl(recipe.source) ? (
+            <a href={asClickableUrl(recipe.source)} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">
+              {t('recipes.source')}: {recipe.source}
+            </a>
+          ) : (
+            <span className="text-gray-700">{t('recipes.source')}: {recipe.source}</span>
+          )}
         </p>
       )}
 
@@ -210,6 +230,14 @@ export default function RecipeDetail({
           </ul>
         )}
       </div>
+
+      <p className="text-xs text-gray-400">
+        {t('recipes.addedMeta', {
+          date: formatDate(recipe.created_at.slice(0, 10)),
+          by: recipe.created_by_username || t('recipes.addedMetaUnknown'),
+        })}
+        {' · '}{t(`recipes.${SOURCE_TYPE_KEYS[recipe.source_type] || SOURCE_TYPE_KEYS.manual}`)}
+      </p>
 
       <div className="flex gap-3 pt-2 border-t">
         <button onClick={onEdit} className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">{t('recipes.edit')}</button>

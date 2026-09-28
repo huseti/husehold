@@ -100,6 +100,7 @@ export const shoppingService = {
 
 export const recipeService = {
   getAll: () => api.get('/recipes/'),
+  get: (id) => api.get(`/recipes/${id}/`),
   create: (data) => api.post('/recipes/', data),
   update: (id, data) => api.patch(`/recipes/${id}/`, data),
   delete: (id) => api.delete(`/recipes/${id}/`),

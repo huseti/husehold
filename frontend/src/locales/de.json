@@ -143,7 +143,11 @@
     "importLines": "Zeilen übernehmen",
     "instructionsLabel": "Zubereitung",
     "instructionsPlaceholder": "Zubereitung",
-    "sourceUrlPlaceholder": "Quellenlink (optional)",
+    "sourcePlaceholder": "Quelle (Link, \"von Mama\", \"Kochbuch Jamie Oliver\"...)",
+    "sourceTypeManual": "Manuell eingegeben",
+    "sourceTypeWebsite": "Von einer Webseite",
+    "sourceTypePhoto": "Abfotografiert",
+    "sourceTypeInstagram": "Aus einem Instagram-Video",
     "notesLabel": "Notizen",
     "notesPlaceholder": "Notizen, z. B. \"nächstes Mal weniger Salz\"",
     "save": "Speichern",
@@ -169,7 +173,13 @@
     "skip": "Überspringen",
     "cookLogFailed": "Eintrag konnte nicht gespeichert werden. Bitte erneut versuchen.",
     "removeLogEntry": "Eintrag entfernen",
-    "addToShopping": "Zutaten zur Einkaufsliste"
+    "addToShopping": "Zutaten zur Einkaufsliste",
+    "highlightMode": "Highlight-Modus",
+    "highlightNotFound": "Rezept nicht gefunden.",
+    "highlightFontSmaller": "Text verkleinern",
+    "highlightFontLarger": "Text vergrößern",
+    "addedMeta": "Hinzugefügt am {{date}} von {{by}}",
+    "addedMetaUnknown": "jemandem, der nicht mehr im Haushalt ist"
   },
   "cookingPlan": {
     "title": "Kochplan",

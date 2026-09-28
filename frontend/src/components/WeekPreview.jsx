@@ -1,5 +1,7 @@
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 import TaskIcon from './icons/taskIcons';
+import ExpandIcon from './icons/expandIcon';
 import { toISODate } from '../utils/weekDates';
 import { getDisplayTitle, mealName } from '../utils/taskDisplay';
 
@@ -54,11 +56,23 @@ export default function WeekPreview({ weekDays, instances, meals = [] }) {
               </div>
               <div className="space-y-1">
                 {dayMeals.map((entry) => (
-                  <div key={entry.id} className="text-xs">
-                    <span className="text-gray-400">{mealName(entry, i18n)}: </span>
-                    <span className={entry.is_cooked ? 'line-through text-gray-400' : 'text-gray-700'}>
-                      {entry.kind === 'leftovers' ? t('cookingPlan.leftoversOf', { title: entry.recipe_title }) : entry.recipe_title}
+                  <div key={entry.id} className="text-xs flex items-center justify-between gap-1">
+                    <span>
+                      <span className="text-gray-400">{mealName(entry, i18n)}: </span>
+                      <span className={entry.is_cooked ? 'line-through text-gray-400' : 'text-gray-700'}>
+                        {entry.kind === 'leftovers' ? t('cookingPlan.leftoversOf', { title: entry.recipe_title }) : entry.recipe_title}
+                      </span>
                     </span>
+                    {entry.kind === 'cook' && entry.recipe && (
+                      <Link
+                        to={`/recipes/${entry.recipe}/highlight?servings=${entry.servings}`}
+                        className="text-gray-400 hover:text-gray-700 flex-shrink-0"
+                        aria-label={t('recipes.highlightMode')}
+                        title={t('recipes.highlightMode')}
+                      >
+                        <ExpandIcon />
+                      </Link>
+                    )}
                   </div>
                 ))}
               </div>

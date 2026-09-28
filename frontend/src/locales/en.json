@@ -143,7 +143,11 @@
     "importLines": "Import lines",
     "instructionsLabel": "Instructions",
     "instructionsPlaceholder": "Instructions",
-    "sourceUrlPlaceholder": "Source link (optional)",
+    "sourcePlaceholder": "Source (link, \"from Mom\", \"Jamie Oliver cookbook\"...)",
+    "sourceTypeManual": "Typed manually",
+    "sourceTypeWebsite": "From a website",
+    "sourceTypePhoto": "Photographed",
+    "sourceTypeInstagram": "From an Instagram video",
     "notesLabel": "Notes",
     "notesPlaceholder": "Notes, e.g. \"less salt next time\"",
     "save": "Save",
@@ -169,7 +173,13 @@
     "skip": "Skip",
     "cookLogFailed": "Could not log this. Please try again.",
     "removeLogEntry": "Remove entry",
-    "addToShopping": "Ingredients to shopping list"
+    "addToShopping": "Ingredients to shopping list",
+    "highlightMode": "Highlight mode",
+    "highlightNotFound": "Recipe not found.",
+    "highlightFontSmaller": "Smaller text",
+    "highlightFontLarger": "Larger text",
+    "addedMeta": "Added {{date}} by {{by}}",
+    "addedMetaUnknown": "someone no longer in the household"
   },
   "cookingPlan": {
     "title": "Cooking Plan",

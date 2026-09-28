@@ -1,5 +1,7 @@
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 import { mealName } from '../utils/taskDisplay';
+import ExpandIcon from './icons/expandIcon';
 
 // Today's planned meals with a one-click "mark cooked" action. task_instance
 // is only present once the week's plan is finalized, which also naturally
@@ -27,6 +29,16 @@ export default function TodaysMealsPanel({ meals, onMarkCooked }) {
                   <span className="ml-2 text-xs text-gray-400">({entry.assigned_to_username})</span>
                 )}
               </span>
+              {entry.kind === 'cook' && entry.recipe && (
+                <Link
+                  to={`/recipes/${entry.recipe}/highlight?servings=${entry.servings}`}
+                  className="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  aria-label={t('recipes.highlightMode')}
+                  title={t('recipes.highlightMode')}
+                >
+                  <ExpandIcon />
+                </Link>
+              )}
               {entry.task_instance && !entry.is_cooked && (
                 <button
                   onClick={() => onMarkCooked(entry.task_instance)}

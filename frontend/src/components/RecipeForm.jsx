@@ -8,7 +8,7 @@ const emptyLine = () => ({ quantity: '', unit: '', name: '', note: '' });
 function recipeToForm(recipe) {
   if (!recipe) {
     return {
-      title: '', description: '', servings: 2, prep_time: '', cook_time: '', source_url: '',
+      title: '', description: '', servings: 2, prep_time: '', cook_time: '', source: '', source_type: 'manual',
       notes: '', instructions: '', categories: [], labels: [], lines: [emptyLine()],
     };
   }
@@ -18,7 +18,8 @@ function recipeToForm(recipe) {
     servings: recipe.servings,
     prep_time: recipe.prep_time ?? '',
     cook_time: recipe.cook_time ?? '',
-    source_url: recipe.source_url,
+    source: recipe.source,
+    source_type: recipe.source_type || 'manual',
     notes: recipe.notes,
     instructions: recipe.instructions,
     categories: recipe.categories,
@@ -82,7 +83,8 @@ export default function RecipeForm({ recipe, units, categories, labels, ingredie
         servings: Number(form.servings) || 1,
         prep_time: form.prep_time === '' ? null : Number(form.prep_time),
         cook_time: form.cook_time === '' ? null : Number(form.cook_time),
-        source_url: form.source_url,
+        source: form.source,
+        source_type: form.source_type,
         notes: form.notes,
         instructions: form.instructions,
         categories: form.categories,
@@ -243,13 +245,21 @@ export default function RecipeForm({ recipe, units, categories, labels, ingredie
         className={`w-full ${inputClass}`}
       />
 
-      <input
-        type="url"
-        placeholder={t('recipes.sourceUrlPlaceholder')}
-        value={form.source_url}
-        onChange={(e) => set('source_url', e.target.value)}
-        className={`w-full ${inputClass}`}
-      />
+      <div className="flex flex-wrap gap-2">
+        <input
+          type="text"
+          placeholder={t('recipes.sourcePlaceholder')}
+          value={form.source}
+          onChange={(e) => set('source', e.target.value)}
+          className={`flex-1 min-w-48 ${inputClass}`}
+        />
+        <select value={form.source_type} onChange={(e) => set('source_type', e.target.value)} className={inputClass}>
+          <option value="manual">{t('recipes.sourceTypeManual')}</option>
+          <option value="website">{t('recipes.sourceTypeWebsite')}</option>
+          <option value="photo">{t('recipes.sourceTypePhoto')}</option>
+          <option value="instagram">{t('recipes.sourceTypeInstagram')}</option>
+        </select>
+      </div>
 
       <textarea
         placeholder={t('recipes.notesPlaceholder')}
