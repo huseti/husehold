@@ -2228,8 +2228,9 @@ class GoogleCalendarLinkTests(TestCase):
         self.assertIn('google_calendar=error', response.url)
         self.assertFalse(GoogleCalendarLink.load().is_connected)
 
+    @patch.object(google_calendar_service, 'sync')
     @patch.object(google_calendar_service, 'exchange_code')
-    def test_callback_with_a_valid_state_saves_the_refresh_token(self, mock_exchange):
+    def test_callback_with_a_valid_state_saves_the_refresh_token(self, mock_exchange, mock_sync):
         mock_exchange.return_value = {'refresh_token': 'brand-new-token', 'access_token': 'a'}
         state = self.client.get('/api/google-calendar/connect-url/').data['url'].split('state=')[1]
 
@@ -2240,6 +2241,32 @@ class GoogleCalendarLinkTests(TestCase):
         link = GoogleCalendarLink.load()
         self.assertEqual(link.refresh_token, 'brand-new-token')
         self.assertTrue(link.sync_enabled)
+
+    @patch.object(google_calendar_service, 'sync')
+    @patch.object(google_calendar_service, 'exchange_code')
+    def test_callback_triggers_an_immediate_sync(self, mock_exchange, mock_sync):
+        # So the overlay is populated right away instead of waiting up to
+        # 15 minutes for the next cron tick.
+        mock_exchange.return_value = {'refresh_token': 'brand-new-token'}
+        state = self.client.get('/api/google-calendar/connect-url/').data['url'].split('state=')[1]
+
+        self.client.get(f'/api/google-calendar/callback/?state={state}&code=abc')
+
+        mock_sync.assert_called_once()
+
+    @patch.object(google_calendar_service, 'sync')
+    @patch.object(google_calendar_service, 'exchange_code')
+    def test_callback_still_reports_success_if_the_immediate_sync_fails(self, mock_exchange, mock_sync):
+        # The connection itself already succeeded -- a sync hiccup right
+        # after shouldn't turn that into an error; cron picks it up later.
+        mock_exchange.return_value = {'refresh_token': 'brand-new-token'}
+        mock_sync.side_effect = Exception('network blip')
+        state = self.client.get('/api/google-calendar/connect-url/').data['url'].split('state=')[1]
+
+        response = self.client.get(f'/api/google-calendar/callback/?state={state}&code=abc')
+
+        self.assertIn('google_calendar=connected', response.url)
+        self.assertTrue(GoogleCalendarLink.load().is_connected)
 
     @patch.object(google_calendar_service, 'exchange_code')
     def test_callback_without_a_refresh_token_redirects_with_error(self, mock_exchange):
@@ -2256,7 +2283,8 @@ class GoogleCalendarLinkTests(TestCase):
 
     def test_state_is_single_use(self):
         state = self.client.get('/api/google-calendar/connect-url/').data['url'].split('state=')[1]
-        with patch.object(google_calendar_service, 'exchange_code', return_value={'refresh_token': 't'}):
+        with patch.object(google_calendar_service, 'exchange_code', return_value={'refresh_token': 't'}), \
+                patch.object(google_calendar_service, 'sync'):
             self.client.get(f'/api/google-calendar/callback/?state={state}&code=abc')
 
         second = self.client.get(f'/api/google-calendar/callback/?state={state}&code=abc')

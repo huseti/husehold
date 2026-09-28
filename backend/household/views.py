@@ -834,6 +834,14 @@ class GoogleCalendarCallbackView(APIView):
         link.refresh_token = refresh_token
         link.sync_enabled = True
         link.save(update_fields=['refresh_token', 'sync_enabled'])
+        try:
+            # Best-effort: the overlay is populated immediately instead of
+            # waiting up to 15 minutes for the next cron tick. A failure here
+            # doesn't undo the (already successful) connection -- cron will
+            # just pick it up on its own next run.
+            google_calendar.sync()
+        except Exception:
+            pass
         return HttpResponseRedirect(f'{settings_url}?google_calendar=connected')
 
 class CalendarEventViewSet(viewsets.ReadOnlyModelViewSet):
