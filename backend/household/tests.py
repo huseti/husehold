@@ -2166,6 +2166,39 @@ class AnalyticsTests(TestCase):
         self.assertEqual(response.status_code, 200)
 
 
+class ServiceStatusTests(TestCase):
+    def setUp(self):
+        self.tim = User.objects.create_user(username='tim', password='pw')
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.tim)
+
+    @override_settings(EMAIL_HOST='', VAPID_PUBLIC_KEY='', VAPID_PRIVATE_KEY='', ANTHROPIC_API_KEY='')
+    def test_reports_unconfigured_when_env_vars_are_blank(self):
+        response = self.client.get('/api/service-status/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.data['email']['configured'])
+        self.assertIsNone(response.data['email']['host'])
+        self.assertFalse(response.data['web_push']['configured'])
+        self.assertFalse(response.data['shopping_categorization']['configured'])
+
+    @override_settings(EMAIL_HOST='smtp-relay.brevo.com', VAPID_PUBLIC_KEY='pub', VAPID_PRIVATE_KEY='priv', ANTHROPIC_API_KEY='key')
+    def test_reports_configured_when_env_vars_are_set(self):
+        response = self.client.get('/api/service-status/')
+
+        self.assertTrue(response.data['email']['configured'])
+        self.assertEqual(response.data['email']['host'], 'smtp-relay.brevo.com')
+        self.assertTrue(response.data['web_push']['configured'])
+        self.assertTrue(response.data['shopping_categorization']['configured'])
+
+    def test_requires_authentication(self):
+        anon_client = APIClient()
+
+        response = anon_client.get('/api/service-status/')
+
+        self.assertEqual(response.status_code, 401)
+
+
 class GoogleCalendarLinkTests(TestCase):
     """API-level: status/settings singleton, the OAuth connect/callback
     handshake, and the read-only events endpoint. See GoogleCalendarSyncTests

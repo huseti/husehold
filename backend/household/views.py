@@ -137,6 +137,27 @@ class VapidPublicKeyView(APIView):
     def get(self, request):
         return Response({'public_key': django_settings.VAPID_PUBLIC_KEY})
 
+class ServiceStatusView(APIView):
+    """Read-only configuration status for the optional external services
+    set up via backend/.env -- Settings shows this so it's visible without
+    SSHing in, but never exposes the secret values themselves (only
+    booleans, plus the SMTP host, which isn't sensitive)."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        return Response({
+            'email': {
+                'configured': bool(django_settings.EMAIL_HOST),
+                'host': django_settings.EMAIL_HOST or None,
+            },
+            'web_push': {
+                'configured': bool(django_settings.VAPID_PUBLIC_KEY and django_settings.VAPID_PRIVATE_KEY),
+            },
+            'shopping_categorization': {
+                'configured': bool(django_settings.ANTHROPIC_API_KEY),
+            },
+        })
+
 class TestEmailNotificationView(APIView):
     """Settings page 'send test email' button -- lets you confirm SMTP is
     configured correctly without waiting for a real task to come due."""

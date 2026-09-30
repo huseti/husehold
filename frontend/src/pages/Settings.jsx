@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import {
   householdSettingsService, notificationPreferenceService, pushSubscriptionService, notificationTestService,
-  memberService, googleCalendarService,
+  memberService, googleCalendarService, serviceStatusService,
 } from '../services/api';
 import { urlBase64ToUint8Array, isPushSupported } from '../utils/push';
 
@@ -56,6 +56,7 @@ export default function Settings() {
   const [googleCalendarNotice, setGoogleCalendarNotice] = useState(null);
   const [googleCalendarList, setGoogleCalendarList] = useState(null);
   const [syncNowStatus, setSyncNowStatus] = useState(null);
+  const [serviceStatus, setServiceStatus] = useState(null);
 
   const loadGoogleCalendar = () => googleCalendarService.getStatus().then((res) => {
     setGoogleCalendar(res.data);
@@ -73,6 +74,7 @@ export default function Settings() {
     notificationPreferenceService.getAll().then((res) => setPreferences(res.data));
     memberService.getMe().then((res) => setMember(res.data)).catch(() => {});
     loadGoogleCalendar();
+    serviceStatusService.get().then((res) => setServiceStatus(res.data)).catch(() => {});
 
     if (isPushSupported()) {
       navigator.serviceWorker.ready.then((registration) =>
@@ -459,6 +461,46 @@ export default function Settings() {
                 {googleCalendarBusy ? t('settings.googleCalendarConnecting') : t('settings.googleCalendarConnectButton')}
               </button>
             )
+          )}
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-6 mb-8">
+          <h3 className="text-lg font-semibold mb-4">{t('settings.serviceStatus')}</h3>
+          <p className="text-sm text-gray-500 mb-4">{t('settings.serviceStatusHint')}</p>
+          {serviceStatus && (
+            <ul className="space-y-3">
+              <li className="flex items-start gap-3">
+                <span className={`mt-1.5 w-2.5 h-2.5 rounded-full flex-shrink-0 ${serviceStatus.email.configured ? 'bg-green-500' : 'bg-gray-300'}`} />
+                <div>
+                  <p className="text-sm font-medium">{t('settings.serviceEmail')}</p>
+                  <p className="text-xs text-gray-500">
+                    {serviceStatus.email.configured
+                      ? t('settings.serviceEmailConfigured', { host: serviceStatus.email.host })
+                      : t('settings.serviceEmailNotConfigured')}
+                  </p>
+                </div>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className={`mt-1.5 w-2.5 h-2.5 rounded-full flex-shrink-0 ${serviceStatus.web_push.configured ? 'bg-green-500' : 'bg-gray-300'}`} />
+                <div>
+                  <p className="text-sm font-medium">{t('settings.serviceWebPush')}</p>
+                  <p className="text-xs text-gray-500">
+                    {serviceStatus.web_push.configured ? t('settings.serviceWebPushConfigured') : t('settings.serviceWebPushNotConfigured')}
+                  </p>
+                </div>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className={`mt-1.5 w-2.5 h-2.5 rounded-full flex-shrink-0 ${serviceStatus.shopping_categorization.configured ? 'bg-green-500' : 'bg-gray-300'}`} />
+                <div>
+                  <p className="text-sm font-medium">{t('settings.serviceCategorization')}</p>
+                  <p className="text-xs text-gray-500">
+                    {serviceStatus.shopping_categorization.configured
+                      ? t('settings.serviceCategorizationConfigured')
+                      : t('settings.serviceCategorizationNotConfigured')}
+                  </p>
+                </div>
+              </li>
+            </ul>
           )}
         </div>
 
