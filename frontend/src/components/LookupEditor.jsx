@@ -42,10 +42,10 @@ function Row({ item, fields, onUpdate, onDelete }) {
   return (
     <div>
       <div className="flex flex-wrap items-center gap-2 py-1">
-        {fields.map((field) => {
+        {fields.map((field, index) => {
           if (field.type === 'checkbox') {
             return (
-              <label key={field.key} className="flex items-center gap-1 text-sm text-gray-600">
+              <label key={index} className="flex items-center gap-1 text-sm text-gray-600">
                 <input
                   type="checkbox"
                   checked={!!draft[field.key]}
@@ -58,7 +58,7 @@ function Row({ item, fields, onUpdate, onDelete }) {
           if (field.type === 'color') {
             return (
               <input
-                key={field.key}
+                key={index}
                 type="color"
                 value={draft[field.key]}
                 onChange={(e) => setDraft({ ...draft, [field.key]: e.target.value })}
@@ -67,9 +67,39 @@ function Row({ item, fields, onUpdate, onDelete }) {
               />
             );
           }
+          if (field.type === 'select') {
+            return (
+              <select
+                key={index}
+                value={draft[field.key] ?? ''}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  const value = raw === '' ? null : field.valueType === 'string' ? raw : Number(raw);
+                  setDraft({ ...draft, [field.key]: value });
+                  save({ [field.key]: value });
+                }}
+                className={`px-3 py-1.5 border border-gray-300 rounded ${field.className || ''}`}
+              >
+                {field.valueType !== 'string' && <option value="">{t(field.emptyLabelKey || 'recipeConfig.none')}</option>}
+                {field.options.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+              </select>
+            );
+          }
+          if (field.type === 'preview') {
+            const PreviewIcon = field.IconComponent;
+            return (
+              <span
+                key={index}
+                className="w-9 h-9 rounded-full flex items-center justify-center text-white flex-shrink-0"
+                style={{ backgroundColor: draft[field.colorKey] || '#9e9e9e' }}
+              >
+                <PreviewIcon icon={draft[field.key]} />
+              </span>
+            );
+          }
           return (
             <input
-              key={field.key}
+              key={index}
               type={field.type}
               value={draft[field.key] ?? ''}
               placeholder={t(field.labelKey)}
@@ -86,7 +116,7 @@ function Row({ item, fields, onUpdate, onDelete }) {
   );
 }
 
-export default function LookupEditor({ titleKey, service, fields, newItemDefaults, searchable = false }) {
+export default function LookupEditor({ titleKey, service, fields, newItemDefaults, searchable = false, onChanged }) {
   const { t } = useTranslation();
   const [items, setItems] = useState([]);
   const [newItem, setNewItem] = useState(newItemDefaults);
@@ -110,11 +140,13 @@ export default function LookupEditor({ titleKey, service, fields, newItemDefault
   const handleUpdate = async (id, changes) => {
     const response = await service.update(id, changes);
     setItems((list) => list.map((i) => (i.id === id ? response.data : i)));
+    onChanged?.();
   };
 
   const handleDelete = async (id) => {
     await service.delete(id);
     setItems((list) => list.filter((i) => i.id !== id));
+    onChanged?.();
   };
 
   const handleAdd = async (e) => {
@@ -124,6 +156,7 @@ export default function LookupEditor({ titleKey, service, fields, newItemDefault
       await service.create(newItem);
       setNewItem(newItemDefaults);
       await load();
+      onChanged?.();
     } catch (err) {
       setError(errorMessage(err, t));
     }
@@ -149,18 +182,31 @@ export default function LookupEditor({ titleKey, service, fields, newItemDefault
         </div>
 
         <form onSubmit={handleAdd} className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-dashed">
-          {fields.filter((f) => f.type !== 'checkbox').map((field) => (
+          {fields.filter((f) => f.type !== 'checkbox' && f.type !== 'preview').map((field, index) => (
             field.type === 'color' ? (
               <input
-                key={field.key}
+                key={index}
                 type="color"
                 value={newItem[field.key]}
                 onChange={(e) => setNewItem({ ...newItem, [field.key]: e.target.value })}
                 className="w-9 h-9 p-0 border border-gray-300 rounded cursor-pointer"
               />
+            ) : field.type === 'select' ? (
+              <select
+                key={index}
+                value={newItem[field.key] ?? ''}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  setNewItem({ ...newItem, [field.key]: raw === '' ? null : field.valueType === 'string' ? raw : Number(raw) });
+                }}
+                className={`px-3 py-1.5 border border-gray-300 rounded ${field.className || ''}`}
+              >
+                {field.valueType !== 'string' && <option value="">{t(field.emptyLabelKey || 'recipeConfig.none')}</option>}
+                {field.options.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+              </select>
             ) : (
               <input
-                key={field.key}
+                key={index}
                 type={field.type}
                 value={newItem[field.key] ?? ''}
                 placeholder={t(field.labelKey)}

@@ -125,6 +125,7 @@ export const mealEventService = {
 
 export const unitService = lookupService('units');
 export const ingredientService = lookupService('ingredients');
+export const ingredientCategoryService = lookupService('ingredient-categories');
 export const labelService = lookupService('labels');
 export const mealCategoryService = lookupService('meal-categories');
 

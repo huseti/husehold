@@ -2,11 +2,12 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
 from .services.cooking_tasks import get_cooking_entry, leftovers_out_of_order, slot
+from .services.ingredient_categorization import categorize_ingredient
 from .models import (
     HouseholdMember, HouseholdSettings, ShoppingList, ShoppingListItem, Recipe,
     HouseholdTaskDefinition, HouseholdTaskInstance, HouseholdTaskEvent,
     NotificationPreference, PushSubscription, Voucher, VoucherRedemption,
-    UnitOfMeasure, Ingredient, Label, MealTimeCategory, RecipeIngredient, RecipeRating, MealEvent, PurchaseRecord, CookingPlanConfig, CookingPlanEntry,
+    UnitOfMeasure, Ingredient, IngredientCategory, Label, MealTimeCategory, RecipeIngredient, RecipeRating, MealEvent, PurchaseRecord, CookingPlanConfig, CookingPlanEntry,
     PackingList, PackingListParticipant, PackingListItem, PackingBucket, PackingBucketItem,
     GoogleCalendarLink, CalendarEvent,
 )
@@ -52,7 +53,7 @@ class UnitOfMeasureSerializer(serializers.ModelSerializer):
 class IngredientSerializer(serializers.ModelSerializer):
     class Meta:
         model = Ingredient
-        fields = ('id', 'name', 'default_excluded_from_shopping_list')
+        fields = ('id', 'name', 'default_excluded_from_shopping_list', 'category')
 
     def validate_name(self, value):
         value = value.strip()
@@ -91,6 +92,20 @@ class MealTimeCategorySerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('A category with this name already exists.')
         return value
 
+class IngredientCategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = IngredientCategory
+        fields = ('id', 'name_de', 'name_en', 'sort_order', 'icon', 'color_hex')
+
+    def validate_name_de(self, value):
+        value = value.strip()
+        clash = IngredientCategory.objects.filter(name_de__iexact=value)
+        if self.instance:
+            clash = clash.exclude(pk=self.instance.pk)
+        if clash.exists():
+            raise serializers.ValidationError('A category with this name already exists.')
+        return value
+
 def get_or_create_ingredient(name, user):
     """Case-insensitive match on the shared catalogue, creating the
     ingredient on the fly if it's new -- this is what lets recipe entry be
@@ -99,7 +114,9 @@ def get_or_create_ingredient(name, user):
     existing = Ingredient.objects.filter(name__iexact=name).first()
     if existing:
         return existing
-    return Ingredient.objects.create(name=name, created_by=user, updated_by=user)
+    ingredient = Ingredient.objects.create(name=name, created_by=user, updated_by=user)
+    categorize_ingredient(ingredient)
+    return ingredient
 
 class ShoppingListSerializer(serializers.ModelSerializer):
     item_count = serializers.SerializerMethodField()
@@ -123,7 +140,7 @@ class ShoppingListItemSerializer(serializers.ModelSerializer):
         model = ShoppingListItem
         fields = (
             'id', 'shopping_list', 'title', 'description', 'quantity', 'unit', 'unit_name',
-            'ingredient', 'source', 'is_completed', 'created_by', 'created_by_username',
+            'ingredient', 'category', 'source', 'is_completed', 'created_by', 'created_by_username',
             'created_at', 'updated_at',
         )
         read_only_fields = ('source', 'created_by')

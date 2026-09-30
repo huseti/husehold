@@ -85,6 +85,7 @@
     "newListPlaceholder": "New list...",
     "noLists": "No shopping lists yet — create one above.",
     "emptyList": "Nothing on this list yet.",
+    "uncategorized": "Uncategorized",
     "listSettings": "List settings",
     "favoriteLabel": "Favorite list (the Cooking Plan will add ingredients here)",
     "deleteList": "Delete this list",
@@ -509,9 +510,12 @@
     "labels": "Labels",
     "categories": "Meal types",
     "units": "Units",
+    "ingredientCategories": "Shopping list categories",
+    "ingredientCategory": "Category",
     "ingredients": "Ingredients",
     "name": "Name",
     "order": "Order",
+    "none": "None",
     "abbreviation": "Abbrev.",
     "excludeFromShopping": "Skip on shopping lists",
     "search": "Search...",
@@ -522,7 +526,21 @@
     "nameDe": "Name (German)",
     "nameEn": "Name (English)",
     "abbreviationDe": "Abbrev. (DE)",
-    "abbreviationEn": "Abbrev. (EN)"
+    "abbreviationEn": "Abbrev. (EN)",
+    "icon": "Icon",
+    "categoryIcon": {
+      "produce": "Fruit & Vegetables",
+      "bakery": "Bakery",
+      "dairy": "Dairy",
+      "meat": "Meat & Fish",
+      "frozen": "Frozen",
+      "pantry": "Pantry",
+      "spices": "Spices",
+      "drinks": "Drinks",
+      "sweets": "Sweets",
+      "household": "Household",
+      "other": "Other"
+    }
   },
   "packingBuckets": {
     "title": "Trip Buckets",

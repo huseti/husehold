@@ -2,12 +2,13 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import {
-  shoppingService, shoppingListService, unitService, ingredientService,
+  shoppingService, shoppingListService, unitService, ingredientService, ingredientCategoryService,
 } from '../services/api';
 import Navbar from '../components/Navbar';
 import PurchaseHistory from '../components/PurchaseHistory';
 import GearIcon from '../components/icons/gearIcon';
-import { unitLabel } from '../utils/localized';
+import CategoryIcon from '../components/icons/categoryIcons';
+import { unitLabel, localizedName } from '../utils/localized';
 
 const emptyItem = { title: '', quantity: '', unit: '' };
 
@@ -17,6 +18,7 @@ export default function ShoppingList() {
   const [selectedId, setSelectedId] = useState(null);
   const [items, setItems] = useState([]);
   const [units, setUnits] = useState([]);
+  const [ingredientCategories, setIngredientCategories] = useState([]);
   const [ingredientNames, setIngredientNames] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -46,13 +48,14 @@ export default function ShoppingList() {
         setLoading(false);
       }
 
-      const [unitRes, ingredientRes] = await Promise.allSettled([
-        unitService.getAll(), ingredientService.getAll(),
+      const [unitRes, ingredientRes, categoryRes] = await Promise.allSettled([
+        unitService.getAll(), ingredientService.getAll(), ingredientCategoryService.getAll(),
       ]);
       if (unitRes.status === 'fulfilled') setUnits(unitRes.value.data.results || []);
       if (ingredientRes.status === 'fulfilled') {
         setIngredientNames((ingredientRes.value.data.results || []).map((i) => i.name));
       }
+      if (categoryRes.status === 'fulfilled') setIngredientCategories(categoryRes.value.data.results || []);
     };
     init();
   }, []);
@@ -192,6 +195,75 @@ export default function ShoppingList() {
 
   const hasCompleted = items.some((i) => i.is_completed);
 
+  // Thematic clustering, sorted to roughly match a typical supermarket
+  // walk (IngredientCategory.sort_order) -- items with no category yet
+  // (a genuinely new/unrecognized name) land in one trailing group instead
+  // of being scattered or hidden.
+  const groupedItems = ingredientCategories
+    .map((cat) => ({
+      id: cat.id, name: localizedName(cat, i18n.language), icon: cat.icon, color: cat.color_hex,
+      items: items.filter((item) => item.category === cat.id),
+    }))
+    .filter((group) => group.items.length > 0);
+  const uncategorizedItems = items.filter((item) => item.category === null);
+  const itemGroups = uncategorizedItems.length > 0
+    ? [...groupedItems, { id: 'uncategorized', name: t('shoppingList.uncategorized'), icon: 'other', color: '#9e9e9e', items: uncategorizedItems }]
+    : groupedItems;
+
+  const renderItem = (item) => (
+    <li key={item.id} className="p-4">
+      {editingItemId === item.id ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            type="number" step="any" min="0"
+            value={editForm.quantity}
+            onChange={(e) => setEditForm({ ...editForm, quantity: e.target.value })}
+            className="w-20 px-3 py-1.5 border border-gray-300 rounded-lg"
+          />
+          <select
+            value={editForm.unit}
+            onChange={(e) => setEditForm({ ...editForm, unit: e.target.value })}
+            className="w-24 px-2 py-1.5 border border-gray-300 rounded-lg"
+          >
+            <option value="">{t('shoppingList.noUnit')}</option>
+            {units.map((u) => <option key={u.id} value={u.id}>{unitLabel(u, i18n.language)}</option>)}
+          </select>
+          <input
+            type="text"
+            value={editForm.title}
+            onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+            className="flex-1 min-w-32 px-3 py-1.5 border border-gray-300 rounded-lg"
+            required
+          />
+          <button onClick={saveEditItem} className="bg-green-600 text-white px-3 py-1.5 rounded hover:bg-green-700 text-sm">
+            {t('recipes.save')}
+          </button>
+          <button onClick={() => setEditingItemId(null)} className="bg-gray-200 text-gray-700 px-3 py-1.5 rounded hover:bg-gray-300 text-sm">
+            {t('recipes.cancel')}
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-center">
+          <input
+            type="checkbox"
+            checked={item.is_completed}
+            onChange={() => handleToggle(item.id)}
+            className="mr-4"
+          />
+          <div className={`flex-1 ${item.is_completed ? 'line-through text-gray-400' : ''}`}>
+            {item.quantity !== null && (
+              <span className="font-medium">{Number(item.quantity)} {unitLabel(units.find((u) => u.id === item.unit), i18n.language)} </span>
+            )}
+            {item.title}
+            {item.description && <p className="text-sm text-gray-500">{item.description}</p>}
+          </div>
+          <button onClick={() => startEditItem(item)} className="text-gray-300 hover:text-blue-600 px-1" aria-label={t('shoppingList.editItem')}>✎</button>
+          <button onClick={() => handleDeleteItem(item.id)} className="text-gray-300 hover:text-red-600 px-1" aria-label={t('shoppingList.deleteItem')}>✕</button>
+        </div>
+      )}
+    </li>
+  );
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
@@ -320,64 +392,30 @@ export default function ShoppingList() {
                 </button>
               </form>
 
-              <div className="bg-white rounded-lg shadow">
-                {items.length === 0 && <p className="p-4 text-gray-500">{t('shoppingList.emptyList')}</p>}
-                <ul className="divide-y">
-                  {items.map((item) => (
-                    <li key={item.id} className="p-4">
-                      {editingItemId === item.id ? (
-                        <div className="flex flex-wrap items-center gap-2">
-                          <input
-                            type="number" step="any" min="0"
-                            value={editForm.quantity}
-                            onChange={(e) => setEditForm({ ...editForm, quantity: e.target.value })}
-                            className="w-20 px-3 py-1.5 border border-gray-300 rounded-lg"
-                          />
-                          <select
-                            value={editForm.unit}
-                            onChange={(e) => setEditForm({ ...editForm, unit: e.target.value })}
-                            className="w-24 px-2 py-1.5 border border-gray-300 rounded-lg"
-                          >
-                            <option value="">{t('shoppingList.noUnit')}</option>
-                            {units.map((u) => <option key={u.id} value={u.id}>{unitLabel(u, i18n.language)}</option>)}
-                          </select>
-                          <input
-                            type="text"
-                            value={editForm.title}
-                            onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
-                            className="flex-1 min-w-32 px-3 py-1.5 border border-gray-300 rounded-lg"
-                            required
-                          />
-                          <button onClick={saveEditItem} className="bg-green-600 text-white px-3 py-1.5 rounded hover:bg-green-700 text-sm">
-                            {t('recipes.save')}
-                          </button>
-                          <button onClick={() => setEditingItemId(null)} className="bg-gray-200 text-gray-700 px-3 py-1.5 rounded hover:bg-gray-300 text-sm">
-                            {t('recipes.cancel')}
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center">
-                          <input
-                            type="checkbox"
-                            checked={item.is_completed}
-                            onChange={() => handleToggle(item.id)}
-                            className="mr-4"
-                          />
-                          <div className={`flex-1 ${item.is_completed ? 'line-through text-gray-400' : ''}`}>
-                            {item.quantity !== null && (
-                              <span className="font-medium">{Number(item.quantity)} {unitLabel(units.find((u) => u.id === item.unit), i18n.language)} </span>
-                            )}
-                            {item.title}
-                            {item.description && <p className="text-sm text-gray-500">{item.description}</p>}
-                          </div>
-                          <button onClick={() => startEditItem(item)} className="text-gray-300 hover:text-blue-600 px-1" aria-label={t('shoppingList.editItem')}>✎</button>
-                          <button onClick={() => handleDeleteItem(item.id)} className="text-gray-300 hover:text-red-600 px-1" aria-label={t('shoppingList.deleteItem')}>✕</button>
-                        </div>
-                      )}
-                    </li>
+              {items.length === 0 ? (
+                <div className="bg-white rounded-lg shadow">
+                  <p className="p-4 text-gray-500">{t('shoppingList.emptyList')}</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {itemGroups.map((group) => (
+                    <div key={group.id} className="bg-white rounded-lg shadow overflow-hidden">
+                      <div className="flex items-center gap-2 px-4 pt-3 pb-2">
+                        <span
+                          className="w-6 h-6 rounded-full flex items-center justify-center text-white text-sm flex-shrink-0"
+                          style={{ backgroundColor: group.color }}
+                        >
+                          <CategoryIcon icon={group.icon} />
+                        </span>
+                        <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold">{group.name}</p>
+                      </div>
+                      <ul className="divide-y">
+                        {group.items.map(renderItem)}
+                      </ul>
+                    </div>
                   ))}
-                </ul>
-              </div>
+                </div>
+              )}
 
               {hasCompleted && (
                 <button onClick={handleClearCompleted} className="mt-3 text-sm text-gray-600 hover:text-red-600">

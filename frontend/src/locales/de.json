@@ -85,6 +85,7 @@
     "newListPlaceholder": "Neue Liste...",
     "noLists": "Noch keine Einkaufslisten — leg oben eine an.",
     "emptyList": "Diese Liste ist noch leer.",
+    "uncategorized": "Nicht zugeordnet",
     "listSettings": "Listeneinstellungen",
     "favoriteLabel": "Lieblingsliste (der Kochplan legt Zutaten hier ab)",
     "deleteList": "Diese Liste löschen",
@@ -509,9 +510,12 @@
     "labels": "Labels",
     "categories": "Mahlzeiten",
     "units": "Einheiten",
+    "ingredientCategories": "Einkaufslisten-Kategorien",
+    "ingredientCategory": "Kategorie",
     "ingredients": "Zutaten",
     "name": "Name",
     "order": "Reihenfolge",
+    "none": "Keine",
     "abbreviation": "Kürzel",
     "excludeFromShopping": "Nicht auf Einkaufslisten",
     "search": "Suchen...",
@@ -522,7 +526,21 @@
     "nameDe": "Name (Deutsch)",
     "nameEn": "Name (Englisch)",
     "abbreviationDe": "Kürzel (DE)",
-    "abbreviationEn": "Kürzel (EN)"
+    "abbreviationEn": "Kürzel (EN)",
+    "icon": "Symbol",
+    "categoryIcon": {
+      "produce": "Obst & Gemüse",
+      "bakery": "Backwaren",
+      "dairy": "Milchprodukte",
+      "meat": "Fleisch & Fisch",
+      "frozen": "Tiefkühl",
+      "pantry": "Vorrat",
+      "spices": "Gewürze",
+      "drinks": "Getränke",
+      "sweets": "Süßes",
+      "household": "Haushalt",
+      "other": "Sonstiges"
+    }
   },
   "packingBuckets": {
     "title": "Reise-Buckets",

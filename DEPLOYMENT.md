@@ -244,6 +244,19 @@ One-way, read-only sync of a single shared household calendar into the weekly pl
 
 4. In the app, a household member connects the calendar from **Settings → Google Calendar** -- a one-time click-through of Google's consent screen. Nothing further to configure; disconnecting/reconnecting and pausing sync are also done from there.
 
+### 10. Shopping list categorization (optional)
+
+The shopping list auto-sorts items into categories using a built-in dictionary first, with a Claude API call as a fallback for anything the dictionary doesn't recognize (see PLANNING.md item E). The fallback is entirely optional -- without it, the dictionary alone still covers common groceries, and anything unrecognized just lands in "Uncategorized" until corrected by hand.
+
+1. Create an account at [console.anthropic.com](https://console.anthropic.com), add some prepaid credit, and generate an API key.
+2. Add to `backend/.env` (both the Pi and dev, see `.env.example`):
+   ```
+   ANTHROPIC_API_KEY=sk-ant-...
+   ```
+3. Redeploy (or just restart Gunicorn) so the new env var is picked up. No cron job needed -- this runs inline whenever a new ingredient/shopping item is created, not on a schedule.
+
+Cost is expected to be negligible (well under $1/year for a 2-person household) -- each call is small and only fires once per genuinely new item name, never for anything already in the dictionary or already-categorized. See PLANNING.md's Item E note for the full reasoning.
+
 ## Deployment Workflow
 
 The frontend is **built on your laptop**, not on the Pi. A Raspberry Pi 3 only has 1GB RAM, and Vite's bundler can use 300-500MB+ during a build — on top of Django, Gunicorn, and Nginx already running, that risks swap thrashing or the build getting OOM-killed. Building locally is fast and keeps the Pi free to just serve files.

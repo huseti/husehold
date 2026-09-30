@@ -57,6 +57,33 @@ class UnitOfMeasure(AuditableMixin):
         return self.abbreviation_de or self.name_de
 
 
+class IngredientCategory(AuditableMixin):
+    """Thematic clustering for the shopping list (Gemüse, Obst, Tiefkühl,
+    ...) -- sort_order mirrors how a typical supermarket is laid out, so the
+    shopping list can walk the store in one pass instead of back and forth.
+    See services/ingredient_categorization.py for how items land in one."""
+    ICON_CHOICES = [
+        ('produce', 'Produce'), ('bakery', 'Bakery'), ('dairy', 'Dairy'), ('meat', 'Meat'),
+        ('frozen', 'Frozen'), ('pantry', 'Pantry'), ('spices', 'Spices'), ('drinks', 'Drinks'),
+        ('sweets', 'Sweets'), ('household', 'Household'), ('other', 'Other'),
+    ]
+    name_de = models.CharField(max_length=50)
+    name_en = models.CharField(max_length=50, blank=True)
+    sort_order = models.PositiveIntegerField(default=0)
+    icon = models.CharField(max_length=20, choices=ICON_CHOICES, default='other')
+    color_hex = models.CharField(max_length=7, default='#9e9e9e')
+
+    class Meta:
+        ordering = ['sort_order', 'name_de']
+        verbose_name_plural = 'ingredient categories'
+        constraints = [
+            models.UniqueConstraint(Lower('name_de'), name='unique_ingredient_category_name_ci'),
+        ]
+
+    def __str__(self):
+        return self.name_de
+
+
 class Ingredient(AuditableMixin):
     """Shared ingredient catalogue. Created on the fly when a recipe (or
     shopping list item) names an ingredient that doesn't exist yet -- matched
@@ -65,6 +92,11 @@ class Ingredient(AuditableMixin):
     # For staples like water or salt that shouldn't clutter a generated
     # shopping list. Consumed by the Cooking Plan's send-to-shopping-list step.
     default_excluded_from_shopping_list = models.BooleanField(default=False)
+    # Auto-assigned on creation (dictionary, then an LLM fallback for
+    # anything unrecognized) -- always correctable by hand afterward.
+    category = models.ForeignKey(
+        IngredientCategory, on_delete=models.SET_NULL, null=True, blank=True, related_name='ingredients',
+    )
 
     class Meta:
         ordering = ['name']
@@ -306,6 +338,11 @@ class ShoppingListItem(models.Model):
     quantity = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
     unit = models.ForeignKey(UnitOfMeasure, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
     ingredient = models.ForeignKey(Ingredient, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    # Auto-assigned on creation -- copied from the linked ingredient's own
+    # category when there is one, else categorized directly from the typed
+    # title (covers non-food items like "Batterien" that never get an
+    # Ingredient row of their own). See services/ingredient_categorization.py.
+    category = models.ForeignKey(IngredientCategory, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
     source = models.CharField(max_length=20, choices=SOURCE_CHOICES, default='manual')
     is_completed = models.BooleanField(default=False)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)

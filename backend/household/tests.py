@@ -10,7 +10,7 @@ from rest_framework.test import APIClient
 
 from .models import (
     HouseholdMember, HouseholdSettings, HouseholdTaskDefinition, HouseholdTaskInstance, HouseholdTaskEvent,
-    CookingPlanConfig, CookingPlanEntry, Ingredient, Label, MealEvent, MealTimeCategory, NotificationPreference,
+    CookingPlanConfig, CookingPlanEntry, Ingredient, IngredientCategory, Label, MealEvent, MealTimeCategory, NotificationPreference,
     PurchaseRecord, Recipe, RecipeRating, ShoppingList, ShoppingListItem, UnitOfMeasure, Voucher, VoucherRedemption,
     PackingList, PackingListParticipant, PackingListItem, PackingBucket, PackingBucketItem,
     GoogleCalendarLink, CalendarEvent,
@@ -18,6 +18,7 @@ from .models import (
 from .services.task_generation import generate_instances_for_range
 from .services import analytics as analytics_service
 from .services import google_calendar as google_calendar_service
+from .services import ingredient_categorization as categorization_service
 
 
 class HouseholdSettingsTests(TestCase):
@@ -2518,3 +2519,130 @@ class GoogleCalendarSyncTests(TestCase):
 
         self.assertEqual(count, 1)
         self.assertEqual(CalendarEvent.objects.get(external_event_id='e1').color_hex, '')
+
+
+class IngredientCategorizationTests(TestCase):
+    """Shopping list thematic clustering -- see PLANNING.md item E. The
+    starter IngredientCategory rows come from migration 0034, already
+    present in the test database."""
+
+    def setUp(self):
+        self.tim = User.objects.create_user(username='tim', password='pw')
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.tim)
+
+    def test_dictionary_match(self):
+        category = categorization_service.categorize_text('Tomaten')
+
+        self.assertEqual(category.name_de, 'Obst & Gemüse')
+
+    def test_no_match_without_an_api_key_returns_none(self):
+        # ANTHROPIC_API_KEY is blank in tests by default -- the LLM fallback
+        # must be skipped entirely, not attempted and fail.
+        category = categorization_service.categorize_text('Xyzzyfrobnicator')
+
+        self.assertIsNone(category)
+
+    @override_settings(ANTHROPIC_API_KEY='test-key')
+    @patch('household.services.ingredient_categorization.requests.post')
+    def test_llm_fallback_when_dictionary_misses(self, mock_post):
+        response = type('R', (), {})()
+        response.raise_for_status = lambda: None
+        response.json = lambda: {'content': [{'text': 'Drogerie & Haushalt'}]}
+        mock_post.return_value = response
+
+        category = categorization_service.categorize_text('Wunderbatterie 9000')
+
+        self.assertEqual(category.name_de, 'Drogerie & Haushalt')
+
+    @override_settings(ANTHROPIC_API_KEY='test-key')
+    @patch('household.services.ingredient_categorization.requests.post')
+    def test_llm_response_outside_the_known_categories_is_ignored(self, mock_post):
+        response = type('R', (), {})()
+        response.raise_for_status = lambda: None
+        response.json = lambda: {'content': [{'text': 'Not a real category'}]}
+        mock_post.return_value = response
+
+        category = categorization_service.categorize_text('Something weird')
+
+        self.assertIsNone(category)
+
+    def test_categorize_ingredient_sets_category_once(self):
+        ingredient = Ingredient.objects.create(name='Apfel')
+
+        categorization_service.categorize_ingredient(ingredient)
+
+        self.assertEqual(ingredient.category.name_de, 'Obst & Gemüse')
+
+    def test_categorize_ingredient_never_overwrites_an_existing_category(self):
+        other = IngredientCategory.objects.get(name_de='Sonstiges')
+        ingredient = Ingredient.objects.create(name='Apfel', category=other)
+
+        categorization_service.categorize_ingredient(ingredient)
+
+        ingredient.refresh_from_db()
+        self.assertEqual(ingredient.category, other)
+
+    def test_shopping_item_inherits_category_from_its_linked_ingredient(self):
+        produce = IngredientCategory.objects.get(name_de='Obst & Gemüse')
+        ingredient = Ingredient.objects.create(name='Ananas', category=produce)
+        shopping_list = ShoppingList.objects.create(name='Liste')
+        item = ShoppingListItem.objects.create(shopping_list=shopping_list, title='Ananas', ingredient=ingredient)
+
+        categorization_service.categorize_shopping_item(item)
+
+        self.assertEqual(item.category, produce)
+
+    def test_shopping_item_without_an_ingredient_link_categorizes_its_own_title(self):
+        shopping_list = ShoppingList.objects.create(name='Liste')
+        item = ShoppingListItem.objects.create(shopping_list=shopping_list, title='Batterien')
+
+        categorization_service.categorize_shopping_item(item)
+
+        self.assertEqual(item.category.name_de, 'Drogerie & Haushalt')
+
+    def test_recipe_ingredient_creation_via_api_gets_categorized(self):
+        response = self.client.post('/api/recipes/', {
+            'title': 'Apfelkuchen', 'servings': 4,
+            'ingredients': [{'ingredient_name': 'Apfel', 'quantity': 3, 'unit': None, 'note': ''}],
+        }, format='json')
+
+        self.assertEqual(response.status_code, 201)
+        ingredient = Ingredient.objects.get(name__iexact='Apfel')
+        self.assertEqual(ingredient.category.name_de, 'Obst & Gemüse')
+
+    def test_manual_ingredient_creation_via_api_gets_categorized(self):
+        response = self.client.post('/api/ingredients/', {'name': 'Banane'}, format='json')
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data['category'], IngredientCategory.objects.get(name_de='Obst & Gemüse').id)
+
+    def test_manual_ingredient_creation_respects_an_explicit_category(self):
+        sonstiges = IngredientCategory.objects.get(name_de='Sonstiges')
+
+        response = self.client.post('/api/ingredients/', {'name': 'Banane', 'category': sonstiges.id}, format='json')
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data['category'], sonstiges.id)
+
+    def test_shopping_item_creation_via_api_gets_categorized(self):
+        shopping_list = ShoppingList.objects.create(name='Liste')
+
+        response = self.client.post('/api/shopping/', {'shopping_list': shopping_list.id, 'title': 'Milch'}, format='json')
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data['category'], IngredientCategory.objects.get(name_de='Milchprodukte & Eier').id)
+
+    def test_categorize_products_command_backfills_existing_rows(self):
+        from django.core.management import call_command
+
+        ingredient = Ingredient.objects.create(name='Karotte')
+        shopping_list = ShoppingList.objects.create(name='Liste')
+        item = ShoppingListItem.objects.create(shopping_list=shopping_list, title='Gurke')
+
+        call_command('categorize_products')
+
+        ingredient.refresh_from_db()
+        item.refresh_from_db()
+        self.assertEqual(ingredient.category.name_de, 'Obst & Gemüse')
+        self.assertEqual(item.category.name_de, 'Obst & Gemüse')

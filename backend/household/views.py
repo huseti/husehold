@@ -20,7 +20,7 @@ from .models import (
     HouseholdMember, HouseholdSettings, ShoppingList, ShoppingListItem, Recipe,
     HouseholdTaskDefinition, HouseholdTaskInstance, HouseholdTaskEvent,
     NotificationPreference, PushSubscription, Voucher, VoucherRedemption,
-    UnitOfMeasure, Ingredient, Label, MealTimeCategory, RecipeRating, MealEvent, PurchaseRecord, CookingPlanConfig, CookingPlanEntry,
+    UnitOfMeasure, Ingredient, IngredientCategory, Label, MealTimeCategory, RecipeRating, MealEvent, PurchaseRecord, CookingPlanConfig, CookingPlanEntry,
     PackingList, PackingListParticipant, PackingListItem, PackingBucket, PackingBucketItem,
     GoogleCalendarLink, CalendarEvent,
 )
@@ -28,7 +28,7 @@ from .serializers import (
     UserSerializer, HouseholdMemberSerializer, HouseholdSettingsSerializer,
     ShoppingListSerializer, ShoppingListItemSerializer,
     RecipeSerializer,
-    UnitOfMeasureSerializer, IngredientSerializer, LabelSerializer, MealTimeCategorySerializer,
+    UnitOfMeasureSerializer, IngredientSerializer, IngredientCategorySerializer, LabelSerializer, MealTimeCategorySerializer,
     MealEventSerializer, PurchaseRecordSerializer, CookingPlanConfigSerializer, CookingPlanEntrySerializer,
     HouseholdTaskDefinitionSerializer, HouseholdTaskInstanceSerializer,
     NotificationPreferenceSerializer, PushSubscriptionSerializer,
@@ -41,6 +41,7 @@ from .services.task_generation import generate_instances_for_range, monday_of_we
 from .services.cooking_suggestions import build_suggestions
 from .services.analytics import build_analytics
 from .services.cooking_shopping import add_lines_to_list, dish as shopping_dish, free_dish
+from .services.ingredient_categorization import categorize_ingredient, categorize_shopping_item
 from .services.cooking_tasks import (
     finalize_range, follow_snooze, get_cooking_entry, leftovers_out_of_order, log_cooked, restore_after_unsnooze,
     sync_entry_date, sync_task_from_entry, undo_cooked,
@@ -276,6 +277,7 @@ class ShoppingListItemViewSet(viewsets.ModelViewSet):
                 extra['ingredient'] = match
         item = serializer.save(**extra)
         self._sync_purchase_record(item, was_completed=False)
+        categorize_shopping_item(item)
 
     @action(detail=False, methods=['post'])
     def toggle_completed(self, request):
@@ -370,6 +372,16 @@ class IngredientViewSet(AuditedConfigViewSet):
         if q:
             queryset = queryset.filter(name__icontains=q)
         return queryset
+
+    def perform_create(self, serializer):
+        super().perform_create(serializer)
+        # Only auto-assign when the person didn't already pick one themselves.
+        if serializer.instance.category_id is None:
+            categorize_ingredient(serializer.instance)
+
+class IngredientCategoryViewSet(AuditedConfigViewSet):
+    queryset = IngredientCategory.objects.all()
+    serializer_class = IngredientCategorySerializer
 
 class RecipeViewSet(viewsets.ModelViewSet):
     serializer_class = RecipeSerializer

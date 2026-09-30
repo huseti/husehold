@@ -155,3 +155,10 @@ GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET', '')
 # same-origin in prod (Nginx serves API + frontend together), but the dev
 # backend (:8000) and frontend (:3000) are different origins.
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
+
+# Shopping list auto-categorization (Claude API fallback for ingredients the
+# built-in dictionary doesn't recognize) -- see
+# household/services/ingredient_categorization.py. Left blank, the LLM
+# fallback is just skipped and unrecognized items stay uncategorized until
+# corrected by hand.
+ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY', '')

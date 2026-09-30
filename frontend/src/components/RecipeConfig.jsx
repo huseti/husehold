@@ -1,12 +1,24 @@
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import LookupEditor from './LookupEditor';
-import { labelService, mealCategoryService, unitService, ingredientService } from '../services/api';
+import { labelService, mealCategoryService, unitService, ingredientService, ingredientCategoryService } from '../services/api';
+import { localizedName } from '../utils/localized';
+import CategoryIcon, { CATEGORY_ICON_KEYS } from './icons/categoryIcons';
 
 const NAME_DE = { key: 'name_de', labelKey: 'recipeConfig.nameDe', type: 'text' };
 const NAME_EN = { key: 'name_en', labelKey: 'recipeConfig.nameEn', type: 'text' };
 
 export default function RecipeConfig() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const [ingredientCategories, setIngredientCategories] = useState([]);
+
+  const loadIngredientCategories = () => ingredientCategoryService.getAll().then((res) => setIngredientCategories(res.data.results || []));
+
+  useEffect(() => {
+    loadIngredientCategories();
+  }, []);
+
+  const categoryOptions = ingredientCategories.map((c) => ({ value: c.id, label: localizedName(c, i18n.language) }));
 
   return (
     <div className="bg-white rounded-lg shadow p-6 mb-8">
@@ -35,10 +47,30 @@ export default function RecipeConfig() {
         newItemDefaults={{ name_de: '', name_en: '', abbreviation_de: '', abbreviation_en: '' }}
       />
       <LookupEditor
+        titleKey="recipeConfig.ingredientCategories"
+        service={ingredientCategoryService}
+        fields={[
+          { key: 'icon', colorKey: 'color_hex', type: 'preview', IconComponent: CategoryIcon },
+          { key: 'color_hex', type: 'color' },
+          NAME_DE, NAME_EN,
+          {
+            key: 'icon', labelKey: 'recipeConfig.icon', type: 'select', valueType: 'string', className: 'w-36',
+            options: CATEGORY_ICON_KEYS.map((k) => ({ value: k, label: t(`recipeConfig.categoryIcon.${k}`) })),
+          },
+          { key: 'sort_order', labelKey: 'recipeConfig.order', type: 'number', className: 'w-24' },
+        ]}
+        newItemDefaults={{ name_de: '', name_en: '', sort_order: 0, icon: 'other', color_hex: '#9e9e9e' }}
+        onChanged={loadIngredientCategories}
+      />
+      <LookupEditor
         titleKey="recipeConfig.ingredients"
         service={ingredientService}
-        fields={[{ key: 'name', labelKey: 'recipeConfig.name', type: 'text' }, { key: 'default_excluded_from_shopping_list', labelKey: 'recipeConfig.excludeFromShopping', type: 'checkbox' }]}
-        newItemDefaults={{ name: '' }}
+        fields={[
+          { key: 'name', labelKey: 'recipeConfig.name', type: 'text' },
+          { key: 'category', labelKey: 'recipeConfig.ingredientCategory', type: 'select', options: categoryOptions, emptyLabelKey: 'recipeConfig.none', className: 'w-44' },
+          { key: 'default_excluded_from_shopping_list', labelKey: 'recipeConfig.excludeFromShopping', type: 'checkbox' },
+        ]}
+        newItemDefaults={{ name: '', category: null }}
         searchable
       />
     </div>

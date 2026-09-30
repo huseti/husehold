@@ -8,6 +8,7 @@ ingredient + unit becomes one item with the quantities summed.
 from decimal import Decimal
 
 from ..models import ShoppingListItem
+from .ingredient_categorization import categorize_shopping_item
 
 
 def dish_lines(recipe, servings):
@@ -85,10 +86,11 @@ def add_lines_to_list(shopping_list, lines, user):
                 item.save()
             merged += 1
             continue
-        ShoppingListItem.objects.create(
+        new_item = ShoppingListItem.objects.create(
             shopping_list=shopping_list, title=group['title'], quantity=group['quantity'],
             unit_id=group['unit'], ingredient_id=group['ingredient'], source='cooking_plan',
             created_by=user,
         )
+        categorize_shopping_item(new_item)
         created += 1
     return {'created': created, 'merged': merged}
