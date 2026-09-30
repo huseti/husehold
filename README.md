@@ -207,6 +207,18 @@ VAPID_PUBLIC_KEY=...
 VAPID_PRIVATE_KEY=...
 ```
 
+## 🔗 External Services
+
+All optional except DuckDNS/Let's Encrypt (needed for Web Push on the deployed Pi). Full setup steps for each are in [DEPLOYMENT.md](DEPLOYMENT.md).
+
+| Service | Used for | Env vars |
+|---|---|---|
+| **Brevo** (SMTP) | Sending notification emails (task due, planning reminders, ...) | `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD` |
+| **Web Push** (VAPID) | Browser push notifications -- keys generated locally (`manage.py generate_vapid_keys`), no third-party account needed | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_ADMIN_EMAIL` |
+| **DuckDNS + Let's Encrypt** | A trusted hostname/HTTPS cert for the Pi (needed for devices, e.g. MDM-managed phones, that block self-signed certs) -- not app config, set up directly on the Pi (see DEPLOYMENT.md) | *(none -- Pi-side only)* |
+| **Google Calendar API** (OAuth) | One-way, read-only sync of a shared calendar into the weekly plan overlay | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `FRONTEND_URL` |
+| **Anthropic (Claude API)** | Fallback categorization for shopping list items the built-in dictionary doesn't recognize -- skipped entirely if unset | `ANTHROPIC_API_KEY` |
+
 ## 📚 Learn More
 
 - [Django Documentation](https://docs.djangoproject.com/)
