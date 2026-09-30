@@ -793,6 +793,36 @@ class GoogleCalendarLinkView(APIView):
         link.events.all().delete()
         return Response(GoogleCalendarLinkSerializer(link).data)
 
+class GoogleCalendarCalendarListView(APIView):
+    """The connected account's own list of calendars, for Settings to offer
+    a picker instead of always syncing 'primary'."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        link = GoogleCalendarLink.load()
+        if not link.is_connected:
+            return Response({'detail': 'Not connected.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            calendars = google_calendar.list_calendars(link)
+        except Exception:
+            return Response({'detail': 'Could not load calendars from Google.'}, status=status.HTTP_502_BAD_GATEWAY)
+        return Response(calendars)
+
+class GoogleCalendarSyncNowView(APIView):
+    """Manual "sync now" -- e.g. right after switching which calendar is
+    connected, instead of waiting for the next cron tick."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        link = GoogleCalendarLink.load()
+        if not link.is_connected:
+            return Response({'detail': 'Not connected.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            count = google_calendar.sync()
+        except Exception:
+            return Response({'detail': 'Sync failed.'}, status=status.HTTP_502_BAD_GATEWAY)
+        return Response({'synced': count})
+
 class GoogleCalendarConnectUrlView(APIView):
     """Builds the Google consent-screen URL for the frontend to navigate to
     -- a real top-level redirect, not a fetch, since an OAuth flow can't

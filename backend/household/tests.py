@@ -2206,6 +2206,53 @@ class GoogleCalendarLinkTests(TestCase):
         self.assertFalse(link.is_connected)
         self.assertEqual(link.events.count(), 0)
 
+    def test_patch_changes_calendar_id(self):
+        link = GoogleCalendarLink.load()
+        link.refresh_token = 'sometoken'
+        link.save()
+
+        response = self.client.patch('/api/google-calendar/', {'calendar_id': 'work@group.calendar.google.com'}, format='json')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(GoogleCalendarLink.load().calendar_id, 'work@group.calendar.google.com')
+
+    def test_calendar_list_requires_connection(self):
+        response = self.client.get('/api/google-calendar/calendars/')
+
+        self.assertEqual(response.status_code, 400)
+
+    @patch.object(google_calendar_service, 'list_calendars')
+    def test_calendar_list_returns_googles_calendars(self, mock_list):
+        link = GoogleCalendarLink.load()
+        link.refresh_token = 'sometoken'
+        link.save()
+        mock_list.return_value = [
+            {'id': 'primary', 'summary': 'tim@gmail.com', 'primary': True},
+            {'id': 'work@group.calendar.google.com', 'summary': 'Work', 'primary': False},
+        ]
+
+        response = self.client.get('/api/google-calendar/calendars/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 2)
+
+    def test_sync_now_requires_connection(self):
+        response = self.client.post('/api/google-calendar/sync-now/')
+
+        self.assertEqual(response.status_code, 400)
+
+    @patch.object(google_calendar_service, 'sync')
+    def test_sync_now_returns_the_synced_count(self, mock_sync):
+        link = GoogleCalendarLink.load()
+        link.refresh_token = 'sometoken'
+        link.save()
+        mock_sync.return_value = 5
+
+        response = self.client.post('/api/google-calendar/sync-now/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['synced'], 5)
+
     def test_connect_url_requires_authentication(self):
         anon_client = APIClient()
 
@@ -2408,3 +2455,66 @@ class GoogleCalendarSyncTests(TestCase):
         google_calendar_service.sync()
 
         self.assertFalse(CalendarEvent.objects.filter(external_event_id='stale').exists())
+
+    def _colors_response(self):
+        response = type('R', (), {})()
+        response.raise_for_status = lambda: None
+        response.json = lambda: {'event': {'11': {'background': '#dc2127'}}}
+        return response
+
+    def _calendar_response(self, background_color='#7986cb'):
+        response = type('R', (), {})()
+        response.raise_for_status = lambda: None
+        response.json = lambda: {'backgroundColor': background_color}
+        return response
+
+    @patch('household.services.google_calendar.requests.get')
+    @patch('household.services.google_calendar.requests.post')
+    def test_sync_resolves_event_color_from_colorid(self, mock_post, mock_get):
+        link = GoogleCalendarLink.load()
+        link.refresh_token = 'token'
+        link.save()
+        mock_post.return_value = self._token_response()
+        mock_get.side_effect = [
+            self._events_response([
+                {
+                    'id': 'red', 'summary': 'Tomato-colored event', 'status': 'confirmed', 'colorId': '11',
+                    'start': {'dateTime': '2026-06-10T09:00:00+02:00'}, 'end': {'dateTime': '2026-06-10T10:00:00+02:00'},
+                },
+                {
+                    'id': 'default', 'summary': 'Uses the calendar default', 'status': 'confirmed',
+                    'start': {'dateTime': '2026-06-11T09:00:00+02:00'}, 'end': {'dateTime': '2026-06-11T10:00:00+02:00'},
+                },
+            ]),
+            self._colors_response(),
+            self._calendar_response(),
+        ]
+
+        google_calendar_service.sync()
+
+        self.assertEqual(CalendarEvent.objects.get(external_event_id='red').color_hex, '#dc2127')
+        self.assertEqual(CalendarEvent.objects.get(external_event_id='default').color_hex, '#7986cb')
+
+    @patch('household.services.google_calendar.requests.get')
+    @patch('household.services.google_calendar.requests.post')
+    def test_sync_survives_a_colors_lookup_failure(self, mock_post, mock_get):
+        # Colors are a nice-to-have -- a hiccup fetching them shouldn't
+        # break the sync of the events themselves.
+        link = GoogleCalendarLink.load()
+        link.refresh_token = 'token'
+        link.save()
+        mock_post.return_value = self._token_response()
+        mock_get.side_effect = [
+            self._events_response([
+                {
+                    'id': 'e1', 'summary': 'Still synced', 'status': 'confirmed',
+                    'start': {'dateTime': '2026-06-10T09:00:00+02:00'}, 'end': {'dateTime': '2026-06-10T10:00:00+02:00'},
+                },
+            ]),
+            Exception('colors endpoint down'),
+        ]
+
+        count = google_calendar_service.sync()
+
+        self.assertEqual(count, 1)
+        self.assertEqual(CalendarEvent.objects.get(external_event_id='e1').color_hex, '')

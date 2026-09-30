@@ -23,7 +23,11 @@ export default function TaskDayColumn({
       {calendarEvents.length > 0 && (
         <div className="space-y-0.5 mb-2">
           {calendarEvents.map((event) => (
-            <div key={event.id} className="text-xs text-amber-800 bg-amber-50 rounded px-1.5 py-0.5 truncate">
+            <div
+              key={event.id}
+              className="text-xs text-amber-800 bg-amber-50 rounded px-1.5 py-0.5 truncate border-l-2"
+              style={{ borderColor: event.color_hex || '#d97706' }}
+            >
               {event.title}
             </div>
           ))}

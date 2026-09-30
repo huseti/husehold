@@ -255,7 +255,10 @@ export const googleCalendarService = {
   getStatus: () => api.get('/google-calendar/'),
   getConnectUrl: () => api.get('/google-calendar/connect-url/'),
   setSyncEnabled: (syncEnabled) => api.patch('/google-calendar/', { sync_enabled: syncEnabled }),
+  setCalendarId: (calendarId) => api.patch('/google-calendar/', { calendar_id: calendarId }),
   disconnect: () => api.delete('/google-calendar/'),
+  getCalendars: () => api.get('/google-calendar/calendars/'),
+  syncNow: () => api.post('/google-calendar/sync-now/'),
 };
 
 export const calendarEventService = {

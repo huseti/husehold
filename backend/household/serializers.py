@@ -554,9 +554,9 @@ class GoogleCalendarLinkSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = GoogleCalendarLink
-        fields = ('id', 'is_connected', 'sync_enabled', 'last_synced_at')
+        fields = ('id', 'is_connected', 'calendar_id', 'sync_enabled', 'last_synced_at')
 
 class CalendarEventSerializer(serializers.ModelSerializer):
     class Meta:
         model = CalendarEvent
-        fields = ('id', 'title', 'start_datetime', 'end_datetime', 'is_all_day')
+        fields = ('id', 'title', 'start_datetime', 'end_datetime', 'is_all_day', 'color_hex')

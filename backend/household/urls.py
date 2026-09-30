@@ -10,6 +10,7 @@ from .views import (
     PackingListViewSet, PackingListItemViewSet, PackingBucketViewSet, PackingBucketItemViewSet,
     AnalyticsView,
     GoogleCalendarLinkView, GoogleCalendarConnectUrlView, GoogleCalendarCallbackView, CalendarEventViewSet,
+    GoogleCalendarCalendarListView, GoogleCalendarSyncNowView,
 )
 
 router = DefaultRouter()
@@ -47,5 +48,7 @@ urlpatterns = [
     path('google-calendar/', GoogleCalendarLinkView.as_view(), name='google-calendar-link'),
     path('google-calendar/connect-url/', GoogleCalendarConnectUrlView.as_view(), name='google-calendar-connect-url'),
     path('google-calendar/callback/', GoogleCalendarCallbackView.as_view(), name='google-calendar-callback'),
+    path('google-calendar/calendars/', GoogleCalendarCalendarListView.as_view(), name='google-calendar-calendars'),
+    path('google-calendar/sync-now/', GoogleCalendarSyncNowView.as_view(), name='google-calendar-sync-now'),
     path('', include(router.urls)),
 ]

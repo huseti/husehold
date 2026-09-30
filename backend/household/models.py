@@ -724,6 +724,10 @@ class CalendarEvent(models.Model):
     start_datetime = models.DateTimeField()
     end_datetime = models.DateTimeField()
     is_all_day = models.BooleanField(default=False)
+    # From the event's own colorId if set, else the calendar's default color
+    # -- blank if Google's colors couldn't be fetched for some reason, in
+    # which case the overlay falls back to a plain neutral style.
+    color_hex = models.CharField(max_length=7, blank=True)
 
     class Meta:
         ordering = ['start_datetime']

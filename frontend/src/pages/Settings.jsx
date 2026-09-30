@@ -54,8 +54,16 @@ export default function Settings() {
   const [googleCalendar, setGoogleCalendar] = useState(null);
   const [googleCalendarBusy, setGoogleCalendarBusy] = useState(false);
   const [googleCalendarNotice, setGoogleCalendarNotice] = useState(null);
+  const [googleCalendarList, setGoogleCalendarList] = useState(null);
+  const [syncNowStatus, setSyncNowStatus] = useState(null);
 
-  const loadGoogleCalendar = () => googleCalendarService.getStatus().then((res) => setGoogleCalendar(res.data));
+  const loadGoogleCalendar = () => googleCalendarService.getStatus().then((res) => {
+    setGoogleCalendar(res.data);
+    if (res.data.is_connected) {
+      googleCalendarService.getCalendars().then((calRes) => setGoogleCalendarList(calRes.data)).catch(() => setGoogleCalendarList(null));
+    }
+    return res.data;
+  });
 
   useEffect(() => {
     householdSettingsService.get().then((res) => {
@@ -108,6 +116,32 @@ export default function Settings() {
     try {
       await googleCalendarService.disconnect();
       await loadGoogleCalendar();
+    } finally {
+      setGoogleCalendarBusy(false);
+    }
+  };
+
+  const handleChangeGoogleCalendarId = async (calendarId) => {
+    setGoogleCalendarBusy(true);
+    setSyncNowStatus(null);
+    try {
+      await googleCalendarService.setCalendarId(calendarId);
+      await googleCalendarService.syncNow();
+      await loadGoogleCalendar();
+    } finally {
+      setGoogleCalendarBusy(false);
+    }
+  };
+
+  const handleSyncNow = async () => {
+    setGoogleCalendarBusy(true);
+    setSyncNowStatus(null);
+    try {
+      const { data } = await googleCalendarService.syncNow();
+      setSyncNowStatus({ ok: true, count: data.synced });
+      await loadGoogleCalendar();
+    } catch {
+      setSyncNowStatus({ ok: false });
     } finally {
       setGoogleCalendarBusy(false);
     }
@@ -363,6 +397,21 @@ export default function Settings() {
           {googleCalendar && (
             googleCalendar.is_connected ? (
               <div className="space-y-3">
+                {googleCalendarList && (
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">{t('settings.googleCalendarWhich')}</label>
+                    <select
+                      value={googleCalendar.calendar_id}
+                      disabled={googleCalendarBusy}
+                      onChange={(e) => handleChangeGoogleCalendarId(e.target.value)}
+                      className="border rounded px-3 py-2 text-sm w-full max-w-sm"
+                    >
+                      {googleCalendarList.map((cal) => (
+                        <option key={cal.id} value={cal.id}>{cal.summary}{cal.primary ? ` (${t('settings.googleCalendarPrimary')})` : ''}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 <label className="flex items-center gap-2 text-sm">
                   <input
                     type="checkbox"
@@ -377,13 +426,29 @@ export default function Settings() {
                     ? t('settings.googleCalendarLastSynced', { time: new Date(googleCalendar.last_synced_at).toLocaleString(i18n.resolvedLanguage) })
                     : t('settings.googleCalendarNotSyncedYet')}
                 </p>
-                <button
-                  onClick={handleDisconnectGoogleCalendar}
-                  disabled={googleCalendarBusy}
-                  className="text-sm text-red-600 hover:underline disabled:opacity-50"
-                >
-                  {t('settings.googleCalendarDisconnect')}
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handleSyncNow}
+                    disabled={googleCalendarBusy}
+                    className="text-sm bg-gray-200 text-gray-700 px-3 py-1.5 rounded hover:bg-gray-300 disabled:opacity-50"
+                  >
+                    {t('settings.googleCalendarSyncNow')}
+                  </button>
+                  <button
+                    onClick={handleDisconnectGoogleCalendar}
+                    disabled={googleCalendarBusy}
+                    className="text-sm text-red-600 hover:underline disabled:opacity-50"
+                  >
+                    {t('settings.googleCalendarDisconnect')}
+                  </button>
+                </div>
+                {syncNowStatus && (
+                  <p className={`text-sm ${syncNowStatus.ok ? 'text-green-600' : 'text-red-600'}`}>
+                    {syncNowStatus.ok
+                      ? t('settings.googleCalendarSyncNowResult', { count: syncNowStatus.count })
+                      : t('settings.googleCalendarSyncNowFailed')}
+                  </p>
+                )}
               </div>
             ) : (
               <button

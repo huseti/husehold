@@ -86,6 +86,50 @@ def _parse_event_times(event):
     return start_dt, end_dt, is_all_day
 
 
+def _fetch_event_color_map(access_token):
+    """{colorId: backgroundHex} for Google's fixed event-color palette (the
+    same 11 named colors -- Lavender, Sage, Tomato, ... -- offered in
+    Google Calendar's own event color picker)."""
+    response = requests.get(
+        'https://www.googleapis.com/calendar/v3/colors',
+        headers={'Authorization': f'Bearer {access_token}'}, timeout=10,
+    )
+    response.raise_for_status()
+    return {
+        color_id: entry['background']
+        for color_id, entry in response.json().get('event', {}).items()
+    }
+
+
+def _fetch_calendar_default_color(access_token, calendar_id):
+    """The calendar's own color, used for any event that doesn't override
+    it with its own colorId."""
+    response = requests.get(
+        f'https://www.googleapis.com/calendar/v3/users/me/calendarList/{calendar_id}',
+        headers={'Authorization': f'Bearer {access_token}'}, timeout=10,
+    )
+    response.raise_for_status()
+    return response.json().get('backgroundColor', '')
+
+
+def list_calendars(link):
+    """The connected Google account's calendars (id, summary, primary flag),
+    for Settings to offer a picker -- reader access is enough since this is
+    read-only sync, no need for the full owner-only calendar list."""
+    access_token = _refresh_access_token(link.refresh_token)
+    response = requests.get(
+        'https://www.googleapis.com/calendar/v3/users/me/calendarList',
+        headers={'Authorization': f'Bearer {access_token}'},
+        params={'minAccessRole': 'reader'},
+        timeout=15,
+    )
+    response.raise_for_status()
+    return [
+        {'id': item['id'], 'summary': item.get('summary', item['id']), 'primary': item.get('primary', False)}
+        for item in response.json().get('items', [])
+    ]
+
+
 def sync():
     """Pulls events for the rolling window into CalendarEvent, replacing the
     previous snapshot for that window (handles edits/cancellations without
@@ -112,16 +156,25 @@ def sync():
     response.raise_for_status()
     items = response.json().get('items', [])
 
+    # Best-effort: colors are a nice-to-have overlay detail, not worth
+    # failing the whole sync over if Google's colors endpoint hiccups.
+    try:
+        event_colors = _fetch_event_color_map(access_token)
+        default_color = _fetch_calendar_default_color(access_token, link.calendar_id)
+    except Exception:
+        event_colors, default_color = {}, ''
+
     kept_ids = []
     for event in items:
         if event.get('status') == 'cancelled' or _is_declined(event):
             continue
         start_dt, end_dt, is_all_day = _parse_event_times(event)
+        color_hex = event_colors.get(event.get('colorId'), default_color)
         CalendarEvent.objects.update_or_create(
             link=link, external_event_id=event['id'],
             defaults={
                 'title': event.get('summary', ''), 'start_datetime': start_dt,
-                'end_datetime': end_dt, 'is_all_day': is_all_day,
+                'end_datetime': end_dt, 'is_all_day': is_all_day, 'color_hex': color_hex,
             },
         )
         kept_ids.append(event['id'])
