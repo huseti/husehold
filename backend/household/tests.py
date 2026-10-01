@@ -1503,6 +1503,78 @@ class CookingNotificationTests(CookingFixtureMixin, TestCase):
 
         self.assertEqual(mail.outbox[0].subject, 'Kochplanung für nächste Woche ist fällig')
 
+    def test_meal_planning_reminder_tells_everyone_even_when_assigned_to_one_member(self):
+        from django.core import mail
+        from .services.notifications import notify_task_due
+        reminder = HouseholdTaskInstance.objects.create(
+            standalone_title='Weekly Meal Planning', system_action='weekly_meal_planning',
+            occurrence_date=self.today, scheduled_date=self.today, assigned_to=self.tim,
+        )
+
+        notify_task_due(reminder)
+
+        self.assertEqual(sorted(m.to[0] for m in mail.outbox), ['anna@example.com', 'tim@example.com'])
+
+    def test_household_planning_reminder_tells_everyone_even_when_assigned_to_one_member(self):
+        from django.core import mail
+        from .services.notifications import notify_task_due
+        reminder = HouseholdTaskInstance.objects.create(
+            standalone_title='Weekly Household Planning', system_action='weekly_household_planning',
+            occurrence_date=self.today, scheduled_date=self.today, assigned_to=self.anna,
+        )
+
+        notify_task_due(reminder)
+
+        self.assertEqual(sorted(m.to[0] for m in mail.outbox), ['anna@example.com', 'tim@example.com'])
+
+    def test_an_unassigned_ordinary_task_now_tells_the_whole_household(self):
+        from django.core import mail
+        from .services.notifications import notify_task_due
+        task = HouseholdTaskInstance.objects.create(
+            standalone_title='Müll rausbringen', occurrence_date=self.today, scheduled_date=self.today,
+        )
+
+        notify_task_due(task)
+
+        self.assertEqual(sorted(m.to[0] for m in mail.outbox), ['anna@example.com', 'tim@example.com'])
+
+    def test_an_assigned_ordinary_task_still_only_tells_the_assignee(self):
+        from django.core import mail
+        from .services.notifications import notify_task_due
+        task = HouseholdTaskInstance.objects.create(
+            standalone_title='Müll rausbringen', occurrence_date=self.today, scheduled_date=self.today, assigned_to=self.anna,
+        )
+
+        notify_task_due(task)
+
+        self.assertEqual([m.to[0] for m in mail.outbox], ['anna@example.com'])
+
+    def test_overdue_task_sends_a_one_time_separate_notification(self):
+        from django.core import mail
+        from .services.notifications import notify_task_overdue
+        task = HouseholdTaskInstance.objects.create(
+            standalone_title='Müll rausbringen', occurrence_date=self.today - timedelta(days=1),
+            scheduled_date=self.today - timedelta(days=1), assigned_to=self.anna,
+        )
+
+        notify_task_overdue(task)
+        notify_task_overdue(task)
+
+        self.assertEqual([m.to[0] for m in mail.outbox], ['anna@example.com'])
+        self.assertIn('überfällig', mail.outbox[0].subject)
+
+    def test_send_notifications_command_catches_overdue_tasks(self):
+        from django.core import mail
+        from django.core.management import call_command
+        HouseholdTaskInstance.objects.create(
+            standalone_title='Rasen mähen', occurrence_date=self.today - timedelta(days=3),
+            scheduled_date=self.today - timedelta(days=3), assigned_to=self.tim,
+        )
+
+        call_command('send_notifications')
+
+        self.assertTrue(any('überfällig' in m.subject for m in mail.outbox))
+
     def test_preferences_endpoint_lists_the_new_types(self):
         types = [p['notification_type'] for p in self.client.get('/api/notification-preferences/').data]
 
@@ -1566,6 +1638,77 @@ class VoucherAndTripNotificationTests(CookingFixtureMixin, TestCase):
         from django.core import mail
         from django.core.management import call_command
         Voucher.objects.create(title='Alter Gutschein', valid_until=self.today + timedelta(days=5), is_archived=True)
+
+        call_command('send_notifications')
+
+        self.assertEqual(mail.outbox, [])
+
+
+class ShoppingDigestNotificationTests(CookingFixtureMixin, TestCase):
+    """shopping_purchased and shopping_items_added -- periodic digests over
+    the last 15 minutes (see send_notifications' SHOPPING_DIGEST_WINDOW_MINUTES),
+    deduped per shopping list per 15-minute bucket via reference_key."""
+
+    def setUp(self):
+        self.setUpCooking()
+        self.list = ShoppingList.objects.create(name='Wocheneinkauf')
+
+    def test_notify_shopping_purchased_notifies_the_whole_household_once(self):
+        from django.core import mail
+        from .services.notifications import notify_shopping_purchased
+
+        notify_shopping_purchased(self.list, 'bucket-1')
+        notify_shopping_purchased(self.list, 'bucket-1')
+
+        self.assertEqual(sorted(m.to[0] for m in mail.outbox), ['anna@example.com', 'tim@example.com'])
+        self.assertIn('Wocheneinkauf', mail.outbox[0].subject)
+
+    def test_notify_shopping_items_added_respects_a_restricted_lists_visibility(self):
+        from django.core import mail
+        from .services.notifications import notify_shopping_items_added
+        self.list.visible_to.add(self.anna)
+
+        notify_shopping_items_added(self.list, 'bucket-1')
+
+        self.assertEqual([m.to[0] for m in mail.outbox], ['anna@example.com'])
+
+    def test_different_buckets_notify_again(self):
+        from django.core import mail
+        from .services.notifications import notify_shopping_purchased
+
+        notify_shopping_purchased(self.list, 'bucket-1')
+        notify_shopping_purchased(self.list, 'bucket-2')
+
+        self.assertEqual(len(mail.outbox), 4)  # 2 members x 2 buckets
+
+    def test_send_notifications_command_catches_a_recent_purchase_and_a_recent_addition(self):
+        from django.core import mail
+        from django.core.management import call_command
+        item = ShoppingListItem.objects.create(shopping_list=self.list, title='Milch')
+        PurchaseRecord.objects.create(title='Eier', shopping_list=self.list, item=item)
+
+        call_command('send_notifications')
+
+        subjects = [m.subject for m in mail.outbox]
+        self.assertTrue(any('Einkauf wurde getätigt' in s for s in subjects))
+        self.assertTrue(any('Neue Artikel' in s for s in subjects))
+
+    def test_send_notifications_command_ignores_purchases_older_than_the_window(self):
+        from django.core import mail
+        from django.core.management import call_command
+        item = ShoppingListItem.objects.create(shopping_list=self.list, title='Milch')
+        record = PurchaseRecord.objects.create(title='Milch', shopping_list=self.list, item=item)
+        PurchaseRecord.objects.filter(pk=record.pk).update(created_at=dj_timezone.now() - timedelta(minutes=30))
+        ShoppingListItem.objects.filter(pk=item.pk).update(created_at=dj_timezone.now() - timedelta(minutes=30))
+
+        call_command('send_notifications')
+
+        self.assertEqual(mail.outbox, [])
+
+    def test_send_notifications_command_ignores_a_purchase_with_no_shopping_list(self):
+        from django.core import mail
+        from django.core.management import call_command
+        PurchaseRecord.objects.create(title='Lose item', shopping_list=None)
 
         call_command('send_notifications')
 

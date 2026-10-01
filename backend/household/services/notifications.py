@@ -32,6 +32,10 @@ NOTIFICATION_MESSAGES = {
             'subject': 'Heute kochen wir: {title}',
             'body': 'Heute kochen wir {title}.',
         },
+        'task_overdue': {
+            'subject': 'Aufgabe überfällig: {title}',
+            'body': '„{title}“ ist überfällig.',
+        },
         'voucher_expiring_soon': {
             'subject': 'Gutschein läuft bald ab: {title}',
             'body': '„{title}“ läuft am {date} ab.',
@@ -39,6 +43,14 @@ NOTIFICATION_MESSAGES = {
         'packing_trip_tomorrow': {
             'subject': 'Reise startet morgen: {title}',
             'body': '„{title}“ startet morgen.',
+        },
+        'shopping_purchased': {
+            'subject': 'Einkauf wurde getätigt: {list_name}',
+            'body': 'Auf „{list_name}“ wurden gerade Artikel abgehakt.',
+        },
+        'shopping_items_added': {
+            'subject': 'Neue Artikel auf der Einkaufsliste: {list_name}',
+            'body': 'Auf „{list_name}“ wurden gerade neue Artikel hinzugefügt.',
         },
     },
     'en': {
@@ -58,6 +70,10 @@ NOTIFICATION_MESSAGES = {
             'subject': "Cooking today: {title}",
             'body': "Today we're cooking {title}.",
         },
+        'task_overdue': {
+            'subject': 'Task overdue: {title}',
+            'body': '"{title}" is overdue.',
+        },
         'voucher_expiring_soon': {
             'subject': 'Voucher expiring soon: {title}',
             'body': '"{title}" expires on {date}.',
@@ -65,6 +81,14 @@ NOTIFICATION_MESSAGES = {
         'packing_trip_tomorrow': {
             'subject': 'Trip starts tomorrow: {title}',
             'body': '"{title}" starts tomorrow.',
+        },
+        'shopping_purchased': {
+            'subject': 'Shopping done: {list_name}',
+            'body': 'Items were just checked off on "{list_name}".',
+        },
+        'shopping_items_added': {
+            'subject': 'New items on the shopping list: {list_name}',
+            'body': 'New items were just added to "{list_name}".',
         },
     },
 }
@@ -97,19 +121,55 @@ NOTIFICATION_TYPE_BY_SYSTEM_ACTION = {
 }
 
 
+# System actions whose notifications always go to the whole household, even
+# when the instance itself is assigned to one member via the normal rotation
+# -- these are shared planning chores, not personal ones. cook_meal is
+# deliberately NOT here: an assigned cook task only tells the cook (see
+# _recipients below); only an unclaimed one goes to everyone.
+ALWAYS_WHOLE_HOUSEHOLD_ACTIONS = {'weekly_household_planning', 'weekly_meal_planning'}
+
+
+def _household():
+    return list(User.objects.filter(householdmember__isnull=False))
+
+
 def _recipients(instance):
-    """The assignee. A cook task nobody has claimed yet goes to the whole
-    household instead -- "we're cooking X today" is news for everyone."""
-    if instance.assigned_to_id:
+    """The assignee, for an ordinary assigned task. Everyone in the
+    household instead for: the shared planning system actions regardless of
+    assignment, a cook task nobody has claimed yet ("we're cooking X today"
+    is news for everyone), and any other task with nobody assigned (previously
+    these got no recipients at all -- an unassigned task is everyone's to
+    pick up, so everyone should hear about it)."""
+    if instance.assigned_to_id and instance.system_action not in ALWAYS_WHOLE_HOUSEHOLD_ACTIONS:
         return [instance.assigned_to]
-    if instance.system_action == 'cook_meal':
-        return list(User.objects.filter(householdmember__isnull=False))
-    return []
+    return _household()
+
+
+def _shopping_list_recipients(shopping_list):
+    """Whoever can see the list (visible_to), or the whole household if it's
+    not restricted -- same "empty means everyone" rule as the list itself."""
+    restricted = list(shopping_list.visible_to.all())
+    return restricted if restricted else _household()
+
+
+def _notify(user, notification_type, subject, body, *, task_instance=None, reference_key=''):
+    """Looks up this user's preference for notification_type and sends on
+    whichever of email/push they've enabled, via _send_once so repeated
+    calls (the cron re-scanning the same tasks/vouchers/etc. every tick)
+    never double-send."""
+    pref, _ = NotificationPreference.objects.get_or_create(user=user, notification_type=notification_type)
+    if pref.email_enabled and user.email:
+        _send_once(user, notification_type, 'email', lambda: _send_email(user, subject, body),
+                   task_instance=task_instance, reference_key=reference_key)
+    if pref.push_enabled:
+        subscriptions = list(PushSubscription.objects.filter(user=user))
+        if subscriptions:
+            _send_once(user, notification_type, 'push', lambda: _send_push_all(subscriptions, subject, body),
+                       task_instance=task_instance, reference_key=reference_key)
 
 
 def notify_task_due(instance):
-    """Sends email/push for a due HouseholdTaskInstance to its recipients,
-    according to each user's NotificationPreference for the matching type.
+    """Sends email/push for a due HouseholdTaskInstance to its recipients.
     Safe to call repeatedly -- NotificationLog rows make each (instance,
     user, type, channel) combination a one-time send."""
     notification_type = NOTIFICATION_TYPE_BY_SYSTEM_ACTION.get(instance.system_action, 'task_due_today')
@@ -118,21 +178,20 @@ def notify_task_due(instance):
     for user in _recipients(instance):
         # Worded per recipient, so a household can read them in two languages.
         messages = NOTIFICATION_MESSAGES[notification_language(user)][notification_type]
-        subject = messages['subject'].format(title=title)
-        body = messages['body'].format(title=title)
-        pref, _ = NotificationPreference.objects.get_or_create(user=user, notification_type=notification_type)
+        _notify(user, notification_type, messages['subject'].format(title=title), messages['body'].format(title=title),
+                task_instance=instance)
 
-        if pref.email_enabled and user.email:
-            _send_once(user, notification_type, 'email', lambda u=user: _send_email(u, subject, body), task_instance=instance)
 
-        if pref.push_enabled:
-            subscriptions = list(PushSubscription.objects.filter(user=user))
-            if subscriptions:
-                _send_once(
-                    user, notification_type, 'push',
-                    lambda subs=subscriptions: _send_push_all(subs, subject, body),
-                    task_instance=instance,
-                )
+def notify_task_overdue(instance):
+    """Same recipients/dedup pattern as notify_task_due, but for a task
+    whose scheduled_date has already passed -- a separate, one-time "this is
+    now overdue" heads-up rather than a repeat of the due-today message."""
+    title = instance.definition.title if instance.definition else instance.standalone_title
+
+    for user in _recipients(instance):
+        messages = NOTIFICATION_MESSAGES[notification_language(user)]['task_overdue']
+        _notify(user, 'task_overdue', messages['subject'].format(title=title), messages['body'].format(title=title),
+                task_instance=instance)
 
 
 def notify_voucher_expiring(voucher):
@@ -141,52 +200,60 @@ def notify_voucher_expiring(voucher):
     30-day check) -- vouchers aren't per-user, so unlike a task this goes to
     everyone regardless of who's assigned anything. Safe to call repeatedly;
     NotificationLog's reference_key makes it a one-time send per voucher."""
-    notification_type = 'voucher_expiring_soon'
     reference_key = f'voucher:{voucher.id}'
     date_str = voucher.valid_until.strftime('%d.%m.%Y')
 
-    for user in User.objects.filter(householdmember__isnull=False):
-        messages = NOTIFICATION_MESSAGES[notification_language(user)][notification_type]
-        subject = messages['subject'].format(title=voucher.title)
-        body = messages['body'].format(title=voucher.title, date=date_str)
-        pref, _ = NotificationPreference.objects.get_or_create(user=user, notification_type=notification_type)
-
-        if pref.email_enabled and user.email:
-            _send_once(user, notification_type, 'email', lambda u=user: _send_email(u, subject, body), reference_key=reference_key)
-        if pref.push_enabled:
-            subscriptions = list(PushSubscription.objects.filter(user=user))
-            if subscriptions:
-                _send_once(
-                    user, notification_type, 'push',
-                    lambda subs=subscriptions: _send_push_all(subs, subject, body),
-                    reference_key=reference_key,
-                )
+    for user in _household():
+        messages = NOTIFICATION_MESSAGES[notification_language(user)]['voucher_expiring_soon']
+        _notify(
+            user, 'voucher_expiring_soon',
+            messages['subject'].format(title=voucher.title), messages['body'].format(title=voucher.title, date=date_str),
+            reference_key=reference_key,
+        )
 
 
 def notify_trip_tomorrow(packing_list):
     """Sends a one-time "starts tomorrow" heads-up to a packing list's own
     participants (not the whole household -- a trip only involves whoever's
     going). Safe to call repeatedly, same reference_key dedup as above."""
-    notification_type = 'packing_trip_tomorrow'
     reference_key = f'packing_list:{packing_list.id}'
-    participants = User.objects.filter(packinglistparticipant__packing_list=packing_list)
 
-    for user in participants:
-        messages = NOTIFICATION_MESSAGES[notification_language(user)][notification_type]
-        subject = messages['subject'].format(title=packing_list.name)
-        body = messages['body'].format(title=packing_list.name)
-        pref, _ = NotificationPreference.objects.get_or_create(user=user, notification_type=notification_type)
+    for user in User.objects.filter(packinglistparticipant__packing_list=packing_list):
+        messages = NOTIFICATION_MESSAGES[notification_language(user)]['packing_trip_tomorrow']
+        _notify(
+            user, 'packing_trip_tomorrow',
+            messages['subject'].format(title=packing_list.name), messages['body'].format(title=packing_list.name),
+            reference_key=reference_key,
+        )
 
-        if pref.email_enabled and user.email:
-            _send_once(user, notification_type, 'email', lambda u=user: _send_email(u, subject, body), reference_key=reference_key)
-        if pref.push_enabled:
-            subscriptions = list(PushSubscription.objects.filter(user=user))
-            if subscriptions:
-                _send_once(
-                    user, notification_type, 'push',
-                    lambda subs=subscriptions: _send_push_all(subs, subject, body),
-                    reference_key=reference_key,
-                )
+
+def notify_shopping_purchased(shopping_list, bucket):
+    """One digest per shopping list per cron tick ("bucket" -- send_notifications
+    rounds the current time down to the nearest 15 minutes so a manual re-run
+    within the same tick doesn't double-send), for items ticked off somewhere
+    in that list recently. Goes to whoever can see the list."""
+    reference_key = f'shopping_purchased:{shopping_list.id}:{bucket}'
+
+    for user in _shopping_list_recipients(shopping_list):
+        messages = NOTIFICATION_MESSAGES[notification_language(user)]['shopping_purchased']
+        _notify(
+            user, 'shopping_purchased',
+            messages['subject'].format(list_name=shopping_list.name), messages['body'].format(list_name=shopping_list.name),
+            reference_key=reference_key,
+        )
+
+
+def notify_shopping_items_added(shopping_list, bucket):
+    """Same idea as notify_shopping_purchased, for new items added recently."""
+    reference_key = f'shopping_items_added:{shopping_list.id}:{bucket}'
+
+    for user in _shopping_list_recipients(shopping_list):
+        messages = NOTIFICATION_MESSAGES[notification_language(user)]['shopping_items_added']
+        _notify(
+            user, 'shopping_items_added',
+            messages['subject'].format(list_name=shopping_list.name), messages['body'].format(list_name=shopping_list.name),
+            reference_key=reference_key,
+        )
 
 
 def send_test_email(user):

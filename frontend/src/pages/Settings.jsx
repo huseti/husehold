@@ -9,8 +9,8 @@ import {
 import { urlBase64ToUint8Array, isPushSupported } from '../utils/push';
 
 const NOTIFICATION_TYPES = [
-  'task_due_today', 'household_planning_due', 'meal_planning_due', 'cooking_today',
-  'voucher_expiring_soon', 'packing_trip_tomorrow',
+  'task_due_today', 'task_overdue', 'household_planning_due', 'meal_planning_due', 'cooking_today',
+  'voucher_expiring_soon', 'packing_trip_tomorrow', 'shopping_purchased', 'shopping_items_added',
 ];
 
 const LANGUAGES = [

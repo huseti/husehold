@@ -525,8 +525,11 @@
       "household_planning_due": "Wöchentliche Haushaltsplanung fällig",
       "meal_planning_due": "Wöchentliche Kochplanung fällig",
       "cooking_today": "Heute kochen wir ...",
+      "task_overdue": "Aufgabe ist überfällig",
       "voucher_expiring_soon": "Gutschein läuft innerhalb von 30 Tagen ab",
-      "packing_trip_tomorrow": "Reise startet morgen"
+      "packing_trip_tomorrow": "Reise startet morgen",
+      "shopping_purchased": "Einkauf wurde getätigt (Artikel abgehakt)",
+      "shopping_items_added": "Neue Artikel auf einer Einkaufsliste"
     },
     "enablePushOnDevice": "Push-Benachrichtigungen auf diesem Gerät aktivieren",
     "pushEnabling": "Wird aktiviert...",

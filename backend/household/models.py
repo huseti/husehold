@@ -370,6 +370,11 @@ class PurchaseRecord(models.Model):
     shopping_list = models.ForeignKey(ShoppingList, on_delete=models.SET_NULL, null=True, blank=True, related_name='purchase_records')
     list_name = models.CharField(max_length=100, blank=True)
     purchased_on = models.DateField(default=timezone.localdate)
+    # Precise timestamp, separate from purchased_on (a date the user can pick
+    # when logging a cooked-without-shopping-list meal) -- used by
+    # send_notifications' "shopping was just done" digest to find purchases
+    # from the last 15 minutes.
+    created_at = models.DateTimeField(auto_now_add=True)
     purchased_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
     item = models.ForeignKey(ShoppingListItem, on_delete=models.SET_NULL, null=True, blank=True, related_name='purchase_records')
 
@@ -643,11 +648,14 @@ class NotificationPreference(models.Model):
     household.services.notifications."""
     NOTIFICATION_TYPE_CHOICES = [
         ('task_due_today', 'Task due today'),
+        ('task_overdue', 'Task overdue'),
         ('household_planning_due', 'Weekly household planning due'),
         ('meal_planning_due', 'Weekly meal planning due'),
         ('cooking_today', 'Cooking today'),
         ('voucher_expiring_soon', 'Voucher expiring soon'),
         ('packing_trip_tomorrow', 'Packing trip starting tomorrow'),
+        ('shopping_purchased', 'Shopping purchased'),
+        ('shopping_items_added', 'New shopping list items'),
     ]
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notification_preferences')

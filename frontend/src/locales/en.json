@@ -525,8 +525,11 @@
       "household_planning_due": "Weekly household planning due",
       "meal_planning_due": "Weekly meal planning due",
       "cooking_today": "Cooking today",
+      "task_overdue": "Task overdue",
       "voucher_expiring_soon": "Voucher expiring within 30 days",
-      "packing_trip_tomorrow": "Packing trip starting tomorrow"
+      "packing_trip_tomorrow": "Packing trip starting tomorrow",
+      "shopping_purchased": "Shopping was done (items checked off)",
+      "shopping_items_added": "New items added to a shopping list"
     },
     "enablePushOnDevice": "Enable push notifications on this device",
     "pushEnabling": "Enabling...",
