@@ -257,6 +257,21 @@ The shopping list auto-sorts items into categories using a built-in dictionary f
 
 Cost is expected to be negligible (well under $1/year for a 2-person household) -- each call is small and only fires once per genuinely new item name, never for anything already in the dictionary or already-categorized. See PLANNING.md's Item E note for the full reasoning.
 
+### 11. Recipe import (photo / paste text / URL) -- required Nginx step
+
+Recipe import reuses the same `ANTHROPIC_API_KEY` as shopping categorization above (no separate setup) for the photo and paste-text paths, and for URL imports where the page has no `Recipe` JSON-LD. **One manual step is required on the Pi** that this assistant could not do itself -- it needs `sudo` with a password, and only a scoped no-password rule for restarting Gunicorn exists (`sudo -l` on the Pi shows `(ALL) NOPASSWD: /usr/bin/systemctl restart gunicorn` only; everything else still prompts for a password over SSH).
+
+**Why it's needed**: multi-photo import sends a few resized images as base64 JSON, which can comfortably exceed Nginx's default 1MB request body limit -- requests over that get rejected with a 413 before they ever reach Django (whose own limit was already raised to 20MB in `settings.py`, but that doesn't help if Nginx rejects first).
+
+**Run this once on the Pi** (SSH in, this will prompt for your sudo password):
+```bash
+sudo sed -i '/^http {/a\    client_max_body_size 20M;' /etc/nginx/nginx.conf
+sudo nginx -t && sudo systemctl reload nginx
+```
+This adds `client_max_body_size 20M;` right after the `http {` line in `/etc/nginx/nginx.conf`, applying to all server blocks (both the self-signed-cert and DuckDNS ones) in one place. `nginx -t` checks the config is valid before `reload` applies it (a reload, not a restart, so it doesn't drop active connections).
+
+Until this is done: paste-text and URL imports work fine (tiny request bodies); photo import may fail with a network/413 error for more than one or two photos, depending on their resolution.
+
 ## Deployment Workflow
 
 The frontend is **built on your laptop**, not on the Pi. A Raspberry Pi 3 only has 1GB RAM, and Vite's bundler can use 300-500MB+ during a build — on top of Django, Gunicorn, and Nginx already running, that risks swap thrashing or the build getting OOM-killed. Building locally is fast and keeps the Pi free to just serve files.

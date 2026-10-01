@@ -9,6 +9,7 @@ import StarRating from '../components/StarRating';
 import RecipeForm from '../components/RecipeForm';
 import RecipeDetail from '../components/RecipeDetail';
 import AddToShoppingDialog from '../components/AddToShoppingDialog';
+import RecipeImportModal from '../components/RecipeImportModal';
 import GearIcon from '../components/icons/gearIcon';
 import { localizedName } from '../utils/localized';
 
@@ -25,9 +26,10 @@ export default function Recipes() {
   const [labelFilter, setLabelFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
 
-  // mode: null | { type: 'view', id } | { type: 'edit', recipe|null }
+  // mode: null | { type: 'view', id } | { type: 'edit', recipe|null, draft? }
   const [mode, setMode] = useState(null);
   const [shoppingDishes, setShoppingDishes] = useState(null);
+  const [showImportModal, setShowImportModal] = useState(false);
 
   useEffect(() => {
     loadAll();
@@ -122,6 +124,11 @@ export default function Recipes() {
     }
   };
 
+  const handleImported = (draft) => {
+    setShowImportModal(false);
+    setMode({ type: 'edit', recipe: null, draft });
+  };
+
   const handleDelete = async () => {
     if (!window.confirm(t('recipes.confirmDelete', { title: viewing.title }))) return;
     try {
@@ -150,6 +157,12 @@ export default function Recipes() {
               className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
             >
               + {t('recipes.newButton')}
+            </button>
+            <button
+              onClick={() => setShowImportModal(true)}
+              className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300"
+            >
+              {t('recipes.importButton')}
             </button>
             <Link
               to="/recipe-shopping-config"
@@ -214,12 +227,17 @@ export default function Recipes() {
         <AddToShoppingDialog dishes={shoppingDishes} onClose={() => setShoppingDishes(null)} />
       )}
 
+      {showImportModal && (
+        <RecipeImportModal onClose={() => setShowImportModal(false)} onExtracted={handleImported} />
+      )}
+
       {mode && (
         <div className="fixed inset-0 z-40 bg-black/40 overflow-y-auto p-4" onClick={() => setMode(null)}>
           <div className="bg-white rounded-lg shadow-xl max-w-2xl mx-auto my-8 p-6" onClick={(e) => e.stopPropagation()}>
             {mode.type === 'edit' ? (
               <RecipeForm
                 recipe={mode.recipe}
+                draft={mode.draft}
                 units={units}
                 categories={categories}
                 labels={labels}

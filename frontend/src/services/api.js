@@ -109,6 +109,12 @@ export const recipeService = {
   shoppingLines: (id, servings) => api.get(`/recipes/${id}/shopping-lines/`, { params: { servings } }),
 };
 
+export const recipeImportService = {
+  fromImages: (images) => api.post('/recipes/import/', { mode: 'photo', images }),
+  fromText: (text) => api.post('/recipes/import/', { mode: 'text', text }),
+  fromUrl: (url) => api.post('/recipes/import/', { mode: 'url', url }),
+};
+
 // Small config-editable lookup tables share one CRUD shape.
 const lookupService = (path) => ({
   getAll: (params) => api.get(`/${path}/`, { params }),

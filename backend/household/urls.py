@@ -2,7 +2,7 @@
 from rest_framework.routers import DefaultRouter
 from .views import (
     UserViewSet, HouseholdMemberViewSet, HouseholdSettingsView, ShoppingListItemViewSet,
-    RecipeViewSet, VoucherViewSet, ShoppingListViewSet,
+    RecipeViewSet, RecipeImportView, VoucherViewSet, ShoppingListViewSet,
     UnitOfMeasureViewSet, IngredientViewSet, IngredientCategoryViewSet, LabelViewSet, MealTimeCategoryViewSet, MealEventViewSet, PurchaseRecordViewSet, CookingPlanEntryViewSet, CookingPlanConfigView, CookingSuggestionsView,
     HouseholdTaskDefinitionViewSet, HouseholdTaskInstanceViewSet,
     NotificationPreferencesView, PushSubscriptionViewSet, VapidPublicKeyView, ServiceStatusView,
@@ -38,6 +38,9 @@ router.register(r'packing-bucket-items', PackingBucketItemViewSet, basename='pac
 router.register(r'calendar-events', CalendarEventViewSet, basename='calendar-event')
 
 urlpatterns = [
+    # Must come before the router include below -- otherwise DRF's default
+    # pk regex (any non-slash chars) matches "import" as a recipe pk first.
+    path('recipes/import/', RecipeImportView.as_view(), name='recipe-import'),
     path('cooking-plan-config/', CookingPlanConfigView.as_view(), name='cooking-plan-config'),
     path('cooking-suggestions/', CookingSuggestionsView.as_view(), name='cooking-suggestions'),
     path('analytics/', AnalyticsView.as_view(), name='analytics'),

@@ -1,3 +1,4 @@
+import json
 import tempfile
 from datetime import date, timedelta
 from decimal import Decimal
@@ -19,6 +20,7 @@ from .services.task_generation import generate_instances_for_range
 from .services import analytics as analytics_service
 from .services import google_calendar as google_calendar_service
 from .services import ingredient_categorization as categorization_service
+from .services import recipe_import as recipe_import_service
 
 
 class HouseholdSettingsTests(TestCase):
@@ -2679,3 +2681,200 @@ class IngredientCategorizationTests(TestCase):
         item.refresh_from_db()
         self.assertEqual(ingredient.category.name_de, 'Obst & Gemüse')
         self.assertEqual(item.category.name_de, 'Obst & Gemüse')
+
+
+class RecipeImportServiceTests(TestCase):
+    """The extraction functions themselves -- services/recipe_import.py."""
+
+    def _claude_response(self, payload):
+        response = type('R', (), {})()
+        response.status_code = 200
+        response.json = lambda: {'content': [{'text': json.dumps(payload)}]}
+        return response
+
+    def test_extract_from_images_without_api_key_raises(self):
+        with self.assertRaises(recipe_import_service.RecipeImportError):
+            recipe_import_service.extract_from_images([{'media_type': 'image/jpeg', 'data': 'abc'}])
+
+    def test_extract_from_images_requires_at_least_one_image(self):
+        with self.assertRaises(recipe_import_service.RecipeImportError):
+            recipe_import_service.extract_from_images([])
+
+    @override_settings(ANTHROPIC_API_KEY='test-key')
+    @patch('household.services.recipe_import.requests.post')
+    def test_extract_from_images_returns_a_draft(self, mock_post):
+        mock_post.return_value = self._claude_response({
+            'title': 'Apfelkuchen', 'servings': 8, 'prep_time': 20, 'cook_time': 45,
+            'instructions': 'Mix and bake.', 'ingredient_lines': ['500 g Mehl', '3 Äpfel'],
+        })
+
+        draft = recipe_import_service.extract_from_images([{'media_type': 'image/jpeg', 'data': 'abc'}])
+
+        self.assertEqual(draft['title'], 'Apfelkuchen')
+        self.assertEqual(draft['ingredient_lines'], ['500 g Mehl', '3 Äpfel'])
+        self.assertEqual(draft['source_type'], 'photo')
+
+    @override_settings(ANTHROPIC_API_KEY='test-key')
+    @patch('household.services.recipe_import.requests.post')
+    def test_extract_from_text_strips_markdown_fences(self, mock_post):
+        response = type('R', (), {})()
+        response.status_code = 200
+        response.json = lambda: {'content': [{'text': '```json\n{"title": "Pasta"}\n```'}]}
+        mock_post.return_value = response
+
+        draft = recipe_import_service.extract_from_text('some caption text')
+
+        self.assertEqual(draft['title'], 'Pasta')
+        self.assertEqual(draft['source_type'], 'instagram')
+
+    def test_extract_from_text_requires_nonempty_text(self):
+        with self.assertRaises(recipe_import_service.RecipeImportError):
+            recipe_import_service.extract_from_text('   ')
+
+    @override_settings(ANTHROPIC_API_KEY='test-key')
+    @patch('household.services.recipe_import.requests.post')
+    def test_claude_error_response_raises_import_error(self, mock_post):
+        response = type('R', (), {})()
+        response.status_code = 529
+        mock_post.return_value = response
+
+        with self.assertRaises(recipe_import_service.RecipeImportError):
+            recipe_import_service.extract_from_text('some text')
+
+    @patch('household.services.recipe_import.requests.get')
+    def test_extract_from_url_reads_jsonld_recipe_without_calling_claude(self, mock_get):
+        html = '''
+        <html><head>
+        <script type="application/ld+json">
+        {"@type": "Recipe", "name": "Spaghetti", "recipeYield": "4 servings",
+         "prepTime": "PT10M", "cookTime": "PT20M",
+         "recipeIngredient": ["400 g Spaghetti", "2 Knoblauchzehen"],
+         "recipeInstructions": ["Boil water.", "Cook pasta."]}
+        </script>
+        </head><body></body></html>
+        '''
+        response = type('R', (), {})()
+        response.status_code = 200
+        response.text = html
+        response.raise_for_status = lambda: None
+        mock_get.return_value = response
+
+        draft = recipe_import_service.extract_from_url('https://example.com/spaghetti')
+
+        self.assertEqual(draft['title'], 'Spaghetti')
+        self.assertEqual(draft['servings'], 4)
+        self.assertEqual(draft['prep_time'], 10)
+        self.assertEqual(draft['cook_time'], 20)
+        self.assertEqual(draft['ingredient_lines'], ['400 g Spaghetti', '2 Knoblauchzehen'])
+        self.assertIn('Boil water.', draft['instructions'])
+        self.assertEqual(draft['source_type'], 'website')
+
+    @override_settings(ANTHROPIC_API_KEY='test-key')
+    @patch('household.services.recipe_import.requests.post')
+    @patch('household.services.recipe_import.requests.get')
+    def test_extract_from_url_falls_back_to_claude_without_jsonld(self, mock_get, mock_post):
+        get_response = type('R', (), {})()
+        get_response.status_code = 200
+        get_response.text = '<html><body><p>Some recipe blog post with no structured data.</p></body></html>'
+        get_response.raise_for_status = lambda: None
+        mock_get.return_value = get_response
+        mock_post.return_value = self._claude_response({'title': 'Blog Recipe', 'ingredient_lines': ['1 Zwiebel']})
+
+        draft = recipe_import_service.extract_from_url('https://example.com/no-jsonld')
+
+        self.assertEqual(draft['title'], 'Blog Recipe')
+        self.assertEqual(draft['source_type'], 'website')
+
+    @patch('household.services.recipe_import.requests.get')
+    def test_extract_from_url_raises_on_unreachable_page(self, mock_get):
+        mock_get.side_effect = recipe_import_service.requests.RequestException('boom')
+
+        with self.assertRaises(recipe_import_service.RecipeImportError):
+            recipe_import_service.extract_from_url('https://example.com/down')
+
+    def test_iso8601_duration_parsing(self):
+        self.assertEqual(recipe_import_service._iso8601_duration_to_minutes('PT30M'), 30)
+        self.assertEqual(recipe_import_service._iso8601_duration_to_minutes('PT1H15M'), 75)
+        self.assertEqual(recipe_import_service._iso8601_duration_to_minutes('PT2H'), 120)
+        self.assertIsNone(recipe_import_service._iso8601_duration_to_minutes(None))
+        self.assertIsNone(recipe_import_service._iso8601_duration_to_minutes('not a duration'))
+
+
+class RecipeImportViewTests(TestCase):
+    def setUp(self):
+        self.tim = User.objects.create_user(username='tim', password='pw')
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.tim)
+
+    def test_requires_authentication(self):
+        anon_client = APIClient()
+
+        response = anon_client.post('/api/recipes/import/', {'mode': 'text', 'text': 'x'}, format='json')
+
+        self.assertEqual(response.status_code, 401)
+
+    def test_invalid_mode_returns_400(self):
+        response = self.client.post('/api/recipes/import/', {'mode': 'carrier-pigeon'}, format='json')
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_photo_mode_without_images_returns_400(self):
+        response = self.client.post('/api/recipes/import/', {'mode': 'photo', 'images': []}, format='json')
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_text_mode_without_api_key_returns_400_with_a_helpful_message(self):
+        response = self.client.post('/api/recipes/import/', {'mode': 'text', 'text': 'some caption'}, format='json')
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('ANTHROPIC_API_KEY', response.data['detail'])
+
+    @override_settings(ANTHROPIC_API_KEY='test-key')
+    @patch('household.services.recipe_import.requests.post')
+    def test_text_mode_resolves_category_guess_to_an_id(self, mock_post):
+        lunch, _ = MealTimeCategory.objects.get_or_create(name_de='Mittagessen', defaults={'name_en': 'Lunch'})
+        response_obj = type('R', (), {})()
+        response_obj.status_code = 200
+        response_obj.json = lambda: {'content': [{'text': json.dumps({
+            'title': 'Suppe', 'ingredient_lines': ['1 L Brühe'], 'category_guess': 'Mittagessen',
+        })}]}
+        mock_post.return_value = response_obj
+
+        response = self.client.post('/api/recipes/import/', {'mode': 'text', 'text': 'Suppe caption'}, format='json')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['category_id'], lunch.id)
+        self.assertNotIn('category_guess', response.data)
+
+    @override_settings(ANTHROPIC_API_KEY='test-key')
+    @patch('household.services.recipe_import.requests.post')
+    def test_unmatched_category_guess_becomes_null(self, mock_post):
+        response_obj = type('R', (), {})()
+        response_obj.status_code = 200
+        response_obj.json = lambda: {'content': [{'text': json.dumps({
+            'title': 'Suppe', 'ingredient_lines': [], 'category_guess': 'Nonexistent Category',
+        })}]}
+        mock_post.return_value = response_obj
+
+        response = self.client.post('/api/recipes/import/', {'mode': 'text', 'text': 'x'}, format='json')
+
+        self.assertIsNone(response.data['category_id'])
+
+    @patch('household.services.recipe_import.requests.get')
+    def test_url_mode_sets_source_to_the_given_url(self, mock_get):
+        html = '''
+        <script type="application/ld+json">
+        {"@type": "Recipe", "name": "Salat", "recipeIngredient": ["Salat"]}
+        </script>
+        '''
+        response_obj = type('R', (), {})()
+        response_obj.status_code = 200
+        response_obj.text = html
+        response_obj.raise_for_status = lambda: None
+        mock_get.return_value = response_obj
+
+        response = self.client.post('/api/recipes/import/', {'mode': 'url', 'url': 'https://example.com/salat'}, format='json')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['source'], 'https://example.com/salat')
+        self.assertEqual(response.data['title'], 'Salat')

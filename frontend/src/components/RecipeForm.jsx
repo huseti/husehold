@@ -5,7 +5,31 @@ import { localizedName, unitLabel } from '../utils/localized';
 
 const emptyLine = () => ({ quantity: '', unit: '', name: '', note: '' });
 
-function recipeToForm(recipe) {
+function recipeToForm(recipe, draft, units) {
+  if (!recipe && draft) {
+    // A just-extracted (not yet saved) recipe from photo/text/URL import --
+    // ingredient_lines are plain text, same shape the "paste ingredient
+    // list" importer already parses, so it's reused here rather than
+    // making the backend guess unit IDs.
+    const lines = (draft.ingredient_lines || [])
+      .map((line) => parseIngredientLine(line, units))
+      .filter(Boolean)
+      .map((p) => ({ quantity: p.quantity ?? '', unit: p.unit ?? '', name: p.name, note: '' }));
+    return {
+      title: draft.title || '',
+      description: draft.description || '',
+      servings: draft.servings || 2,
+      prep_time: draft.prep_time ?? '',
+      cook_time: draft.cook_time ?? '',
+      source: draft.source || '',
+      source_type: draft.source_type || 'manual',
+      notes: draft.notes || '',
+      instructions: draft.instructions || '',
+      categories: draft.category_id ? [draft.category_id] : [],
+      labels: [],
+      lines: lines.length ? lines : [emptyLine()],
+    };
+  }
   if (!recipe) {
     return {
       title: '', description: '', servings: 2, prep_time: '', cook_time: '', source: '', source_type: 'manual',
@@ -34,9 +58,9 @@ function recipeToForm(recipe) {
 
 const inputClass = 'px-3 py-2 border border-gray-300 rounded-lg';
 
-export default function RecipeForm({ recipe, units, categories, labels, ingredientNames, onSave, onCancel }) {
+export default function RecipeForm({ recipe, draft, units, categories, labels, ingredientNames, onSave, onCancel }) {
   const { t, i18n } = useTranslation();
-  const [form, setForm] = useState(() => recipeToForm(recipe));
+  const [form, setForm] = useState(() => recipeToForm(recipe, draft, units));
   const [pasteText, setPasteText] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -107,7 +131,10 @@ export default function RecipeForm({ recipe, units, categories, labels, ingredie
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      <h3 className="text-xl font-semibold">{recipe ? t('recipes.editTitle') : t('recipes.newTitle')}</h3>
+      <h3 className="text-xl font-semibold">
+        {recipe ? t('recipes.editTitle') : draft ? t('recipes.importReviewTitle') : t('recipes.newTitle')}
+      </h3>
+      {draft && <p className="text-sm text-amber-700 -mt-3">{t('recipes.importReviewHint')}</p>}
 
       <input
         type="text"

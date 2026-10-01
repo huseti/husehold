@@ -42,6 +42,7 @@ from .services.cooking_suggestions import build_suggestions
 from .services.analytics import build_analytics
 from .services.cooking_shopping import add_lines_to_list, dish as shopping_dish, free_dish
 from .services.ingredient_categorization import categorize_ingredient, categorize_shopping_item
+from .services import recipe_import as recipe_import_service
 from .services.cooking_tasks import (
     finalize_range, follow_snooze, get_cooking_entry, leftovers_out_of_order, log_cooked, restore_after_unsnooze,
     sync_entry_date, sync_task_from_entry, undo_cooked,
@@ -459,6 +460,43 @@ class RecipeViewSet(viewsets.ModelViewSet):
             )
         recipe = self.get_queryset().get(pk=recipe.pk)
         return Response(RecipeSerializer(recipe, context={'request': request}).data)
+
+class RecipeImportView(APIView):
+    """POST {mode: 'photo'|'text'|'url', images?, text?, url?} -- extracts a
+    recipe draft and hands it straight back, never saving anything. The
+    frontend pre-fills the normal RecipeForm with the draft for review;
+    saving still goes through the ordinary RecipeViewSet create. See
+    services/recipe_import.py."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        mode = request.data.get('mode')
+        try:
+            if mode == 'photo':
+                images = request.data.get('images') or []
+                if not isinstance(images, list) or not images:
+                    return Response({'detail': 'No images provided.'}, status=status.HTTP_400_BAD_REQUEST)
+                draft = recipe_import_service.extract_from_images(images)
+            elif mode == 'text':
+                draft = recipe_import_service.extract_from_text(request.data.get('text', ''))
+            elif mode == 'url':
+                url = (request.data.get('url') or '').strip()
+                if not url:
+                    return Response({'detail': 'No URL provided.'}, status=status.HTTP_400_BAD_REQUEST)
+                draft = recipe_import_service.extract_from_url(url)
+                draft['source'] = url
+            else:
+                return Response({'detail': 'mode must be photo, text, or url.'}, status=status.HTTP_400_BAD_REQUEST)
+        except recipe_import_service.RecipeImportError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        if draft.get('category_guess'):
+            category = MealTimeCategory.objects.filter(name_de=draft['category_guess']).first()
+            draft['category_id'] = category.id if category else None
+        else:
+            draft['category_id'] = None
+        draft.pop('category_guess', None)
+        return Response(draft)
 
 class CookingPlanConfigView(APIView):
     """Singleton (pk=1), like HouseholdSettingsView: get or patch."""

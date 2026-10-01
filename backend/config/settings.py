@@ -90,6 +90,12 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Multi-photo recipe import sends a few resized-but-still-sizeable images as
+# base64 JSON -- comfortably over Django's 2.5MB default. Nginx's own 1MB
+# default sits in front of Gunicorn and needs bumping too (see DEPLOYMENT.md
+# "Recipe import setup") -- this alone isn't enough on the deployed Pi.
+DATA_UPLOAD_MAX_MEMORY_SIZE = 20 * 1024 * 1024
+
 # REST Framework Configuration
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
