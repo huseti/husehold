@@ -524,7 +524,9 @@
       "task_due_today": "Task due today",
       "household_planning_due": "Weekly household planning due",
       "meal_planning_due": "Weekly meal planning due",
-      "cooking_today": "Cooking today"
+      "cooking_today": "Cooking today",
+      "voucher_expiring_soon": "Voucher expiring within 30 days",
+      "packing_trip_tomorrow": "Packing trip starting tomorrow"
     },
     "enablePushOnDevice": "Enable push notifications on this device",
     "pushEnabling": "Enabling...",

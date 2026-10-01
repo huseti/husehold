@@ -646,6 +646,8 @@ class NotificationPreference(models.Model):
         ('household_planning_due', 'Weekly household planning due'),
         ('meal_planning_due', 'Weekly meal planning due'),
         ('cooking_today', 'Cooking today'),
+        ('voucher_expiring_soon', 'Voucher expiring soon'),
+        ('packing_trip_tomorrow', 'Packing trip starting tomorrow'),
     ]
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notification_preferences')
@@ -681,24 +683,41 @@ class PushSubscription(models.Model):
 
 
 class NotificationLog(models.Model):
-    """Records that a specific (task_instance, user, type, channel)
-    notification has already gone out, so the periodic cron command
-    (send_notifications) never double-sends across runs."""
+    """Records that a specific notification has already gone out, so the
+    periodic cron command (send_notifications) never double-sends across
+    runs. Task-based types (task_due_today, ...) dedup on task_instance;
+    types with no task instance (voucher_expiring_soon, packing_trip_tomorrow)
+    dedup on reference_key instead (e.g. "voucher:12") -- exactly one of the
+    two is set per row, enforced by the two conditional unique constraints
+    below rather than a single column that would need to double as both."""
     CHANNEL_CHOICES = [('email', 'Email'), ('push', 'Push')]
 
     task_instance = models.ForeignKey(
-        'HouseholdTaskInstance', on_delete=models.CASCADE, related_name='notification_logs',
+        'HouseholdTaskInstance', on_delete=models.CASCADE, related_name='notification_logs', null=True, blank=True,
     )
+    reference_key = models.CharField(max_length=100, blank=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notification_logs')
     notification_type = models.CharField(max_length=30, choices=NotificationPreference.NOTIFICATION_TYPE_CHOICES)
     channel = models.CharField(max_length=10, choices=CHANNEL_CHOICES)
     sent_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ('task_instance', 'user', 'notification_type', 'channel')
+        constraints = [
+            models.UniqueConstraint(
+                fields=['task_instance', 'user', 'notification_type', 'channel'],
+                condition=models.Q(task_instance__isnull=False),
+                name='unique_task_notification',
+            ),
+            models.UniqueConstraint(
+                fields=['reference_key', 'user', 'notification_type', 'channel'],
+                condition=~models.Q(reference_key=''),
+                name='unique_reference_notification',
+            ),
+        ]
 
     def __str__(self):
-        return f"{self.notification_type}/{self.channel} -> {self.user.username} for instance {self.task_instance_id}"
+        target = f'instance {self.task_instance_id}' if self.task_instance_id else self.reference_key
+        return f"{self.notification_type}/{self.channel} -> {self.user.username} for {target}"
 
 
 class HouseholdTaskEvent(models.Model):

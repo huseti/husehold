@@ -1510,6 +1510,68 @@ class CookingNotificationTests(CookingFixtureMixin, TestCase):
         self.assertIn('meal_planning_due', types)
 
 
+class VoucherAndTripNotificationTests(CookingFixtureMixin, TestCase):
+    """voucher_expiring_soon and packing_trip_tomorrow -- the two non-task
+    notification types, which dedup on NotificationLog.reference_key instead
+    of a task_instance (see notifications.py and send_notifications)."""
+
+    def setUp(self):
+        self.setUpCooking()
+
+    def test_voucher_expiring_notifies_the_whole_household_once(self):
+        from django.core import mail
+        from .services.notifications import notify_voucher_expiring
+        voucher = Voucher.objects.create(title='IKEA-Gutschein', valid_until=self.today + timedelta(days=10))
+
+        notify_voucher_expiring(voucher)
+        notify_voucher_expiring(voucher)
+
+        self.assertEqual(sorted(m.to[0] for m in mail.outbox), ['anna@example.com', 'tim@example.com'])
+        self.assertIn('IKEA-Gutschein', mail.outbox[0].subject)
+
+    def test_trip_tomorrow_only_notifies_its_participants(self):
+        from django.core import mail
+        from .services.notifications import notify_trip_tomorrow
+        trip = PackingList.objects.create(name='Skiurlaub', start_date=self.today + timedelta(days=1), end_date=self.today + timedelta(days=5))
+        PackingListParticipant.objects.create(packing_list=trip, user=self.tim)
+
+        notify_trip_tomorrow(trip)
+
+        self.assertEqual([m.to[0] for m in mail.outbox], ['tim@example.com'])
+        self.assertIn('Skiurlaub', mail.outbox[0].subject)
+
+    def test_send_notifications_command_catches_an_expiring_voucher_and_a_trip_tomorrow(self):
+        from django.core import mail
+        from django.core.management import call_command
+        Voucher.objects.create(title='Spa-Gutschein', valid_until=self.today + timedelta(days=29))
+        trip = PackingList.objects.create(name='Wochenende', start_date=self.today + timedelta(days=1), end_date=self.today + timedelta(days=2))
+        PackingListParticipant.objects.create(packing_list=trip, user=self.anna)
+
+        call_command('send_notifications')
+
+        subjects = [m.subject for m in mail.outbox]
+        self.assertTrue(any('Spa-Gutschein' in s for s in subjects))
+        self.assertTrue(any('Wochenende' in s for s in subjects))
+
+    def test_send_notifications_command_ignores_a_voucher_outside_the_window(self):
+        from django.core import mail
+        from django.core.management import call_command
+        Voucher.objects.create(title='Weihnachtsgutschein', valid_until=self.today + timedelta(days=60))
+
+        call_command('send_notifications')
+
+        self.assertEqual(mail.outbox, [])
+
+    def test_send_notifications_command_ignores_an_archived_voucher(self):
+        from django.core import mail
+        from django.core.management import call_command
+        Voucher.objects.create(title='Alter Gutschein', valid_until=self.today + timedelta(days=5), is_archived=True)
+
+        call_command('send_notifications')
+
+        self.assertEqual(mail.outbox, [])
+
+
 class LeftoversOrderTests(CookingFixtureMixin, TestCase):
     """Leftovers must come after the dish: a later day, or a later meal the same day."""
 

@@ -524,7 +524,9 @@
       "task_due_today": "Aufgabe heute fällig",
       "household_planning_due": "Wöchentliche Haushaltsplanung fällig",
       "meal_planning_due": "Wöchentliche Kochplanung fällig",
-      "cooking_today": "Heute kochen wir ..."
+      "cooking_today": "Heute kochen wir ...",
+      "voucher_expiring_soon": "Gutschein läuft innerhalb von 30 Tagen ab",
+      "packing_trip_tomorrow": "Reise startet morgen"
     },
     "enablePushOnDevice": "Push-Benachrichtigungen auf diesem Gerät aktivieren",
     "pushEnabling": "Wird aktiviert...",

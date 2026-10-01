@@ -1,22 +1,26 @@
-from datetime import time
+from datetime import time, timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from django.core.management.base import BaseCommand
 from django.db.models import Q
 from django.utils import timezone
 
-from household.models import HouseholdSettings, HouseholdTaskInstance
-from household.services.notifications import notify_task_due
+from household.models import HouseholdSettings, HouseholdTaskInstance, Voucher, PackingList
+from household.services.notifications import notify_task_due, notify_voucher_expiring, notify_trip_tomorrow
 
 
 # "Heute kochen wir ..." goes out in the morning, not at midnight -- cook
 # tasks have no reminder_time of their own.
 COOKING_TODAY_FROM = time(8, 0)
 
+# How far ahead a voucher's valid_until triggers the "expiring soon" heads-up.
+VOUCHER_EXPIRING_WINDOW_DAYS = 30
+
 
 class Command(BaseCommand):
     help = (
-        "Sends email/push notifications for household task instances due today. "
+        "Sends email/push notifications for household task instances due today, "
+        "vouchers expiring within 30 days, and packing trips starting tomorrow. "
         "Meant to run periodically via cron (e.g. every 15-30 minutes) -- it's "
         "idempotent, so running it more often just costs a few extra queries."
     )
@@ -53,7 +57,20 @@ class Command(BaseCommand):
             notify_task_due(instance)
             processed += 1
 
+        expiring_vouchers = Voucher.objects.filter(
+            is_archived=False, valid_until__isnull=False,
+            valid_until__gte=today, valid_until__lte=today + timedelta(days=VOUCHER_EXPIRING_WINDOW_DAYS),
+        )
+        for voucher in expiring_vouchers:
+            notify_voucher_expiring(voucher)
+
+        tomorrow = today + timedelta(days=1)
+        starting_trips = PackingList.objects.filter(is_archived=False, start_date=tomorrow)
+        for packing_list in starting_trips:
+            notify_trip_tomorrow(packing_list)
+
         timezone.deactivate()
         self.stdout.write(self.style.SUCCESS(
-            f'{due_instances.count()} task(s) due today, {processed} checked for notifications.'
+            f'{due_instances.count()} task(s) due today, {processed} checked for notifications, '
+            f'{expiring_vouchers.count()} voucher(s) expiring soon, {starting_trips.count()} trip(s) starting tomorrow.'
         ))
