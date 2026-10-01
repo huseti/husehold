@@ -2675,6 +2675,29 @@ class IngredientCategorizationTests(TestCase):
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.data['category'], IngredientCategory.objects.get(name_de='Milchprodukte & Eier').id)
 
+    def test_shopping_item_creation_via_api_creates_and_links_an_ingredient(self):
+        # So the name+category are remembered for next time (surfaced in
+        # Recipes' config ingredient list), not re-resolved on every add.
+        shopping_list = ShoppingList.objects.create(name='Liste')
+
+        response = self.client.post('/api/shopping/', {'shopping_list': shopping_list.id, 'title': 'Nussmus'}, format='json')
+
+        self.assertEqual(response.status_code, 201)
+        ingredient = Ingredient.objects.get(name__iexact='Nussmus')
+        self.assertEqual(response.data['ingredient'], ingredient.id)
+        self.assertEqual(ingredient.category.name_de, 'Konserven & Trockenwaren')
+        self.assertEqual(response.data['category'], ingredient.category_id)
+
+    def test_shopping_item_creation_reuses_an_existing_ingredient_case_insensitively(self):
+        existing = Ingredient.objects.create(name='Milch')
+        shopping_list = ShoppingList.objects.create(name='Liste')
+
+        response = self.client.post('/api/shopping/', {'shopping_list': shopping_list.id, 'title': 'milch'}, format='json')
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data['ingredient'], existing.id)
+        self.assertEqual(Ingredient.objects.filter(name__iexact='milch').count(), 1)
+
     def test_categorize_products_command_backfills_existing_rows(self):
         from django.core.management import call_command
 
@@ -2733,7 +2756,7 @@ class RecipeImportServiceTests(TestCase):
         draft = recipe_import_service.extract_from_text('some caption text')
 
         self.assertEqual(draft['title'], 'Pasta')
-        self.assertEqual(draft['source_type'], 'instagram')
+        self.assertEqual(draft['source_type'], 'text')
 
     def test_extract_from_text_requires_nonempty_text(self):
         with self.assertRaises(recipe_import_service.RecipeImportError):

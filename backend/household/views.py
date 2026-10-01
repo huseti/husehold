@@ -26,7 +26,7 @@ from .models import (
 )
 from .serializers import (
     UserSerializer, HouseholdMemberSerializer, HouseholdSettingsSerializer,
-    ShoppingListSerializer, ShoppingListItemSerializer,
+    ShoppingListSerializer, ShoppingListItemSerializer, get_or_create_ingredient,
     RecipeSerializer,
     UnitOfMeasureSerializer, IngredientSerializer, IngredientCategorySerializer, LabelSerializer, MealTimeCategorySerializer,
     MealEventSerializer, PurchaseRecordSerializer, CookingPlanConfigSerializer, CookingPlanEntrySerializer,
@@ -295,13 +295,14 @@ class ShoppingListItemViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         extra = {'created_by': self.request.user}
-        # Link to the ingredient catalogue when the typed name already
-        # matches one (never auto-creates -- shopping items are often
-        # non-food), so the Cooking Plan can later merge duplicates.
+        # Link to (or create) a catalogue ingredient for the typed name, same
+        # free-text-to-catalogue behaviour as recipe ingredient entry -- this
+        # is what lets the category resolved here (dictionary or LLM) be
+        # remembered for next time, and show up for correction in the
+        # Recipes config's ingredient list, instead of being re-resolved (and
+        # re-billed, for the LLM fallback) on every future add of the same item.
         if not serializer.validated_data.get('ingredient'):
-            match = Ingredient.objects.filter(name__iexact=serializer.validated_data['title'].strip()).first()
-            if match:
-                extra['ingredient'] = match
+            extra['ingredient'] = get_or_create_ingredient(serializer.validated_data['title'], self.request.user)
         item = serializer.save(**extra)
         self._sync_purchase_record(item, was_completed=False)
         categorize_shopping_item(item)

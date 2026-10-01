@@ -61,7 +61,6 @@ const inputClass = 'px-3 py-2 border border-gray-300 rounded-lg';
 export default function RecipeForm({ recipe, draft, units, categories, labels, ingredientNames, onSave, onCancel }) {
   const { t, i18n } = useTranslation();
   const [form, setForm] = useState(() => recipeToForm(recipe, draft, units));
-  const [pasteText, setPasteText] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -81,20 +80,6 @@ export default function RecipeForm({ recipe, draft, units, categories, labels, i
     ...f,
     lines: f.lines.length > 1 ? f.lines.filter((_, i) => i !== index) : [emptyLine()],
   }));
-
-  const importPasted = () => {
-    const parsed = pasteText
-      .split('\n')
-      .map((line) => parseIngredientLine(line, units))
-      .filter(Boolean)
-      .map((p) => ({ quantity: p.quantity ?? '', unit: p.unit ?? '', name: p.name, note: '' }));
-    if (parsed.length === 0) return;
-    setForm((f) => ({
-      ...f,
-      lines: [...f.lines.filter((l) => l.name.trim()), ...parsed],
-    }));
-    setPasteText('');
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -248,20 +233,6 @@ export default function RecipeForm({ recipe, draft, units, categories, labels, i
         <button type="button" onClick={() => setForm((f) => ({ ...f, lines: [...f.lines, emptyLine()] }))} className="text-sm text-blue-600 mt-2">
           + {t('recipes.addIngredient')}
         </button>
-
-        <details className="mt-3">
-          <summary className="text-sm text-gray-600 cursor-pointer">{t('recipes.pasteIngredients')}</summary>
-          <textarea
-            value={pasteText}
-            onChange={(e) => setPasteText(e.target.value)}
-            rows={4}
-            placeholder={t('recipes.pastePlaceholder')}
-            className={`w-full mt-2 ${inputClass}`}
-          />
-          <button type="button" onClick={importPasted} className="mt-1 bg-gray-200 text-gray-700 px-3 py-1 rounded text-sm hover:bg-gray-300">
-            {t('recipes.importLines')}
-          </button>
-        </details>
       </div>
 
       <textarea
@@ -284,7 +255,7 @@ export default function RecipeForm({ recipe, draft, units, categories, labels, i
           <option value="manual">{t('recipes.sourceTypeManual')}</option>
           <option value="website">{t('recipes.sourceTypeWebsite')}</option>
           <option value="photo">{t('recipes.sourceTypePhoto')}</option>
-          <option value="instagram">{t('recipes.sourceTypeInstagram')}</option>
+          <option value="text">{t('recipes.sourceTypeText')}</option>
           <option value="social">{t('recipes.sourceTypeSocial')}</option>
         </select>
       </div>

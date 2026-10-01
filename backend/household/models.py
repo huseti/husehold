@@ -149,7 +149,7 @@ class Recipe(models.Model):
     cook_time = models.IntegerField(help_text="Cooking time in minutes", null=True, blank=True)
     servings = models.PositiveIntegerField(default=1)
     SOURCE_TYPE_CHOICES = [
-        ('manual', 'Manual'), ('website', 'Website'), ('photo', 'Photo'), ('instagram', 'Instagram'),
+        ('manual', 'Manual'), ('website', 'Website'), ('photo', 'Photo'), ('text', 'Pasted text'),
         ('social', 'Social media'),
     ]
     # Free text (a link, or "Rezept von Mama") -- source_type is a separate,

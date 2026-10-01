@@ -66,7 +66,9 @@ def _extraction_system_prompt():
         'You extract recipes into structured JSON. Respond with ONLY a JSON object (no markdown, no commentary), '
         'with exactly these keys: title (string), description (short string or ""), servings (integer or null), '
         'prep_time (integer minutes or null), cook_time (integer minutes or null), '
-        'instructions (string, steps separated by newlines), notes (string or ""), '
+        'instructions (string -- each step numbered ("1. ...", "2. ...") and separated from the next '
+        'by a blank line, i.e. two newlines between steps, so it reads as separate paragraphs, not one block), '
+        'notes (string or ""), '
         'ingredient_lines (array of strings, one ingredient per line, formatted like "200 g Mehl" or "2 Zwiebeln" -- '
         'quantity and unit first when known, then the ingredient name), '
         'category_guess (string or null).' + category_hint
@@ -134,7 +136,7 @@ def extract_from_text(text):
     if not text:
         raise RecipeImportError('No text provided.')
     draft = _call_claude([{'type': 'text', 'text': f'Extract the recipe from this text:\n\n{text}'}])
-    draft['source_type'] = 'instagram'
+    draft['source_type'] = 'text'
     return draft
 
 
@@ -200,7 +202,10 @@ def _draft_from_jsonld(data):
                 steps.extend(_text_of(s) for s in step['itemListElement'])
             else:
                 steps.append(_text_of(step))
-        instructions = '\n'.join(s for s in steps if s)
+        # Numbered with a blank line between steps -- same shape as the
+        # Claude-extraction path, so instructions always read as separate
+        # paragraphs (RecipeDetail renders this with white-space: pre-wrap).
+        instructions = '\n\n'.join(f'{i}. {s}' for i, s in enumerate((s for s in steps if s), start=1))
 
     return _empty_draft(
         title=data.get('name', ''),

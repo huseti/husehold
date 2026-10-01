@@ -6,7 +6,7 @@ import { formatQuantity, scaleQuantity } from '../utils/recipeDisplay';
 import { unitLabel } from '../utils/localized';
 import { asClickableUrl } from '../utils/sourceDisplay';
 
-const SOURCE_TYPE_KEYS = { manual: 'sourceTypeManual', website: 'sourceTypeWebsite', photo: 'sourceTypePhoto', instagram: 'sourceTypeInstagram' };
+const SOURCE_TYPE_KEYS = { manual: 'sourceTypeManual', website: 'sourceTypeWebsite', photo: 'sourceTypePhoto', text: 'sourceTypeText', social: 'sourceTypeSocial' };
 const FONT_SCALE_KEY = 'recipeHighlightFontScale';
 const BODY_SIZES = ['text-lg', 'text-xl', 'text-2xl', 'text-3xl'];
 const TITLE_SIZES = ['text-3xl', 'text-4xl', 'text-5xl', 'text-6xl'];

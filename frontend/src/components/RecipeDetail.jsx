@@ -7,7 +7,7 @@ import { formatQuantity, scaleQuantity } from '../utils/recipeDisplay';
 import { localizedName, unitLabel } from '../utils/localized';
 import { asClickableUrl } from '../utils/sourceDisplay';
 
-const SOURCE_TYPE_KEYS = { manual: 'sourceTypeManual', website: 'sourceTypeWebsite', photo: 'sourceTypePhoto', instagram: 'sourceTypeInstagram' };
+const SOURCE_TYPE_KEYS = { manual: 'sourceTypeManual', website: 'sourceTypeWebsite', photo: 'sourceTypePhoto', text: 'sourceTypeText', social: 'sourceTypeSocial' };
 
 const todayIso = () => new Date().toLocaleDateString('sv-SE');
 
