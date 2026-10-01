@@ -196,6 +196,7 @@
     "removeLogEntry": "Remove entry",
     "addToShopping": "Ingredients to shopping list",
     "highlightMode": "Highlight mode",
+    "exportPdf": "Export as PDF / print",
     "highlightNotFound": "Recipe not found.",
     "highlightFontSmaller": "Smaller text",
     "highlightFontLarger": "Larger text",

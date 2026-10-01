@@ -196,6 +196,7 @@
     "removeLogEntry": "Eintrag entfernen",
     "addToShopping": "Zutaten zur Einkaufsliste",
     "highlightMode": "Highlight-Modus",
+    "exportPdf": "Als PDF exportieren / drucken",
     "highlightNotFound": "Rezept nicht gefunden.",
     "highlightFontSmaller": "Text verkleinern",
     "highlightFontLarger": "Text vergrößern",

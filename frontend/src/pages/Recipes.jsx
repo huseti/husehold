@@ -232,8 +232,8 @@ export default function Recipes() {
       )}
 
       {mode && (
-        <div className="fixed inset-0 z-40 bg-black/40 overflow-y-auto p-4" onClick={() => setMode(null)}>
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl mx-auto my-8 p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-40 bg-black/40 overflow-y-auto p-4 print:static print:overflow-visible print:bg-white print:p-0" onClick={() => setMode(null)}>
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl mx-auto my-8 p-6 print:shadow-none print:m-0 print:max-w-none print:p-0" onClick={(e) => e.stopPropagation()}>
             {mode.type === 'edit' ? (
               <RecipeForm
                 recipe={mode.recipe}

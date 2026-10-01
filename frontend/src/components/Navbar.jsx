@@ -8,7 +8,7 @@ export default function Navbar() {
   const { t } = useTranslation();
 
   return (
-    <nav className="bg-white shadow-sm border-b">
+    <nav className="bg-white shadow-sm border-b print:hidden">
       <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center gap-3">
         {/* Clicking the logo is the way back to the dashboard -- no separate
             "Übersicht" link needed in the row below. */}

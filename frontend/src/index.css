@@ -15,3 +15,24 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+/* "Export as PDF" (RecipeDetail/RecipeHighlight) is just the browser's own
+   print dialog -- "Save as PDF" there produces the file. Everything on the
+   page is hidden except the element marked .printable, which is then pulled
+   out of wherever it sits (a fixed-position modal, a sticky-header page) so
+   it prints as its own full page regardless of the surrounding layout. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .printable,
+  .printable * {
+    visibility: visible;
+  }
+  .printable {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+  }
+}

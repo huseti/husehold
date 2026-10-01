@@ -5,6 +5,7 @@ import { recipeService, unitService } from '../services/api';
 import { formatQuantity, scaleQuantity } from '../utils/recipeDisplay';
 import { unitLabel } from '../utils/localized';
 import { asClickableUrl } from '../utils/sourceDisplay';
+import PrintIcon from '../components/icons/printIcon';
 
 const SOURCE_TYPE_KEYS = { manual: 'sourceTypeManual', website: 'sourceTypeWebsite', photo: 'sourceTypePhoto', text: 'sourceTypeText', social: 'sourceTypeSocial' };
 const FONT_SCALE_KEY = 'recipeHighlightFontScale';
@@ -94,12 +95,20 @@ export default function RecipeHighlight() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="sticky top-0 bg-white border-b z-10 px-4 py-3 flex items-center justify-between gap-3">
+    <div className="min-h-screen bg-white printable">
+      <div className="sticky top-0 bg-white border-b z-10 px-4 py-3 flex items-center justify-between gap-3 print:hidden">
         <button onClick={() => navigate(-1)} className="text-gray-600 hover:text-gray-900 font-medium flex items-center gap-1">
           ← {t('common.back')}
         </button>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => window.print()}
+            className="w-9 h-9 rounded border border-gray-300 hover:bg-gray-100 flex items-center justify-center"
+            aria-label={t('recipes.exportPdf')}
+            title={t('recipes.exportPdf')}
+          >
+            <PrintIcon />
+          </button>
           <button
             onClick={() => adjustFont(-1)}
             disabled={fontScale === 0}
