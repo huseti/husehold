@@ -111,6 +111,9 @@ def _llm_lookup(name, category_names):
             json={
                 'model': CLAUDE_MODEL,
                 'max_tokens': 20,
+                # Deterministic classification into a fixed category list --
+                # no reason to let sampling vary the answer.
+                'temperature': 0,
                 'system': (
                     'You sort German grocery/household shopping list items into exactly '
                     f'one of these categories: {", ".join(category_names)}. '

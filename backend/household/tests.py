@@ -2576,9 +2576,11 @@ class IngredientCategorizationTests(TestCase):
 
         self.assertEqual(category.name_de, 'Obst & Gemüse')
 
+    @override_settings(ANTHROPIC_API_KEY='')
     def test_no_match_without_an_api_key_returns_none(self):
-        # ANTHROPIC_API_KEY is blank in tests by default -- the LLM fallback
-        # must be skipped entirely, not attempted and fail.
+        # Explicitly blank -- the LLM fallback must be skipped entirely, not
+        # attempted and fail (and not accidentally hit the real API if a dev
+        # .env happens to have a real key set).
         category = categorization_service.categorize_text('Xyzzyfrobnicator')
 
         self.assertIsNone(category)
@@ -2697,6 +2699,7 @@ class RecipeImportServiceTests(TestCase):
         response.json = lambda: {'content': [{'text': json.dumps(payload)}]}
         return response
 
+    @override_settings(ANTHROPIC_API_KEY='')
     def test_extract_from_images_without_api_key_raises(self):
         with self.assertRaises(recipe_import_service.RecipeImportError):
             recipe_import_service.extract_from_images([{'media_type': 'image/jpeg', 'data': 'abc'}])
@@ -2957,6 +2960,7 @@ class RecipeImportViewTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn('3', response.data['detail'])
 
+    @override_settings(ANTHROPIC_API_KEY='')
     def test_text_mode_without_api_key_returns_400_with_a_helpful_message(self):
         response = self.client.post('/api/recipes/import/', {'mode': 'text', 'text': 'some caption'}, format='json')
 

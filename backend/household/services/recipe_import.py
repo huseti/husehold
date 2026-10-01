@@ -97,6 +97,9 @@ def _call_claude(content_blocks):
         json={
             'model': CLAUDE_MODEL,
             'max_tokens': 2000,
+            # Structured extraction into a fixed schema -- no reason to let
+            # sampling vary the output shape or category choice.
+            'temperature': 0,
             'system': _extraction_system_prompt(),
             'messages': [{'role': 'user', 'content': content_blocks}],
         },
