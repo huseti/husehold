@@ -500,6 +500,19 @@ export default function Settings() {
                   </p>
                 </div>
               </li>
+              <li className="flex items-start gap-3">
+                <span className={`mt-1.5 w-2.5 h-2.5 rounded-full flex-shrink-0 ${serviceStatus.social_import.configured && serviceStatus.social_import.ffmpeg_available ? 'bg-green-500' : 'bg-gray-300'}`} />
+                <div>
+                  <p className="text-sm font-medium">{t('settings.serviceSocialImport')}</p>
+                  <p className="text-xs text-gray-500">
+                    {!serviceStatus.social_import.configured
+                      ? t('settings.serviceSocialImportNotConfigured')
+                      : !serviceStatus.social_import.ffmpeg_available
+                        ? t('settings.serviceSocialImportMissingFfmpeg')
+                        : t('settings.serviceSocialImportConfigured')}
+                  </p>
+                </div>
+              </li>
             </ul>
           )}
         </div>

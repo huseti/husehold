@@ -285,6 +285,7 @@ export default function RecipeForm({ recipe, draft, units, categories, labels, i
           <option value="website">{t('recipes.sourceTypeWebsite')}</option>
           <option value="photo">{t('recipes.sourceTypePhoto')}</option>
           <option value="instagram">{t('recipes.sourceTypeInstagram')}</option>
+          <option value="social">{t('recipes.sourceTypeSocial')}</option>
         </select>
       </div>
 

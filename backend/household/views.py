@@ -43,6 +43,7 @@ from .services.analytics import build_analytics
 from .services.cooking_shopping import add_lines_to_list, dish as shopping_dish, free_dish
 from .services.ingredient_categorization import categorize_ingredient, categorize_shopping_item
 from .services import recipe_import as recipe_import_service
+from .services import social_recipe_import
 from .services.cooking_tasks import (
     finalize_range, follow_snooze, get_cooking_entry, leftovers_out_of_order, log_cooked, restore_after_unsnooze,
     sync_entry_date, sync_task_from_entry, undo_cooked,
@@ -156,6 +157,10 @@ class ServiceStatusView(APIView):
             },
             'shopping_categorization': {
                 'configured': bool(django_settings.ANTHROPIC_API_KEY),
+            },
+            'social_import': {
+                'configured': bool(django_settings.OPENAI_API_KEY),
+                'ffmpeg_available': social_recipe_import.ffmpeg_available(),
             },
         })
 
@@ -462,11 +467,12 @@ class RecipeViewSet(viewsets.ModelViewSet):
         return Response(RecipeSerializer(recipe, context={'request': request}).data)
 
 class RecipeImportView(APIView):
-    """POST {mode: 'photo'|'text'|'url', images?, text?, url?} -- extracts a
-    recipe draft and hands it straight back, never saving anything. The
-    frontend pre-fills the normal RecipeForm with the draft for review;
-    saving still goes through the ordinary RecipeViewSet create. See
-    services/recipe_import.py."""
+    """POST {mode: 'photo'|'text'|'url'|'social', images?, text?, url?} --
+    extracts a recipe draft and hands it straight back, never saving
+    anything. The frontend pre-fills the normal RecipeForm with the draft
+    for review; saving still goes through the ordinary RecipeViewSet
+    create. See services/recipe_import.py and services/social_recipe_import.py
+    ('social' = Instagram/TikTok/etc. video link, transcribed via Whisper)."""
     permission_classes = [permissions.IsAuthenticated]
     MAX_PHOTOS = 3
 
@@ -491,9 +497,14 @@ class RecipeImportView(APIView):
                     return Response({'detail': 'No URL provided.'}, status=status.HTTP_400_BAD_REQUEST)
                 draft = recipe_import_service.extract_from_url(url)
                 draft['source'] = url
+            elif mode == 'social':
+                url = (request.data.get('url') or '').strip()
+                if not url:
+                    return Response({'detail': 'No URL provided.'}, status=status.HTTP_400_BAD_REQUEST)
+                draft = social_recipe_import.extract_from_social_url(url)
             else:
-                return Response({'detail': 'mode must be photo, text, or url.'}, status=status.HTTP_400_BAD_REQUEST)
-        except recipe_import_service.RecipeImportError as exc:
+                return Response({'detail': 'mode must be photo, text, url, or social.'}, status=status.HTTP_400_BAD_REQUEST)
+        except (recipe_import_service.RecipeImportError, social_recipe_import.SocialImportError) as exc:
             return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
         if draft.get('category_guess'):

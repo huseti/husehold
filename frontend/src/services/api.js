@@ -113,6 +113,7 @@ export const recipeImportService = {
   fromImages: (images) => api.post('/recipes/import/', { mode: 'photo', images }),
   fromText: (text) => api.post('/recipes/import/', { mode: 'text', text }),
   fromUrl: (url) => api.post('/recipes/import/', { mode: 'url', url }),
+  fromSocialUrl: (url) => api.post('/recipes/import/', { mode: 'social', url }),
 };
 
 // Small config-editable lookup tables share one CRUD shape.

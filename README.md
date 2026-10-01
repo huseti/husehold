@@ -217,7 +217,8 @@ All optional except DuckDNS/Let's Encrypt (needed for Web Push on the deployed P
 | **Web Push** (VAPID) | Browser push notifications -- keys generated locally (`manage.py generate_vapid_keys`), no third-party account needed | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_ADMIN_EMAIL` |
 | **DuckDNS + Let's Encrypt** | A trusted hostname/HTTPS cert for the Pi (needed for devices, e.g. MDM-managed phones, that block self-signed certs) -- not app config, set up directly on the Pi (see DEPLOYMENT.md) | *(none -- Pi-side only)* |
 | **Google Calendar API** (OAuth) | One-way, read-only sync of a shared calendar into the weekly plan overlay | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `FRONTEND_URL` |
-| **Anthropic (Claude API)** | Fallback categorization for shopping list items the built-in dictionary doesn't recognize -- skipped entirely if unset | `ANTHROPIC_API_KEY` |
+| **Anthropic (Claude API)** | Shopping list categorization fallback, plus recipe import extraction (photo/paste-text/URL/social) -- skipped entirely if unset | `ANTHROPIC_API_KEY` |
+| **OpenAI (Whisper API)** | Audio transcription for social media (video) recipe import -- also needs `ffmpeg` installed on the server; skipped entirely if unset | `OPENAI_API_KEY` |
 
 ## 📚 Learn More
 

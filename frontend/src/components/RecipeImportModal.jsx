@@ -7,6 +7,7 @@ const TABS = [
   { key: 'photo', labelKey: 'recipes.importTabPhoto' },
   { key: 'text', labelKey: 'recipes.importTabText' },
   { key: 'url', labelKey: 'recipes.importTabUrl' },
+  { key: 'social', labelKey: 'recipes.importTabSocial' },
 ];
 
 const MAX_PHOTOS = 3;
@@ -20,6 +21,7 @@ export default function RecipeImportModal({ onClose, onExtracted }) {
   const [images, setImages] = useState([]);
   const [text, setText] = useState('');
   const [url, setUrl] = useState('');
+  const [socialUrl, setSocialUrl] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -46,6 +48,7 @@ export default function RecipeImportModal({ onClose, onExtracted }) {
     if (tab === 'photo' && images.length === 0) { setError(t('recipes.importNoPhotos')); return; }
     if (tab === 'text' && !text.trim()) { setError(t('recipes.importNoText')); return; }
     if (tab === 'url' && !url.trim()) { setError(t('recipes.importNoUrl')); return; }
+    if (tab === 'social' && !socialUrl.trim()) { setError(t('recipes.importNoUrl')); return; }
 
     setBusy(true);
     try {
@@ -54,8 +57,10 @@ export default function RecipeImportModal({ onClose, onExtracted }) {
         response = await recipeImportService.fromImages(images.map(({ media_type, data }) => ({ media_type, data })));
       } else if (tab === 'text') {
         response = await recipeImportService.fromText(text);
-      } else {
+      } else if (tab === 'url') {
         response = await recipeImportService.fromUrl(url.trim());
+      } else {
+        response = await recipeImportService.fromSocialUrl(socialUrl.trim());
       }
       onExtracted(response.data);
     } catch (err) {
@@ -141,6 +146,20 @@ export default function RecipeImportModal({ onClose, onExtracted }) {
               placeholder="https://..."
               className="w-full px-3 py-2 border border-gray-300 rounded-lg"
             />
+          </div>
+        )}
+
+        {tab === 'social' && (
+          <div className="space-y-3">
+            <p className="text-sm text-gray-500">{t('recipes.importSocialHint')}</p>
+            <input
+              type="url"
+              value={socialUrl}
+              onChange={(e) => setSocialUrl(e.target.value)}
+              placeholder="https://..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            />
+            <p className="text-xs text-gray-400">{t('recipes.importSocialRequirementHint')}</p>
           </div>
         )}
 

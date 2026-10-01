@@ -168,3 +168,10 @@ FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
 # fallback is just skipped and unrecognized items stay uncategorized until
 # corrected by hand.
 ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY', '')
+
+# Social media recipe import (video transcription) -- see
+# household/services/social_recipe_import.py. Left blank, that import mode
+# reports itself as unconfigured instead of attempting a transcription.
+# Also needs the `ffmpeg` binary installed on the server (checked separately,
+# not an env var -- see DEPLOYMENT.md).
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')

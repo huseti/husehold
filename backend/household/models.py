@@ -150,6 +150,7 @@ class Recipe(models.Model):
     servings = models.PositiveIntegerField(default=1)
     SOURCE_TYPE_CHOICES = [
         ('manual', 'Manual'), ('website', 'Website'), ('photo', 'Photo'), ('instagram', 'Instagram'),
+        ('social', 'Social media'),
     ]
     # Free text (a link, or "Rezept von Mama") -- source_type is a separate,
     # user-set flag for how it was added, not derived from the text itself.

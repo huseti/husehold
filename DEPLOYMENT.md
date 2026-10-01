@@ -272,6 +272,30 @@ This adds `client_max_body_size 20M;` right after the `http {` line in `/etc/ngi
 
 Until this is done: paste-text and URL imports work fine (tiny request bodies); photo import may fail with a network/413 error for more than one or two photos, depending on their resolution.
 
+### 12. Social media (video) recipe import -- optional, two manual steps
+
+A fourth recipe import path transcribes the spoken audio of an Instagram Reel / TikTok / YouTube Short link (via `yt-dlp` + OpenAI's Whisper API) and runs the transcript + caption through the same Claude text-extraction path as the other import modes (see PLANNING.md's 2026-10-01 follow-up). It's **entirely optional** -- without it configured, that import tab just tells people to paste the caption as text instead, which already works today.
+
+Two things need setting up, independently of each other (Settings → Connected services shows both):
+
+1. **An OpenAI API key**, for Whisper transcription (Anthropic has no speech-to-text offering, so this is a second provider alongside Claude):
+   - Create an account at [platform.openai.com](https://platform.openai.com), add some prepaid credit, and generate an API key.
+   - Add to `backend/.env` (both the Pi and dev, see `.env.example`):
+     ```
+     OPENAI_API_KEY=sk-...
+     ```
+   - Whisper pricing is $0.006/minute of audio -- a short recipe video (under a minute, typically) costs a fraction of a cent; expect well under $1/year for a 2-person household's usage.
+2. **`ffmpeg` installed on the Pi** -- `yt-dlp` shells out to it to extract just the audio track from the downloaded video. This needs `sudo` with a password (same constraint as step 11 above), so it's a manual step:
+   ```bash
+   sudo apt update && sudo apt install -y ffmpeg
+   ```
+
+Redeploy (or just restart Gunicorn) after adding the env var so it's picked up.
+
+**Known limitation, not yet addressed**: downloading a video and transcribing it can take longer than Gunicorn's default 30-second worker timeout, especially on the Pi's upload bandwidth. If imports time out once this is configured, raise `--timeout` in `/etc/systemd/system/gunicorn.service`'s `ExecStart` line (e.g. `--timeout 120`) and `sudo systemctl daemon-reload && sudo systemctl restart gunicorn` -- not done proactively since it also needs a password-prompting `sudo` edit, and there's no point tuning a timeout for a feature that isn't configured yet.
+
+Until both the API key and `ffmpeg` are set up: the Social media tab's requests fail with a clear message rather than hanging or silently doing nothing, and the other three import paths (photo/text/URL) are unaffected.
+
 ## Deployment Workflow
 
 The frontend is **built on your laptop**, not on the Pi. A Raspberry Pi 3 only has 1GB RAM, and Vite's bundler can use 300-500MB+ during a build — on top of Django, Gunicorn, and Nginx already running, that risks swap thrashing or the build getting OOM-killed. Building locally is fast and keeps the Pi free to just serve files.

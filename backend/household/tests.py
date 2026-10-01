@@ -1,8 +1,9 @@
 import json
+import os
 import tempfile
 from datetime import date, timedelta
 from decimal import Decimal
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from django.contrib.auth.models import User
 from django.test import TestCase, override_settings
@@ -21,6 +22,7 @@ from .services import analytics as analytics_service
 from .services import google_calendar as google_calendar_service
 from .services import ingredient_categorization as categorization_service
 from .services import recipe_import as recipe_import_service
+from .services import social_recipe_import
 
 
 class HouseholdSettingsTests(TestCase):
@@ -2174,7 +2176,7 @@ class ServiceStatusTests(TestCase):
         self.client = APIClient()
         self.client.force_authenticate(user=self.tim)
 
-    @override_settings(EMAIL_HOST='', VAPID_PUBLIC_KEY='', VAPID_PRIVATE_KEY='', ANTHROPIC_API_KEY='')
+    @override_settings(EMAIL_HOST='', VAPID_PUBLIC_KEY='', VAPID_PRIVATE_KEY='', ANTHROPIC_API_KEY='', OPENAI_API_KEY='')
     def test_reports_unconfigured_when_env_vars_are_blank(self):
         response = self.client.get('/api/service-status/')
 
@@ -2183,8 +2185,9 @@ class ServiceStatusTests(TestCase):
         self.assertIsNone(response.data['email']['host'])
         self.assertFalse(response.data['web_push']['configured'])
         self.assertFalse(response.data['shopping_categorization']['configured'])
+        self.assertFalse(response.data['social_import']['configured'])
 
-    @override_settings(EMAIL_HOST='smtp-relay.brevo.com', VAPID_PUBLIC_KEY='pub', VAPID_PRIVATE_KEY='priv', ANTHROPIC_API_KEY='key')
+    @override_settings(EMAIL_HOST='smtp-relay.brevo.com', VAPID_PUBLIC_KEY='pub', VAPID_PRIVATE_KEY='priv', ANTHROPIC_API_KEY='key', OPENAI_API_KEY='key')
     def test_reports_configured_when_env_vars_are_set(self):
         response = self.client.get('/api/service-status/')
 
@@ -2192,6 +2195,8 @@ class ServiceStatusTests(TestCase):
         self.assertEqual(response.data['email']['host'], 'smtp-relay.brevo.com')
         self.assertTrue(response.data['web_push']['configured'])
         self.assertTrue(response.data['shopping_categorization']['configured'])
+        self.assertTrue(response.data['social_import']['configured'])
+        self.assertIn('ffmpeg_available', response.data['social_import'])
 
     def test_requires_authentication(self):
         anon_client = APIClient()
@@ -2800,6 +2805,128 @@ class RecipeImportServiceTests(TestCase):
         self.assertIsNone(recipe_import_service._iso8601_duration_to_minutes('not a duration'))
 
 
+class SocialRecipeImportServiceTests(TestCase):
+    """services/social_recipe_import.py -- yt-dlp + Whisper, mocked throughout
+    (no real network/video download in tests)."""
+
+    @override_settings(OPENAI_API_KEY='')
+    def test_requires_openai_key(self):
+        with self.assertRaises(social_recipe_import.SocialImportError):
+            social_recipe_import.extract_from_social_url('https://instagram.com/reel/xyz')
+
+    @override_settings(OPENAI_API_KEY='test-key')
+    @patch('household.services.social_recipe_import.ffmpeg_available', return_value=False)
+    def test_requires_ffmpeg(self, mock_ffmpeg):
+        with self.assertRaises(social_recipe_import.SocialImportError):
+            social_recipe_import.extract_from_social_url('https://instagram.com/reel/xyz')
+
+    @override_settings(OPENAI_API_KEY='test-key')
+    @patch('household.services.social_recipe_import.ffmpeg_available', return_value=True)
+    def test_requires_nonempty_url(self, mock_ffmpeg):
+        with self.assertRaises(social_recipe_import.SocialImportError):
+            social_recipe_import.extract_from_social_url('   ')
+
+    @patch('yt_dlp.YoutubeDL')
+    def test_download_audio_raises_social_import_error_on_download_failure(self, mock_cls):
+        import yt_dlp
+        instance = MagicMock()
+        instance.extract_info.side_effect = yt_dlp.utils.DownloadError('private video')
+        mock_cls.return_value.__enter__.return_value = instance
+
+        with tempfile.TemporaryDirectory() as workdir:
+            with self.assertRaises(social_recipe_import.SocialImportError):
+                social_recipe_import._download_audio('https://instagram.com/reel/xyz', workdir)
+
+    @patch('yt_dlp.YoutubeDL')
+    def test_download_audio_raises_if_no_audio_file_produced(self, mock_cls):
+        instance = MagicMock()
+        instance.extract_info.return_value = {'title': 'Reel'}
+        mock_cls.return_value.__enter__.return_value = instance
+
+        with tempfile.TemporaryDirectory() as workdir:
+            with self.assertRaises(social_recipe_import.SocialImportError):
+                social_recipe_import._download_audio('https://instagram.com/reel/xyz', workdir)
+
+    @patch('yt_dlp.YoutubeDL')
+    def test_download_audio_returns_path_and_metadata(self, mock_cls):
+        instance = MagicMock()
+        with tempfile.TemporaryDirectory() as workdir:
+            def fake_extract_info(url, download):
+                with open(os.path.join(workdir, 'audio.mp3'), 'wb') as f:
+                    f.write(b'fake-audio')
+                return {'title': 'My Reel', 'description': 'A tasty soup'}
+            instance.extract_info.side_effect = fake_extract_info
+            mock_cls.return_value.__enter__.return_value = instance
+
+            path, info = social_recipe_import._download_audio('https://instagram.com/reel/xyz', workdir)
+
+            self.assertTrue(os.path.exists(path))
+            self.assertEqual(info['title'], 'My Reel')
+
+    @patch('household.services.social_recipe_import.requests.post')
+    def test_transcribe_returns_text(self, mock_post):
+        response = MagicMock()
+        response.status_code = 200
+        response.json.return_value = {'text': 'two eggs and some flour'}
+        mock_post.return_value = response
+
+        fd, path = tempfile.mkstemp(suffix='.mp3')
+        try:
+            with os.fdopen(fd, 'wb') as f:
+                f.write(b'fake-audio')
+            text = social_recipe_import._transcribe(path)
+        finally:
+            os.remove(path)
+
+        self.assertEqual(text, 'two eggs and some flour')
+
+    @patch('household.services.social_recipe_import.requests.post')
+    def test_transcribe_raises_on_error_response(self, mock_post):
+        response = MagicMock()
+        response.status_code = 500
+        mock_post.return_value = response
+
+        fd, path = tempfile.mkstemp(suffix='.mp3')
+        try:
+            with os.fdopen(fd, 'wb') as f:
+                f.write(b'fake-audio')
+            with self.assertRaises(social_recipe_import.SocialImportError):
+                social_recipe_import._transcribe(path)
+        finally:
+            os.remove(path)
+
+    @override_settings(OPENAI_API_KEY='test-key')
+    @patch('household.services.social_recipe_import.ffmpeg_available', return_value=True)
+    @patch('household.services.recipe_import.extract_from_text')
+    @patch('household.services.social_recipe_import._transcribe')
+    @patch('household.services.social_recipe_import._download_audio')
+    def test_extract_from_social_url_combines_caption_and_transcript(
+        self, mock_download, mock_transcribe, mock_extract_text, mock_ffmpeg,
+    ):
+        mock_download.return_value = ('/tmp/audio.mp3', {'description': 'A tasty soup', 'title': 'Reel title'})
+        mock_transcribe.return_value = 'two eggs and some flour'
+        mock_extract_text.return_value = {'title': 'Suppe', 'ingredient_lines': ['2 Eier']}
+
+        draft = social_recipe_import.extract_from_social_url('https://instagram.com/reel/xyz')
+
+        self.assertEqual(draft['source_type'], 'social')
+        self.assertEqual(draft['source'], 'https://instagram.com/reel/xyz')
+        combined_text = mock_extract_text.call_args[0][0]
+        self.assertIn('A tasty soup', combined_text)
+        self.assertIn('two eggs and some flour', combined_text)
+
+    @override_settings(OPENAI_API_KEY='test-key')
+    @patch('household.services.social_recipe_import.ffmpeg_available', return_value=True)
+    @patch('household.services.social_recipe_import._transcribe')
+    @patch('household.services.social_recipe_import._download_audio')
+    def test_extract_from_social_url_raises_if_no_text_found(self, mock_download, mock_transcribe, mock_ffmpeg):
+        mock_download.return_value = ('/tmp/audio.mp3', {})
+        mock_transcribe.return_value = ''
+
+        with self.assertRaises(social_recipe_import.SocialImportError):
+            social_recipe_import.extract_from_social_url('https://instagram.com/reel/xyz')
+
+
 class RecipeImportViewTests(TestCase):
     def setUp(self):
         self.tim = User.objects.create_user(username='tim', password='pw')
@@ -2885,3 +3012,34 @@ class RecipeImportViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['source'], 'https://example.com/salat')
         self.assertEqual(response.data['title'], 'Salat')
+
+    def test_social_mode_without_url_returns_400(self):
+        response = self.client.post('/api/recipes/import/', {'mode': 'social'}, format='json')
+
+        self.assertEqual(response.status_code, 400)
+
+    @patch('household.services.social_recipe_import.extract_from_social_url')
+    def test_social_mode_returns_draft(self, mock_extract):
+        mock_extract.return_value = {
+            'title': 'Suppe', 'ingredient_lines': ['2 Eier'], 'category_guess': None,
+            'source_type': 'social', 'source': 'https://instagram.com/reel/xyz',
+        }
+
+        response = self.client.post(
+            '/api/recipes/import/', {'mode': 'social', 'url': 'https://instagram.com/reel/xyz'}, format='json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['source_type'], 'social')
+        mock_extract.assert_called_once_with('https://instagram.com/reel/xyz')
+
+    @patch('household.services.social_recipe_import.extract_from_social_url')
+    def test_social_mode_propagates_social_import_error_as_400(self, mock_extract):
+        mock_extract.side_effect = social_recipe_import.SocialImportError('no OPENAI_API_KEY set')
+
+        response = self.client.post(
+            '/api/recipes/import/', {'mode': 'social', 'url': 'https://instagram.com/reel/xyz'}, format='json',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('OPENAI_API_KEY', response.data['detail'])

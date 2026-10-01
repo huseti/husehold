@@ -9,3 +9,4 @@ Pillow==12.3.0
 pywebpush==2.0.0
 requests==2.34.2
 beautifulsoup4==4.15.0
+yt-dlp==2026.8.19
