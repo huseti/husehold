@@ -9,6 +9,8 @@ const TABS = [
   { key: 'url', labelKey: 'recipes.importTabUrl' },
 ];
 
+const MAX_PHOTOS = 3;
+
 // Photo / paste-text / URL recipe import -- all three end up here, and all
 // three just return a draft for review (see RecipeImportView on the
 // backend); nothing is saved until the resulting RecipeForm is submitted.
@@ -23,8 +25,10 @@ export default function RecipeImportModal({ onClose, onExtracted }) {
 
   const handleFiles = async (fileList) => {
     setError('');
+    const files = Array.from(fileList).slice(0, Math.max(0, MAX_PHOTOS - images.length));
+    if (files.length < fileList.length) setError(t('recipes.importMaxPhotos', { count: MAX_PHOTOS }));
     try {
-      const resized = await Promise.all(Array.from(fileList).map(async (file) => {
+      const resized = await Promise.all(files.map(async (file) => {
         const { media_type, data } = await resizeImageFile(file);
         return { id: `${file.name}-${Date.now()}-${Math.random()}`, media_type, data };
       }));
@@ -85,7 +89,15 @@ export default function RecipeImportModal({ onClose, onExtracted }) {
         {tab === 'photo' && (
           <div className="space-y-3">
             <p className="text-sm text-gray-500">{t('recipes.importPhotoHint')}</p>
-            <input type="file" accept="image/*" multiple onChange={(e) => handleFiles(e.target.files)} className="block text-sm" />
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              disabled={images.length >= MAX_PHOTOS}
+              onChange={(e) => handleFiles(e.target.files)}
+              className="block text-sm disabled:opacity-50"
+            />
+            <p className="text-xs text-gray-400">{t('recipes.importMaxPhotos', { count: MAX_PHOTOS })} ({images.length}/{MAX_PHOTOS})</p>
             {images.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {images.map((img) => (

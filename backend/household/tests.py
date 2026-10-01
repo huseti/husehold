@@ -2823,6 +2823,13 @@ class RecipeImportViewTests(TestCase):
 
         self.assertEqual(response.status_code, 400)
 
+    def test_photo_mode_over_the_limit_returns_400(self):
+        images = [{'media_type': 'image/jpeg', 'data': 'xx'}] * 4
+        response = self.client.post('/api/recipes/import/', {'mode': 'photo', 'images': images}, format='json')
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('3', response.data['detail'])
+
     def test_text_mode_without_api_key_returns_400_with_a_helpful_message(self):
         response = self.client.post('/api/recipes/import/', {'mode': 'text', 'text': 'some caption'}, format='json')
 

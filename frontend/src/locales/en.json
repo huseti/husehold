@@ -127,6 +127,7 @@
     "importPhotoHint": "Take or choose photo(s) of a recipe -- multiple pages are combined into one recipe.",
     "importPhotoReadFailed": "Could not read that image. Please try another.",
     "importNoPhotos": "Add at least one photo first.",
+    "importMaxPhotos": "Up to {{count}} photos per recipe.",
     "importTextHint": "Paste any recipe text -- e.g. an Instagram caption, a forwarded message, or text copied from anywhere.",
     "importTextPlaceholder": "Paste the recipe text here...",
     "importNoText": "Paste some text first.",

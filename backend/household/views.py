@@ -468,6 +468,7 @@ class RecipeImportView(APIView):
     saving still goes through the ordinary RecipeViewSet create. See
     services/recipe_import.py."""
     permission_classes = [permissions.IsAuthenticated]
+    MAX_PHOTOS = 3
 
     def post(self, request):
         mode = request.data.get('mode')
@@ -476,6 +477,11 @@ class RecipeImportView(APIView):
                 images = request.data.get('images') or []
                 if not isinstance(images, list) or not images:
                     return Response({'detail': 'No images provided.'}, status=status.HTTP_400_BAD_REQUEST)
+                if len(images) > self.MAX_PHOTOS:
+                    return Response(
+                        {'detail': f'Up to {self.MAX_PHOTOS} photos per recipe.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
                 draft = recipe_import_service.extract_from_images(images)
             elif mode == 'text':
                 draft = recipe_import_service.extract_from_text(request.data.get('text', ''))

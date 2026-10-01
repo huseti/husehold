@@ -127,6 +127,7 @@
     "importPhotoHint": "Fotografiere oder wähle Foto(s) eines Rezepts -- mehrere Seiten werden zu einem Rezept zusammengeführt.",
     "importPhotoReadFailed": "Dieses Bild konnte nicht gelesen werden. Bitte ein anderes versuchen.",
     "importNoPhotos": "Füge zuerst mindestens ein Foto hinzu.",
+    "importMaxPhotos": "Maximal {{count}} Fotos pro Rezept.",
     "importTextHint": "Füge beliebigen Rezepttext ein -- z. B. eine Instagram-Bildunterschrift, eine weitergeleitete Nachricht oder von irgendwoher kopierten Text.",
     "importTextPlaceholder": "Rezepttext hier einfügen...",
     "importNoText": "Füge zuerst Text ein.",
