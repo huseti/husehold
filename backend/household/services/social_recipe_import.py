@@ -20,6 +20,7 @@ surfaced read-only in /service-status/, see Settings):
 Without either, extraction raises a clear, user-facing SocialImportError
 rather than failing silently.
 """
+import logging
 import os
 import shutil
 import tempfile
@@ -28,6 +29,8 @@ import requests
 from django.conf import settings
 
 from . import recipe_import
+
+logger = logging.getLogger(__name__)
 
 WHISPER_URL = 'https://api.openai.com/v1/audio/transcriptions'
 WHISPER_MODEL = 'whisper-1'
@@ -78,6 +81,7 @@ def _download_audio(url, workdir):
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
     except yt_dlp.utils.DownloadError as exc:
+        logger.warning('Social import: yt-dlp download failed for %s: %s', url, exc)
         raise SocialImportError(
             'Could not download that video. Check the link is public and from a supported platform, '
             'or paste the caption text instead.'
@@ -85,6 +89,10 @@ def _download_audio(url, workdir):
 
     audio_path = os.path.join(workdir, 'audio.mp3')
     if not os.path.exists(audio_path):
+        logger.warning(
+            'Social import: no audio.mp3 produced for %s (workdir has: %s)',
+            url, os.listdir(workdir) if os.path.isdir(workdir) else None,
+        )
         raise SocialImportError('Could not extract audio from that video. Try pasting the caption text instead.')
     return audio_path, info or {}
 
@@ -99,6 +107,7 @@ def _transcribe(audio_path):
             timeout=120,
         )
     if response.status_code >= 400:
+        logger.warning('Social import: Whisper request failed (%s): %s', response.status_code, response.text[:500])
         raise SocialImportError('The transcription request failed. Please try again.')
     return (response.json().get('text') or '').strip()
 
@@ -125,6 +134,7 @@ def extract_from_social_url(url):
         parts.append(f'Spoken transcript: {transcript}')
     combined = '\n\n'.join(parts)
     if not combined:
+        logger.warning('Social import: no title/caption/transcript at all for %s', url)
         raise SocialImportError('Could not find any usable text (caption or spoken audio) in that video.')
 
     # Reuses the existing Claude text-extraction path (and its RecipeImportError)
