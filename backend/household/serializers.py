@@ -311,9 +311,17 @@ class VoucherSerializer(serializers.ModelSerializer):
         return bool(obj.valid_until and obj.valid_until < timezone.localdate())
 
 class PackingListItemSerializer(serializers.ModelSerializer):
+    assignees = serializers.SerializerMethodField()
+    assignee_ids = serializers.PrimaryKeyRelatedField(
+        source='assignees', many=True, queryset=User.objects.all(), write_only=True, required=False,
+    )
+
     class Meta:
         model = PackingListItem
-        fields = ('id', 'packing_list', 'text', 'is_packed')
+        fields = ('id', 'packing_list', 'text', 'quantity', 'is_packed', 'assignees', 'assignee_ids')
+
+    def get_assignees(self, obj):
+        return [{'id': u.id, 'username': u.username} for u in obj.assignees.all()]
 
 class PackingListParticipantSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)
@@ -332,9 +340,17 @@ class PackingListSerializer(serializers.ModelSerializer):
         fields = ('id', 'name', 'start_date', 'end_date', 'is_archived', 'participants', 'items', 'added_bucket_ids')
 
 class PackingBucketItemSerializer(serializers.ModelSerializer):
+    assignees = serializers.SerializerMethodField()
+    assignee_ids = serializers.PrimaryKeyRelatedField(
+        source='assignees', many=True, queryset=User.objects.all(), write_only=True, required=False,
+    )
+
     class Meta:
         model = PackingBucketItem
-        fields = ('id', 'bucket', 'text')
+        fields = ('id', 'bucket', 'text', 'quantity', 'assignees', 'assignee_ids')
+
+    def get_assignees(self, obj):
+        return [{'id': u.id, 'username': u.username} for u in obj.assignees.all()]
 
 class PackingBucketSerializer(serializers.ModelSerializer):
     items = PackingBucketItemSerializer(many=True, read_only=True)

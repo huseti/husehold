@@ -606,7 +606,15 @@ class PackingListParticipant(models.Model):
 class PackingListItem(models.Model):
     packing_list = models.ForeignKey(PackingList, on_delete=models.CASCADE, related_name='items')
     text = models.CharField(max_length=200)
+    # Optional headcount, e.g. "5" for "5x Unterhemden" -- the unit/noun is
+    # just part of the free-text name, there's no separate unit field.
+    quantity = models.PositiveIntegerField(null=True, blank=True)
     is_packed = models.BooleanField(default=False)
+    # Blank means "for the whole trip" (nobody specific) -- not restricted to
+    # this list's own PackingListParticipants, since an item can be assigned
+    # to any household member, including one not (yet) on the trip. See
+    # PackingListItemViewSet's non-participant confirmation flow.
+    assignees = models.ManyToManyField(User, blank=True, related_name='packing_list_item_assignments')
 
     class Meta:
         ordering = ['id']
@@ -633,6 +641,11 @@ class PackingBucket(AuditableMixin):
 class PackingBucketItem(models.Model):
     bucket = models.ForeignKey(PackingBucket, on_delete=models.CASCADE, related_name='items')
     text = models.CharField(max_length=200)
+    # Same meaning as PackingListItem.quantity/assignees -- copied onto the
+    # PackingListItem a bucket item becomes when the bucket is added to a
+    # list (see PackingListViewSet.add_bucket).
+    quantity = models.PositiveIntegerField(null=True, blank=True)
+    assignees = models.ManyToManyField(User, blank=True, related_name='packing_bucket_item_assignments')
 
     class Meta:
         ordering = ['id']

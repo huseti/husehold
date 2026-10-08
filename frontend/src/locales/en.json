@@ -452,7 +452,15 @@
     "deleteItem": "Delete",
     "emptyList": "Nothing on this list yet -- add something above.",
     "selectBucket": "Select a bucket...",
-    "addBucketButton": "Add bucket"
+    "addBucketButton": "Add bucket",
+    "quantityPlaceholder": "Qty",
+    "assigneesLabel": "Assigned to",
+    "unassigned": "Nobody assigned",
+    "nonParticipantTitle": "Person not on this trip",
+    "nonParticipantWarning": "{{name}} is not listed as a participant on this trip.",
+    "nonParticipantAddToTrip": "Add {{name}} to the trip",
+    "nonParticipantAccept": "Accept",
+    "nonParticipantFailed": "Action failed. Please try again."
   },
   "weeklyPlanning": {
     "title": "Weekly Household Planning",
@@ -593,6 +601,7 @@
     "confirmDelete": "Delete \"{{name}}\"?",
     "itemPlaceholder": "New item...",
     "addButton": "Add",
+    "editItem": "Edit",
     "deleteItem": "Delete",
     "emptyBucket": "No items in this bucket yet."
   },

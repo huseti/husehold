@@ -717,6 +717,31 @@ class VoucherViewSet(viewsets.ModelViewSet):
         voucher.save()
         return Response(VoucherSerializer(voucher).data)
 
+def _non_participant_conflict(request, packing_list, assignee_ids):
+    """Shared by PackingListItemViewSet (create/update) and
+    PackingListViewSet.add_bucket: returns a 409 Response listing anyone in
+    assignee_ids who isn't a participant of packing_list, unless the request
+    already carries confirm_non_participants=true -- in which case any ids
+    in add_to_trip are granted a PackingListParticipant row and None is
+    returned so the caller proceeds. Returns None outright if there's
+    nothing to confirm. See PLANNING.md for the full assign-and-confirm flow."""
+    assignee_ids = set(assignee_ids)
+    if not assignee_ids:
+        return None
+    if request.data.get('confirm_non_participants'):
+        for user_id in request.data.get('add_to_trip') or []:
+            PackingListParticipant.objects.get_or_create(packing_list=packing_list, user_id=user_id)
+        return None
+    participant_ids = set(packing_list.participants.values_list('user_id', flat=True))
+    missing_ids = assignee_ids - participant_ids
+    if not missing_ids:
+        return None
+    missing_users = User.objects.filter(id__in=missing_ids)
+    return Response(
+        {'non_participants': [{'id': u.id, 'username': u.username} for u in missing_users]},
+        status=status.HTTP_409_CONFLICT,
+    )
+
 class PackingListViewSet(viewsets.ModelViewSet):
     queryset = PackingList.objects.all()
     serializer_class = PackingListSerializer
@@ -758,14 +783,23 @@ class PackingListViewSet(viewsets.ModelViewSet):
         participant_ids = request.data.get('participant_ids') or []
         if not participant_ids:
             raise DRFValidationError({'participant_ids': 'At least one participant is required.'})
+        participant_id_set = {int(x) for x in participant_ids}
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         new_list = serializer.save()
-        for user_id in participant_ids:
+        for user_id in participant_id_set:
             PackingListParticipant.objects.create(packing_list=new_list, user_id=user_id)
-        PackingListItem.objects.bulk_create([
-            PackingListItem(packing_list=new_list, text=item.text) for item in source.items.all()
-        ])
+        # Assignees who aren't a participant of the NEW list are silently
+        # dropped rather than carried over -- unlike add_bucket/direct item
+        # edits, copying a whole list was never part of the "warn about a
+        # missing person" flow Tim asked for, so this stays simple instead
+        # of running the same confirm-dialog round trip for an action that
+        # wasn't in scope for it.
+        for item in source.items.prefetch_related('assignees').all():
+            new_item = PackingListItem.objects.create(packing_list=new_list, text=item.text, quantity=item.quantity)
+            carried_assignee_ids = [a.id for a in item.assignees.all() if a.id in participant_id_set]
+            if carried_assignee_ids:
+                new_item.assignees.set(carried_assignee_ids)
         return Response(self.get_serializer(new_list).data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=['post'], url_path='add-participant')
@@ -784,23 +818,45 @@ class PackingListViewSet(viewsets.ModelViewSet):
     def add_bucket(self, request, pk=None):
         """Copies a PackingBucket's items onto this list as a one-time batch
         -- a snapshot, not a live link (see PackingBucket's docstring). A
-        bucket can only be added once per list; items it contributes that
-        duplicate a name already on the list (case-insensitive) are skipped
-        rather than creating a second copy."""
+        bucket can only be added once per list. An item whose text already
+        exists on the list (case-insensitive) is merged into the existing
+        one (quantities summed, assignees unioned) rather than skipped or
+        duplicated. If any bucket item is assigned to someone who isn't a
+        participant of this list, the request is rejected with 409 and the
+        list of missing people -- resubmit with confirm_non_participants=true
+        (and optionally add_to_trip: [user_id, ...]) to proceed anyway, same
+        flow as PackingListItemViewSet. See PLANNING.md for the full design."""
         packing_list = self.get_object()
         bucket = get_object_or_404(PackingBucket, pk=request.data.get('bucket_id'))
         if packing_list.added_buckets.filter(pk=bucket.pk).exists():
             raise DRFValidationError({'bucket_id': 'This bucket has already been added to this list.'})
-        existing_texts = {t.lower() for t in packing_list.items.values_list('text', flat=True)}
-        new_texts = set()
-        items_to_create = []
-        for item in bucket.items.all():
-            key = item.text.strip().lower()
-            if key in existing_texts or key in new_texts:
-                continue
-            new_texts.add(key)
-            items_to_create.append(PackingListItem(packing_list=packing_list, text=item.text))
-        PackingListItem.objects.bulk_create(items_to_create)
+
+        bucket_items = list(bucket.items.prefetch_related('assignees').all())
+        conflict = _non_participant_conflict(
+            request, packing_list,
+            assignee_ids={a.id for item in bucket_items for a in item.assignees.all()},
+        )
+        if conflict:
+            return conflict
+
+        existing_items_by_key = {item.text.strip().lower(): item for item in packing_list.items.all()}
+        for bucket_item in bucket_items:
+            key = bucket_item.text.strip().lower()
+            assignee_ids = [a.id for a in bucket_item.assignees.all()]
+            existing = existing_items_by_key.get(key)
+            if existing:
+                if bucket_item.quantity is not None:
+                    existing.quantity = (existing.quantity or 0) + bucket_item.quantity
+                    existing.save(update_fields=['quantity'])
+                if assignee_ids:
+                    existing.assignees.add(*assignee_ids)
+            else:
+                new_item = PackingListItem.objects.create(
+                    packing_list=packing_list, text=bucket_item.text, quantity=bucket_item.quantity,
+                )
+                if assignee_ids:
+                    new_item.assignees.set(assignee_ids)
+                existing_items_by_key[key] = new_item
         packing_list.added_buckets.add(bucket)
         return Response(PackingListSerializer(packing_list).data)
 
@@ -812,6 +868,10 @@ class PackingListViewSet(viewsets.ModelViewSet):
         return Response(PackingListSerializer(packing_list).data)
 
 class PackingListItemViewSet(viewsets.ModelViewSet):
+    """create/update are fully overridden (not just perform_create/
+    perform_update) because assigning someone who isn't a participant of
+    the list needs to short-circuit with a 409 instead of the normal
+    201/200 -- see _non_participant_conflict."""
     serializer_class = PackingListItemSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -822,21 +882,37 @@ class PackingListItemViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(packing_list_id=list_id)
         return queryset
 
-    def perform_create(self, serializer):
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
         packing_list = serializer.validated_data['packing_list']
         text = serializer.validated_data['text'].strip()
         if packing_list.items.filter(text__iexact=text).exists():
             raise DRFValidationError({'text': 'This item is already on the list.'})
+        conflict = _non_participant_conflict(request, packing_list, {u.id for u in serializer.validated_data.get('assignees', [])})
+        if conflict:
+            return conflict
         serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-    def perform_update(self, serializer):
-        item = serializer.instance
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
         text = serializer.validated_data.get('text')
         if text is not None:
             text = text.strip()
-            if item.packing_list.items.exclude(pk=item.pk).filter(text__iexact=text).exists():
+            if instance.packing_list.items.exclude(pk=instance.pk).filter(text__iexact=text).exists():
                 raise DRFValidationError({'text': 'This item is already on the list.'})
+        if 'assignees' in serializer.validated_data:
+            conflict = _non_participant_conflict(
+                request, instance.packing_list, {u.id for u in serializer.validated_data['assignees']},
+            )
+            if conflict:
+                return conflict
         serializer.save()
+        return Response(serializer.data)
 
 class PackingBucketViewSet(viewsets.ModelViewSet):
     queryset = PackingBucket.objects.all()

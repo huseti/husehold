@@ -452,7 +452,15 @@
     "deleteItem": "Löschen",
     "emptyList": "Noch nichts auf der Liste — leg direkt los.",
     "selectBucket": "Bucket auswählen...",
-    "addBucketButton": "Bucket hinzufügen"
+    "addBucketButton": "Bucket hinzufügen",
+    "quantityPlaceholder": "Menge",
+    "assigneesLabel": "Zugewiesen an",
+    "unassigned": "Niemand zugewiesen",
+    "nonParticipantTitle": "Person nicht in der Reise",
+    "nonParticipantWarning": "{{name}} ist nicht als Teilnehmer dieser Reise eingetragen.",
+    "nonParticipantAddToTrip": "{{name}} zur Reise hinzufügen",
+    "nonParticipantAccept": "Akzeptieren",
+    "nonParticipantFailed": "Aktion fehlgeschlagen. Bitte erneut versuchen."
   },
   "weeklyPlanning": {
     "title": "Wöchentliche Haushaltsplanung",
@@ -593,6 +601,7 @@
     "confirmDelete": "\"{{name}}\" löschen?",
     "itemPlaceholder": "Neuer Gegenstand...",
     "addButton": "Hinzufügen",
+    "editItem": "Bearbeiten",
     "deleteItem": "Löschen",
     "emptyBucket": "Noch keine Gegenstände in diesem Bucket."
   },

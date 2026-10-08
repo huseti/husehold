@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
-import { packingBucketService, packingBucketItemService } from '../services/api';
+import { packingBucketService, packingBucketItemService, memberService } from '../services/api';
 import Navbar from '../components/Navbar';
+import AssigneeCheckboxes from '../components/AssigneeCheckboxes';
 
 function errorMessage(error) {
   const data = error.response?.data;
@@ -17,6 +18,7 @@ const DEFAULT_COLOR = '#5b7a5e';
 export default function PackingBuckets() {
   const { t } = useTranslation();
   const [buckets, setBuckets] = useState([]);
+  const [members, setMembers] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -26,6 +28,12 @@ export default function PackingBuckets() {
   const [bucketName, setBucketName] = useState('');
   const [bucketColor, setBucketColor] = useState(DEFAULT_COLOR);
   const [itemText, setItemText] = useState('');
+  const [itemQuantity, setItemQuantity] = useState('');
+  const [itemAssigneeIds, setItemAssigneeIds] = useState([]);
+  const [editingItemId, setEditingItemId] = useState(null);
+  const [editItemText, setEditItemText] = useState('');
+  const [editItemQuantity, setEditItemQuantity] = useState('');
+  const [editItemAssigneeIds, setEditItemAssigneeIds] = useState([]);
 
   const selected = buckets.find((b) => b.id === selectedId) || null;
 
@@ -37,6 +45,9 @@ export default function PackingBuckets() {
   };
 
   useEffect(() => {
+    memberService.getAll()
+      .then((res) => setMembers(res.data.results || res.data || []))
+      .catch((err) => console.error('Error loading members:', err));
     reloadBuckets()
       .then((loaded) => setSelectedId(loaded[0]?.id ?? null))
       .catch((err) => { console.error('Error loading buckets:', err); setError(errorMessage(err)); })
@@ -92,11 +103,37 @@ export default function PackingBuckets() {
     if (!itemText.trim()) return;
     setError('');
     try {
-      await packingBucketItemService.create({ bucket: selectedId, text: itemText.trim() });
-      setItemText('');
+      await packingBucketItemService.create({
+        bucket: selectedId, text: itemText.trim(),
+        quantity: itemQuantity ? Number(itemQuantity) : null, assignee_ids: itemAssigneeIds,
+      });
+      setItemText(''); setItemQuantity(''); setItemAssigneeIds([]);
       await reloadBuckets();
     } catch (err) {
       console.error('Error adding bucket item:', err);
+      setError(errorMessage(err));
+    }
+  };
+
+  const startEditItem = (item) => {
+    setEditingItemId(item.id);
+    setEditItemText(item.text);
+    setEditItemQuantity(item.quantity ?? '');
+    setEditItemAssigneeIds(item.assignees.map((a) => a.id));
+  };
+
+  const saveEditItem = async () => {
+    if (!editItemText.trim()) return;
+    setError('');
+    try {
+      await packingBucketItemService.update(editingItemId, {
+        text: editItemText.trim(), quantity: editItemQuantity ? Number(editItemQuantity) : null,
+        assignee_ids: editItemAssigneeIds,
+      });
+      setEditingItemId(null);
+      await reloadBuckets();
+    } catch (err) {
+      console.error('Error editing bucket item:', err);
       setError(errorMessage(err));
     }
   };
@@ -185,27 +222,75 @@ export default function PackingBuckets() {
               </button>
             </div>
 
-            <form onSubmit={handleAddItem} className="bg-white rounded-lg shadow p-4 mb-6 flex gap-2">
-              <input
-                type="text"
-                placeholder={t('packingBuckets.itemPlaceholder')}
-                value={itemText}
-                onChange={(e) => setItemText(e.target.value)}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg"
-                required
-              />
-              <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600">
-                {t('packingBuckets.addButton')}
-              </button>
+            <form onSubmit={handleAddItem} className="bg-white rounded-lg shadow p-4 mb-6 space-y-2">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder={t('packingBuckets.itemPlaceholder')}
+                  value={itemText}
+                  onChange={(e) => setItemText(e.target.value)}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg"
+                  required
+                />
+                <input
+                  type="number"
+                  min="1"
+                  placeholder={t('packingLists.quantityPlaceholder')}
+                  value={itemQuantity}
+                  onChange={(e) => setItemQuantity(e.target.value)}
+                  className="w-20 px-3 py-2 border border-gray-300 rounded-lg"
+                />
+                <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600">
+                  {t('packingBuckets.addButton')}
+                </button>
+              </div>
+              <AssigneeCheckboxes members={members} selectedIds={itemAssigneeIds} onChange={setItemAssigneeIds} />
             </form>
 
             <div className="bg-white rounded-lg shadow">
               {selected.items.length === 0 && <p className="p-4 text-gray-500">{t('packingBuckets.emptyBucket')}</p>}
               <ul className="divide-y">
                 {selected.items.map((item) => (
-                  <li key={item.id} className="p-4 flex items-center">
-                    <div className="flex-1">{item.text}</div>
-                    <button onClick={() => handleDeleteItem(item.id)} className="text-gray-300 hover:text-red-600 px-1" aria-label={t('packingBuckets.deleteItem')}>✕</button>
+                  <li key={item.id} className="p-4">
+                    {editingItemId === item.id ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={editItemText}
+                            onChange={(e) => setEditItemText(e.target.value)}
+                            className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg"
+                            autoFocus
+                          />
+                          <input
+                            type="number"
+                            min="1"
+                            placeholder={t('packingLists.quantityPlaceholder')}
+                            value={editItemQuantity}
+                            onChange={(e) => setEditItemQuantity(e.target.value)}
+                            className="w-20 px-3 py-1.5 border border-gray-300 rounded-lg"
+                          />
+                          <button onClick={saveEditItem} className="bg-green-600 text-white px-3 py-1.5 rounded hover:bg-green-700 text-sm">
+                            {t('recipes.save')}
+                          </button>
+                          <button onClick={() => setEditingItemId(null)} className="bg-gray-200 text-gray-700 px-3 py-1.5 rounded hover:bg-gray-300 text-sm">
+                            {t('recipes.cancel')}
+                          </button>
+                        </div>
+                        <AssigneeCheckboxes members={members} selectedIds={editItemAssigneeIds} onChange={setEditItemAssigneeIds} />
+                      </div>
+                    ) : (
+                      <div className="flex items-center">
+                        <div className="flex-1">
+                          {item.quantity ? `${item.quantity}x ` : ''}{item.text}
+                          {item.assignees.length > 0 && (
+                            <span className="text-gray-400 text-sm"> — {item.assignees.map((a) => a.username).join(', ')}</span>
+                          )}
+                        </div>
+                        <button onClick={() => startEditItem(item)} className="text-gray-300 hover:text-blue-600 px-1" aria-label={t('packingBuckets.editItem')}>✎</button>
+                        <button onClick={() => handleDeleteItem(item.id)} className="text-gray-300 hover:text-red-600 px-1" aria-label={t('packingBuckets.deleteItem')}>✕</button>
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>

@@ -6,6 +6,8 @@ import {
 } from '../services/api';
 import Navbar from '../components/Navbar';
 import PackingListFormModal from '../components/PackingListFormModal';
+import NonParticipantConfirmDialog from '../components/NonParticipantConfirmDialog';
+import AssigneeCheckboxes from '../components/AssigneeCheckboxes';
 import GearIcon from '../components/icons/gearIcon';
 import CopyIcon from '../components/icons/copyIcon';
 import EditIcon from '../components/icons/editIcon';
@@ -31,9 +33,18 @@ export default function PackingLists() {
   // { mode: 'create' | 'copy' | 'edit', list: <source/target list, or null for create> }
   const [modal, setModal] = useState(null);
 
+  // { missing: [{id, username}], retry: (addToTripIds) => Promise<void> } --
+  // set whenever the backend answers 409 (an assignee isn't a participant
+  // of this list yet). Cancel just discards it, nothing is saved.
+  const [conflict, setConflict] = useState(null);
+
   const [itemText, setItemText] = useState('');
+  const [itemQuantity, setItemQuantity] = useState('');
+  const [itemAssigneeIds, setItemAssigneeIds] = useState([]);
   const [editingItemId, setEditingItemId] = useState(null);
   const [editItemText, setEditItemText] = useState('');
+  const [editItemQuantity, setEditItemQuantity] = useState('');
+  const [editItemAssigneeIds, setEditItemAssigneeIds] = useState([]);
   const [bucketToAdd, setBucketToAdd] = useState('');
 
   const selected = lists.find((l) => l.id === selectedId) || null;
@@ -68,6 +79,39 @@ export default function PackingLists() {
     return loaded;
   };
 
+  // Runs makeRequest({}) first; if the backend answers 409 with
+  // non_participants, stashes a retry (makeRequest with confirm_non_participants
+  // + whatever the dialog's checkboxes end up being) in `conflict` instead of
+  // treating it as a plain error. onSuccess runs after either the first try
+  // or (if confirmed) the retry succeeds -- e.g. clearing a form, reloading
+  // the list, closing a modal.
+  const runWithConflictHandling = async (makeRequest, onSuccess) => {
+    try {
+      const res = await makeRequest({});
+      await onSuccess(res);
+    } catch (err) {
+      if (err.response?.status === 409 && err.response.data?.non_participants) {
+        setConflict({
+          missing: err.response.data.non_participants,
+          retry: async (addToTripIds) => {
+            try {
+              const res = await makeRequest({ confirm_non_participants: true, add_to_trip: addToTripIds });
+              await onSuccess(res);
+              setConflict(null);
+            } catch (retryErr) {
+              console.error('Error after confirming non-participant assignment:', retryErr);
+              setError(errorMessage(retryErr));
+              setConflict(null);
+            }
+          },
+        });
+      } else {
+        console.error('Error:', err);
+        setError(errorMessage(err));
+      }
+    }
+  };
+
   const handleSaveModal = async (data) => {
     let res;
     if (modal.mode === 'copy') res = await packingListService.copy(modal.list.id, data);
@@ -95,14 +139,17 @@ export default function PackingLists() {
     e.preventDefault();
     if (!itemText.trim()) return;
     setError('');
-    try {
-      await packingItemService.create({ packing_list: selectedId, text: itemText.trim() });
-      setItemText('');
-      await reloadLists();
-    } catch (err) {
-      console.error('Error adding item:', err);
-      setError(errorMessage(err));
-    }
+    await runWithConflictHandling(
+      (extra) => packingItemService.create({
+        packing_list: selectedId, text: itemText.trim(),
+        quantity: itemQuantity ? Number(itemQuantity) : null, assignee_ids: itemAssigneeIds,
+        ...extra,
+      }),
+      async () => {
+        setItemText(''); setItemQuantity(''); setItemAssigneeIds([]);
+        await reloadLists();
+      },
+    );
   };
 
   const handleToggleItem = async (item) => {
@@ -119,19 +166,23 @@ export default function PackingLists() {
   const startEditItem = (item) => {
     setEditingItemId(item.id);
     setEditItemText(item.text);
+    setEditItemQuantity(item.quantity ?? '');
+    setEditItemAssigneeIds(item.assignees.map((a) => a.id));
   };
 
   const saveEditItem = async () => {
     if (!editItemText.trim()) return;
     setError('');
-    try {
-      await packingItemService.update(editingItemId, { text: editItemText.trim() });
-      setEditingItemId(null);
-      await reloadLists();
-    } catch (err) {
-      console.error('Error editing item:', err);
-      setError(errorMessage(err));
-    }
+    await runWithConflictHandling(
+      (extra) => packingItemService.update(editingItemId, {
+        text: editItemText.trim(), quantity: editItemQuantity ? Number(editItemQuantity) : null,
+        assignee_ids: editItemAssigneeIds, ...extra,
+      }),
+      async () => {
+        setEditingItemId(null);
+        await reloadLists();
+      },
+    );
   };
 
   const handleDeleteItem = async (id) => {
@@ -149,14 +200,13 @@ export default function PackingLists() {
     e.preventDefault();
     if (!bucketToAdd) return;
     setError('');
-    try {
-      await packingListService.addBucket(selectedId, Number(bucketToAdd));
-      setBucketToAdd('');
-      await reloadLists();
-    } catch (err) {
-      console.error('Error adding bucket:', err);
-      setError(errorMessage(err));
-    }
+    await runWithConflictHandling(
+      (extra) => packingListService.addBucket(selectedId, Number(bucketToAdd), extra),
+      async () => {
+        setBucketToAdd('');
+        await reloadLists();
+      },
+    );
   };
 
   if (loading) {
@@ -260,18 +310,29 @@ export default function PackingLists() {
             <h3 className="text-xl font-semibold mb-3">{selected.name}</h3>
 
             <div className="bg-white rounded-lg shadow p-4 mb-6 space-y-3">
-              <form onSubmit={handleAddItem} className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder={t('packingLists.itemPlaceholder')}
-                  value={itemText}
-                  onChange={(e) => setItemText(e.target.value)}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg"
-                  required
-                />
-                <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600">
-                  {t('packingLists.addButton')}
-                </button>
+              <form onSubmit={handleAddItem} className="space-y-2">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder={t('packingLists.itemPlaceholder')}
+                    value={itemText}
+                    onChange={(e) => setItemText(e.target.value)}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg"
+                    required
+                  />
+                  <input
+                    type="number"
+                    min="1"
+                    placeholder={t('packingLists.quantityPlaceholder')}
+                    value={itemQuantity}
+                    onChange={(e) => setItemQuantity(e.target.value)}
+                    className="w-20 px-3 py-2 border border-gray-300 rounded-lg"
+                  />
+                  <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600">
+                    {t('packingLists.addButton')}
+                  </button>
+                </div>
+                <AssigneeCheckboxes members={members} selectedIds={itemAssigneeIds} onChange={setItemAssigneeIds} />
               </form>
 
               {availableBuckets.length > 0 && (
@@ -297,20 +358,31 @@ export default function PackingLists() {
                 {selected.items.map((item) => (
                   <li key={item.id} className="p-4">
                     {editingItemId === item.id ? (
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="text"
-                          value={editItemText}
-                          onChange={(e) => setEditItemText(e.target.value)}
-                          className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg"
-                          autoFocus
-                        />
-                        <button onClick={saveEditItem} className="bg-green-600 text-white px-3 py-1.5 rounded hover:bg-green-700 text-sm">
-                          {t('recipes.save')}
-                        </button>
-                        <button onClick={() => setEditingItemId(null)} className="bg-gray-200 text-gray-700 px-3 py-1.5 rounded hover:bg-gray-300 text-sm">
-                          {t('recipes.cancel')}
-                        </button>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={editItemText}
+                            onChange={(e) => setEditItemText(e.target.value)}
+                            className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg"
+                            autoFocus
+                          />
+                          <input
+                            type="number"
+                            min="1"
+                            placeholder={t('packingLists.quantityPlaceholder')}
+                            value={editItemQuantity}
+                            onChange={(e) => setEditItemQuantity(e.target.value)}
+                            className="w-20 px-3 py-1.5 border border-gray-300 rounded-lg"
+                          />
+                          <button onClick={saveEditItem} className="bg-green-600 text-white px-3 py-1.5 rounded hover:bg-green-700 text-sm">
+                            {t('recipes.save')}
+                          </button>
+                          <button onClick={() => setEditingItemId(null)} className="bg-gray-200 text-gray-700 px-3 py-1.5 rounded hover:bg-gray-300 text-sm">
+                            {t('recipes.cancel')}
+                          </button>
+                        </div>
+                        <AssigneeCheckboxes members={members} selectedIds={editItemAssigneeIds} onChange={setEditItemAssigneeIds} />
                       </div>
                     ) : (
                       <div className="flex items-center">
@@ -321,7 +393,10 @@ export default function PackingLists() {
                           className="mr-4"
                         />
                         <div className={`flex-1 ${item.is_packed ? 'line-through text-gray-400' : ''}`}>
-                          {item.text}
+                          {item.quantity ? `${item.quantity}x ` : ''}{item.text}
+                          {item.assignees.length > 0 && (
+                            <span className="text-gray-400 text-sm"> — {item.assignees.map((a) => a.username).join(', ')}</span>
+                          )}
                         </div>
                         <button onClick={() => startEditItem(item)} className="text-gray-300 hover:text-blue-600 px-1" aria-label={t('packingLists.editItem')}>✎</button>
                         <button onClick={() => handleDeleteItem(item.id)} className="text-gray-300 hover:text-red-600 px-1" aria-label={t('packingLists.deleteItem')}>✕</button>
@@ -371,6 +446,14 @@ export default function PackingLists() {
           onSave={handleSaveModal}
           onDelete={handleDeleteModalList}
           onToggleArchive={handleToggleArchiveModalList}
+        />
+      )}
+
+      {conflict && (
+        <NonParticipantConfirmDialog
+          missing={conflict.missing}
+          onAccept={conflict.retry}
+          onCancel={() => setConflict(null)}
         />
       )}
     </div>
