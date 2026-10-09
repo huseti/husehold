@@ -789,17 +789,17 @@ class PackingListViewSet(viewsets.ModelViewSet):
         new_list = serializer.save()
         for user_id in participant_id_set:
             PackingListParticipant.objects.create(packing_list=new_list, user_id=user_id)
-        # Assignees who aren't a participant of the NEW list are silently
-        # dropped rather than carried over -- unlike add_bucket/direct item
-        # edits, copying a whole list was never part of the "warn about a
-        # missing person" flow Tim asked for, so this stays simple instead
-        # of running the same confirm-dialog round trip for an action that
-        # wasn't in scope for it.
-        for item in source.items.prefetch_related('assignees').all():
-            new_item = PackingListItem.objects.create(packing_list=new_list, text=item.text, quantity=item.quantity)
-            carried_assignee_ids = [a.id for a in item.assignees.all() if a.id in participant_id_set]
-            if carried_assignee_ids:
-                new_item.assignees.set(carried_assignee_ids)
+        # An item assigned to someone who isn't a participant of the NEW
+        # list is carried over unassigned rather than dropped entirely --
+        # unlike add_bucket/direct item edits, copying a whole list was
+        # never part of the "warn about a missing person" flow Tim asked
+        # for, so this stays simple instead of running the same
+        # confirm-dialog round trip for an action that wasn't in scope for it.
+        for item in source.items.all():
+            carried_assigned_to_id = item.assigned_to_id if item.assigned_to_id in participant_id_set else None
+            PackingListItem.objects.create(
+                packing_list=new_list, text=item.text, quantity=item.quantity, assigned_to_id=carried_assigned_to_id,
+            )
         return Response(self.get_serializer(new_list).data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=['post'], url_path='add-participant')
@@ -818,45 +818,43 @@ class PackingListViewSet(viewsets.ModelViewSet):
     def add_bucket(self, request, pk=None):
         """Copies a PackingBucket's items onto this list as a one-time batch
         -- a snapshot, not a live link (see PackingBucket's docstring). A
-        bucket can only be added once per list. An item whose text already
-        exists on the list (case-insensitive) is merged into the existing
-        one (quantities summed, assignees unioned) rather than skipped or
-        duplicated. If any bucket item is assigned to someone who isn't a
-        participant of this list, the request is rejected with 409 and the
-        list of missing people -- resubmit with confirm_non_participants=true
-        (and optionally add_to_trip: [user_id, ...]) to proceed anyway, same
+        bucket can only be added once per list. A bucket item whose
+        (text, assigned_to) pair already exists on the list (text matched
+        case-insensitively) merges into the existing row (quantities
+        summed) instead of duplicating it -- a different person with the
+        same item name is a different row, not a merge target. If any
+        bucket item is assigned to someone who isn't a participant of this
+        list, the request is rejected with 409 and the list of missing
+        people -- resubmit with confirm_non_participants=true (and
+        optionally add_to_trip: [user_id, ...]) to proceed anyway, same
         flow as PackingListItemViewSet. See PLANNING.md for the full design."""
         packing_list = self.get_object()
         bucket = get_object_or_404(PackingBucket, pk=request.data.get('bucket_id'))
         if packing_list.added_buckets.filter(pk=bucket.pk).exists():
             raise DRFValidationError({'bucket_id': 'This bucket has already been added to this list.'})
 
-        bucket_items = list(bucket.items.prefetch_related('assignees').all())
+        bucket_items = list(bucket.items.all())
         conflict = _non_participant_conflict(
             request, packing_list,
-            assignee_ids={a.id for item in bucket_items for a in item.assignees.all()},
+            assignee_ids={item.assigned_to_id for item in bucket_items if item.assigned_to_id},
         )
         if conflict:
             return conflict
 
-        existing_items_by_key = {item.text.strip().lower(): item for item in packing_list.items.all()}
+        existing_by_key = {(item.text.strip().lower(), item.assigned_to_id): item for item in packing_list.items.all()}
         for bucket_item in bucket_items:
-            key = bucket_item.text.strip().lower()
-            assignee_ids = [a.id for a in bucket_item.assignees.all()]
-            existing = existing_items_by_key.get(key)
+            key = (bucket_item.text.strip().lower(), bucket_item.assigned_to_id)
+            existing = existing_by_key.get(key)
             if existing:
                 if bucket_item.quantity is not None:
                     existing.quantity = (existing.quantity or 0) + bucket_item.quantity
                     existing.save(update_fields=['quantity'])
-                if assignee_ids:
-                    existing.assignees.add(*assignee_ids)
             else:
                 new_item = PackingListItem.objects.create(
                     packing_list=packing_list, text=bucket_item.text, quantity=bucket_item.quantity,
+                    assigned_to_id=bucket_item.assigned_to_id,
                 )
-                if assignee_ids:
-                    new_item.assignees.set(assignee_ids)
-                existing_items_by_key[key] = new_item
+                existing_by_key[key] = new_item
         packing_list.added_buckets.add(bucket)
         return Response(PackingListSerializer(packing_list).data)
 
@@ -871,7 +869,9 @@ class PackingListItemViewSet(viewsets.ModelViewSet):
     """create/update are fully overridden (not just perform_create/
     perform_update) because assigning someone who isn't a participant of
     the list needs to short-circuit with a 409 instead of the normal
-    201/200 -- see _non_participant_conflict."""
+    201/200 -- see _non_participant_conflict. create() additionally fans a
+    plural assignee_ids out into one row per person (see PackingListItem's
+    docstring for why) instead of creating one row naming several people."""
     serializer_class = PackingListItemSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -883,34 +883,48 @@ class PackingListItemViewSet(viewsets.ModelViewSet):
         return queryset
 
     def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        packing_list = serializer.validated_data['packing_list']
-        text = serializer.validated_data['text'].strip()
-        if packing_list.items.filter(text__iexact=text).exists():
-            raise DRFValidationError({'text': 'This item is already on the list.'})
-        conflict = _non_participant_conflict(request, packing_list, {u.id for u in serializer.validated_data.get('assignees', [])})
+        packing_list = get_object_or_404(PackingList, pk=request.data.get('packing_list'))
+        assignee_ids = request.data.get('assignee_ids') or []
+        conflict = _non_participant_conflict(request, packing_list, set(assignee_ids))
         if conflict:
             return conflict
-        serializer.save()
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        # None means "shared, nobody specific" -- one row either way.
+        targets = assignee_ids if assignee_ids else [None]
+        created = []
+        for target in targets:
+            serializer = self.get_serializer(data={**request.data, 'assigned_to_id': target})
+            serializer.is_valid(raise_exception=True)
+            text = serializer.validated_data['text'].strip()
+            if packing_list.items.filter(text__iexact=text, assigned_to_id=target).exists():
+                continue  # this specific person (or the shared slot) already has it -- not an error, just nothing new to add
+            created.append(serializer.save())
+
+        if not created:
+            raise DRFValidationError({'text': 'This item is already on the list.'})
+        return Response(self.get_serializer(created, many=True).data, status=status.HTTP_201_CREATED)
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
-        text = serializer.validated_data.get('text')
-        if text is not None:
-            text = text.strip()
-            if instance.packing_list.items.exclude(pk=instance.pk).filter(text__iexact=text).exists():
-                raise DRFValidationError({'text': 'This item is already on the list.'})
-        if 'assignees' in serializer.validated_data:
-            conflict = _non_participant_conflict(
-                request, instance.packing_list, {u.id for u in serializer.validated_data['assignees']},
-            )
+
+        assigned_to_changing = 'assigned_to' in serializer.validated_data
+        effective_text = serializer.validated_data.get('text', instance.text).strip()
+        effective_assigned_to = serializer.validated_data.get('assigned_to', instance.assigned_to)
+        effective_assigned_to_id = effective_assigned_to.id if effective_assigned_to else None
+
+        if instance.packing_list.items.exclude(pk=instance.pk).filter(
+            text__iexact=effective_text, assigned_to_id=effective_assigned_to_id,
+        ).exists():
+            raise DRFValidationError({'text': 'This item is already on the list.'})
+
+        if assigned_to_changing and effective_assigned_to_id is not None:
+            conflict = _non_participant_conflict(request, instance.packing_list, {effective_assigned_to_id})
             if conflict:
                 return conflict
+
         serializer.save()
         return Response(serializer.data)
 
@@ -926,6 +940,9 @@ class PackingBucketViewSet(viewsets.ModelViewSet):
         serializer.save(updated_by=self.request.user)
 
 class PackingBucketItemViewSet(viewsets.ModelViewSet):
+    """create() fans a plural assignee_ids out into one row per person, same
+    as PackingListItemViewSet -- but no duplicate or participant check at
+    all, since a bucket has no trip context (see PackingBucketItem)."""
     serializer_class = PackingBucketItemSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -935,6 +952,16 @@ class PackingBucketItemViewSet(viewsets.ModelViewSet):
         if bucket_id:
             queryset = queryset.filter(bucket_id=bucket_id)
         return queryset
+
+    def create(self, request, *args, **kwargs):
+        assignee_ids = request.data.get('assignee_ids') or []
+        targets = assignee_ids if assignee_ids else [None]
+        created = []
+        for target in targets:
+            serializer = self.get_serializer(data={**request.data, 'assigned_to_id': target})
+            serializer.is_valid(raise_exception=True)
+            created.append(serializer.save())
+        return Response(self.get_serializer(created, many=True).data, status=status.HTTP_201_CREATED)
 
 class GoogleCalendarLinkView(APIView):
     """Singleton status/settings -- get, toggle sync_enabled, or disconnect

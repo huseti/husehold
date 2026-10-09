@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { packingBucketService, packingBucketItemService, memberService } from '../services/api';
 import Navbar from '../components/Navbar';
 import AssigneeCheckboxes from '../components/AssigneeCheckboxes';
+import AssigneeSelect from '../components/AssigneeSelect';
 
 function errorMessage(error) {
   const data = error.response?.data;
@@ -33,7 +34,7 @@ export default function PackingBuckets() {
   const [editingItemId, setEditingItemId] = useState(null);
   const [editItemText, setEditItemText] = useState('');
   const [editItemQuantity, setEditItemQuantity] = useState('');
-  const [editItemAssigneeIds, setEditItemAssigneeIds] = useState([]);
+  const [editItemAssignedTo, setEditItemAssignedTo] = useState('');
 
   const selected = buckets.find((b) => b.id === selectedId) || null;
 
@@ -119,7 +120,7 @@ export default function PackingBuckets() {
     setEditingItemId(item.id);
     setEditItemText(item.text);
     setEditItemQuantity(item.quantity ?? '');
-    setEditItemAssigneeIds(item.assignees.map((a) => a.id));
+    setEditItemAssignedTo(item.assigned_to ? String(item.assigned_to.id) : '');
   };
 
   const saveEditItem = async () => {
@@ -128,7 +129,7 @@ export default function PackingBuckets() {
     try {
       await packingBucketItemService.update(editingItemId, {
         text: editItemText.trim(), quantity: editItemQuantity ? Number(editItemQuantity) : null,
-        assignee_ids: editItemAssigneeIds,
+        assigned_to_id: editItemAssignedTo ? Number(editItemAssignedTo) : null,
       });
       setEditingItemId(null);
       await reloadBuckets();
@@ -277,14 +278,14 @@ export default function PackingBuckets() {
                             {t('recipes.cancel')}
                           </button>
                         </div>
-                        <AssigneeCheckboxes members={members} selectedIds={editItemAssigneeIds} onChange={setEditItemAssigneeIds} />
+                        <AssigneeSelect members={members} value={editItemAssignedTo} onChange={setEditItemAssignedTo} />
                       </div>
                     ) : (
                       <div className="flex items-center">
                         <div className="flex-1">
                           {item.quantity ? `${item.quantity}x ` : ''}{item.text}
-                          {item.assignees.length > 0 && (
-                            <span className="text-gray-400 text-sm"> — {item.assignees.map((a) => a.username).join(', ')}</span>
+                          {item.assigned_to && (
+                            <span className="text-gray-400 text-sm"> — {item.assigned_to.username}</span>
                           )}
                         </div>
                         <button onClick={() => startEditItem(item)} className="text-gray-300 hover:text-blue-600 px-1" aria-label={t('packingBuckets.editItem')}>✎</button>

@@ -2221,17 +2221,22 @@ class PackingListTests(TestCase):
     def test_bucket_item_create_and_delete(self):
         bucket = PackingBucket.objects.create(name='Sommerurlaub')
 
+        # create() always returns a list -- see PackingBucketItemViewSet's
+        # fan-out docstring (one request can produce several rows).
         created = self.client.post('/api/packing-bucket-items/', {'bucket': bucket.id, 'text': 'Sonnencreme'}, format='json')
         self.assertEqual(created.status_code, 201)
+        self.assertEqual(len(created.data), 1)
 
-        deleted = self.client.delete(f"/api/packing-bucket-items/{created.data['id']}/")
+        deleted = self.client.delete(f"/api/packing-bucket-items/{created.data[0]['id']}/")
         self.assertEqual(deleted.status_code, 204)
 
 
 class PackingItemQuantityAndAssigneeTests(TestCase):
-    """quantity + assignees on PackingListItem/PackingBucketItem, and the
-    "person isn't on this trip" confirm-or-409 flow shared by item create/
-    update and PackingListViewSet.add_bucket (see _non_participant_conflict)."""
+    """quantity + assigned_to on PackingListItem/PackingBucketItem (one row
+    per person, or one shared unassigned row), the fan-out of a plural
+    assignee_ids into one create() per person, and the "person isn't on
+    this trip" confirm-or-409 flow shared by item create/update and
+    PackingListViewSet.add_bucket (see _non_participant_conflict)."""
 
     def setUp(self):
         self.tim = User.objects.create_user(username='tim', password='pw')
@@ -2250,8 +2255,61 @@ class PackingItemQuantityAndAssigneeTests(TestCase):
         }, format='json')
 
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.data['quantity'], 5)
-        self.assertEqual([a['id'] for a in response.data['assignees']], [self.tim.id])
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]['quantity'], 5)
+        self.assertEqual(response.data[0]['assigned_to']['id'], self.tim.id)
+
+    def test_create_item_for_two_people_fans_out_into_two_rows(self):
+        response = self.client.post('/api/packing-items/', {
+            'packing_list': self.trip.id, 'text': 'Schlafanzug', 'quantity': 1,
+            'assignee_ids': [self.tim.id, self.anna.id],
+        }, format='json')
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(len(response.data), 2)
+        rows = PackingListItem.objects.filter(packing_list=self.trip, text='Schlafanzug')
+        self.assertEqual(sorted(r.assigned_to_id for r in rows), sorted([self.tim.id, self.anna.id]))
+
+    def test_create_item_with_no_assignee_is_a_single_shared_row(self):
+        response = self.client.post('/api/packing-items/', {
+            'packing_list': self.trip.id, 'text': 'Kofferwaage',
+        }, format='json')
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(len(response.data), 1)
+        self.assertIsNone(response.data[0]['assigned_to'])
+
+    def test_same_text_for_a_different_person_is_allowed(self):
+        PackingListItem.objects.create(packing_list=self.trip, text='Schlafanzug', assigned_to=self.tim)
+
+        response = self.client.post('/api/packing-items/', {
+            'packing_list': self.trip.id, 'text': 'Schlafanzug', 'assignee_ids': [self.anna.id],
+        }, format='json')
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(PackingListItem.objects.filter(packing_list=self.trip, text='Schlafanzug').count(), 2)
+
+    def test_same_text_for_the_same_person_is_rejected(self):
+        PackingListItem.objects.create(packing_list=self.trip, text='Schlafanzug', assigned_to=self.tim)
+
+        response = self.client.post('/api/packing-items/', {
+            'packing_list': self.trip.id, 'text': 'schlafanzug ', 'assignee_ids': [self.tim.id],
+        }, format='json')
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(PackingListItem.objects.filter(packing_list=self.trip, text='Schlafanzug').count(), 1)
+
+    def test_adding_for_two_people_where_one_already_has_it_only_creates_the_missing_one(self):
+        PackingListItem.objects.create(packing_list=self.trip, text='Schlafanzug', assigned_to=self.tim)
+
+        response = self.client.post('/api/packing-items/', {
+            'packing_list': self.trip.id, 'text': 'Schlafanzug', 'assignee_ids': [self.tim.id, self.anna.id],
+        }, format='json')
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]['assigned_to']['id'], self.anna.id)
+        self.assertEqual(PackingListItem.objects.filter(packing_list=self.trip, text='Schlafanzug').count(), 2)
 
     def test_create_item_assigned_to_a_non_participant_returns_409(self):
         response = self.client.post('/api/packing-items/', {
@@ -2269,7 +2327,7 @@ class PackingItemQuantityAndAssigneeTests(TestCase):
         }, format='json')
 
         self.assertEqual(response.status_code, 201)
-        self.assertEqual([a['id'] for a in response.data['assignees']], [self.eva.id])
+        self.assertEqual(response.data[0]['assigned_to']['id'], self.eva.id)
         # Confirming alone, without add_to_trip, does NOT make Eva a participant.
         self.assertFalse(PackingListParticipant.objects.filter(packing_list=self.trip, user=self.eva).exists())
 
@@ -2282,28 +2340,43 @@ class PackingItemQuantityAndAssigneeTests(TestCase):
         self.assertEqual(response.status_code, 201)
         self.assertTrue(PackingListParticipant.objects.filter(packing_list=self.trip, user=self.eva).exists())
 
-    def test_updating_an_items_assignees_to_a_non_participant_also_returns_409(self):
+    def test_updating_an_items_assignee_to_a_non_participant_also_returns_409(self):
         item = PackingListItem.objects.create(packing_list=self.trip, text='Handtuch')
 
-        response = self.client.patch(f'/api/packing-items/{item.id}/', {'assignee_ids': [self.eva.id]}, format='json')
+        response = self.client.patch(f'/api/packing-items/{item.id}/', {'assigned_to_id': self.eva.id}, format='json')
 
         self.assertEqual(response.status_code, 409)
         self.assertEqual(response.data['non_participants'], [{'id': self.eva.id, 'username': 'eva'}])
-        self.assertEqual(item.assignees.count(), 0)
+        item.refresh_from_db()
+        self.assertIsNone(item.assigned_to_id)
 
     def test_updating_quantity_alone_does_not_trigger_the_participant_check(self):
-        item = PackingListItem.objects.create(packing_list=self.trip, text='Handtuch')
-        item.assignees.add(self.tim)
+        item = PackingListItem.objects.create(packing_list=self.trip, text='Handtuch', assigned_to=self.tim)
 
         response = self.client.patch(f'/api/packing-items/{item.id}/', {'quantity': 2}, format='json')
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['quantity'], 2)
 
+    def test_cannot_update_an_item_to_duplicate_another_rows_text_and_assignee(self):
+        PackingListItem.objects.create(packing_list=self.trip, text='Handtuch', assigned_to=self.tim)
+        other = PackingListItem.objects.create(packing_list=self.trip, text='Sonnencreme', assigned_to=self.tim)
+
+        response = self.client.patch(f'/api/packing-items/{other.id}/', {'text': 'Handtuch'}, format='json')
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_can_update_an_item_to_the_same_text_as_another_persons_row(self):
+        PackingListItem.objects.create(packing_list=self.trip, text='Handtuch', assigned_to=self.tim)
+        other = PackingListItem.objects.create(packing_list=self.trip, text='Sonnencreme', assigned_to=self.anna)
+
+        response = self.client.patch(f'/api/packing-items/{other.id}/', {'text': 'Handtuch'}, format='json')
+
+        self.assertEqual(response.status_code, 200)
+
     def test_add_bucket_with_a_non_participant_assignee_returns_409_and_adds_nothing(self):
         bucket = PackingBucket.objects.create(name='Winterkoffer')
-        item = PackingBucketItem.objects.create(bucket=bucket, text='Schlafanzug')
-        item.assignees.add(self.eva)
+        PackingBucketItem.objects.create(bucket=bucket, text='Schlafanzug', assigned_to=self.eva)
 
         response = self.client.post(f'/api/packing-lists/{self.trip.id}/add-bucket/', {'bucket_id': bucket.id}, format='json')
 
@@ -2314,8 +2387,7 @@ class PackingItemQuantityAndAssigneeTests(TestCase):
 
     def test_add_bucket_confirmed_with_add_to_trip_adds_the_item_and_the_participant(self):
         bucket = PackingBucket.objects.create(name='Winterkoffer')
-        item = PackingBucketItem.objects.create(bucket=bucket, text='Schlafanzug')
-        item.assignees.add(self.eva)
+        PackingBucketItem.objects.create(bucket=bucket, text='Schlafanzug', assigned_to=self.eva)
 
         response = self.client.post(f'/api/packing-lists/{self.trip.id}/add-bucket/', {
             'bucket_id': bucket.id, 'confirm_non_participants': True, 'add_to_trip': [self.eva.id],
@@ -2323,28 +2395,36 @@ class PackingItemQuantityAndAssigneeTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         created_item = self.trip.items.get(text='Schlafanzug')
-        self.assertEqual([a.id for a in created_item.assignees.all()], [self.eva.id])
+        self.assertEqual(created_item.assigned_to_id, self.eva.id)
         self.assertTrue(PackingListParticipant.objects.filter(packing_list=self.trip, user=self.eva).exists())
 
-    def test_add_bucket_merges_quantity_and_assignees_into_an_existing_item_with_the_same_name(self):
-        existing = PackingListItem.objects.create(packing_list=self.trip, text='Sonnencreme', quantity=1)
-        existing.assignees.add(self.tim)
+    def test_add_bucket_merges_quantity_into_an_existing_item_with_the_same_name_and_assignee(self):
+        existing = PackingListItem.objects.create(packing_list=self.trip, text='Sonnencreme', quantity=1, assigned_to=self.tim)
         bucket = PackingBucket.objects.create(name='Sommerkoffer')
-        bucket_item = PackingBucketItem.objects.create(bucket=bucket, text='sonnencreme', quantity=2)
-        bucket_item.assignees.add(self.anna)
+        PackingBucketItem.objects.create(bucket=bucket, text='sonnencreme', quantity=2, assigned_to=self.tim)
 
         response = self.client.post(f'/api/packing-lists/{self.trip.id}/add-bucket/', {'bucket_id': bucket.id}, format='json')
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(self.trip.items.count(), 1)
-        merged = self.trip.items.get()
-        self.assertEqual(merged.quantity, 3)
-        self.assertEqual(set(merged.assignees.values_list('id', flat=True)), {self.tim.id, self.anna.id})
+        existing.refresh_from_db()
+        self.assertEqual(existing.quantity, 3)
 
-    def test_copy_carries_quantity_and_drops_assignees_not_on_the_new_trip(self):
+    def test_add_bucket_creates_a_separate_row_for_a_different_assignee_with_the_same_name(self):
+        PackingListItem.objects.create(packing_list=self.trip, text='Sonnencreme', quantity=1, assigned_to=self.tim)
+        bucket = PackingBucket.objects.create(name='Sommerkoffer')
+        PackingBucketItem.objects.create(bucket=bucket, text='sonnencreme', quantity=2, assigned_to=self.anna)
+
+        response = self.client.post(f'/api/packing-lists/{self.trip.id}/add-bucket/', {'bucket_id': bucket.id}, format='json')
+
+        self.assertEqual(response.status_code, 200)
+        rows = self.trip.items.filter(text__iexact='Sonnencreme')
+        self.assertEqual(rows.count(), 2)
+        self.assertEqual({r.assigned_to_id: r.quantity for r in rows}, {self.tim.id: 1, self.anna.id: 2})
+
+    def test_copy_carries_quantity_and_unassigns_a_person_not_on_the_new_trip(self):
         PackingListParticipant.objects.create(packing_list=self.trip, user=self.eva)
-        item = PackingListItem.objects.create(packing_list=self.trip, text='Schlafanzug', quantity=1)
-        item.assignees.add(self.tim, self.eva)
+        PackingListItem.objects.create(packing_list=self.trip, text='Schlafanzug', quantity=1, assigned_to=self.eva)
 
         response = self.client.post(f'/api/packing-lists/{self.trip.id}/copy/', {
             'name': 'Skiurlaub 2027', 'start_date': self.today, 'end_date': self.today,
@@ -2354,7 +2434,7 @@ class PackingItemQuantityAndAssigneeTests(TestCase):
         self.assertEqual(response.status_code, 201)
         new_item = PackingList.objects.get(pk=response.data['id']).items.get(text='Schlafanzug')
         self.assertEqual(new_item.quantity, 1)
-        self.assertEqual(list(new_item.assignees.values_list('id', flat=True)), [self.tim.id])
+        self.assertIsNone(new_item.assigned_to_id)
 
 
 class AnalyticsTests(TestCase):

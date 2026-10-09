@@ -8,6 +8,7 @@ import Navbar from '../components/Navbar';
 import PackingListFormModal from '../components/PackingListFormModal';
 import NonParticipantConfirmDialog from '../components/NonParticipantConfirmDialog';
 import AssigneeCheckboxes from '../components/AssigneeCheckboxes';
+import AssigneeSelect from '../components/AssigneeSelect';
 import GearIcon from '../components/icons/gearIcon';
 import CopyIcon from '../components/icons/copyIcon';
 import EditIcon from '../components/icons/editIcon';
@@ -44,7 +45,8 @@ export default function PackingLists() {
   const [editingItemId, setEditingItemId] = useState(null);
   const [editItemText, setEditItemText] = useState('');
   const [editItemQuantity, setEditItemQuantity] = useState('');
-  const [editItemAssigneeIds, setEditItemAssigneeIds] = useState([]);
+  // A single row has at most one assignee -- '' means "shared, nobody specific".
+  const [editItemAssignedTo, setEditItemAssignedTo] = useState('');
   const [bucketToAdd, setBucketToAdd] = useState('');
 
   const selected = lists.find((l) => l.id === selectedId) || null;
@@ -167,7 +169,7 @@ export default function PackingLists() {
     setEditingItemId(item.id);
     setEditItemText(item.text);
     setEditItemQuantity(item.quantity ?? '');
-    setEditItemAssigneeIds(item.assignees.map((a) => a.id));
+    setEditItemAssignedTo(item.assigned_to ? String(item.assigned_to.id) : '');
   };
 
   const saveEditItem = async () => {
@@ -176,7 +178,7 @@ export default function PackingLists() {
     await runWithConflictHandling(
       (extra) => packingItemService.update(editingItemId, {
         text: editItemText.trim(), quantity: editItemQuantity ? Number(editItemQuantity) : null,
-        assignee_ids: editItemAssigneeIds, ...extra,
+        assigned_to_id: editItemAssignedTo ? Number(editItemAssignedTo) : null, ...extra,
       }),
       async () => {
         setEditingItemId(null);
@@ -382,7 +384,7 @@ export default function PackingLists() {
                             {t('recipes.cancel')}
                           </button>
                         </div>
-                        <AssigneeCheckboxes members={members} selectedIds={editItemAssigneeIds} onChange={setEditItemAssigneeIds} />
+                        <AssigneeSelect members={members} value={editItemAssignedTo} onChange={setEditItemAssignedTo} />
                       </div>
                     ) : (
                       <div className="flex items-center">
@@ -394,8 +396,8 @@ export default function PackingLists() {
                         />
                         <div className={`flex-1 ${item.is_packed ? 'line-through text-gray-400' : ''}`}>
                           {item.quantity ? `${item.quantity}x ` : ''}{item.text}
-                          {item.assignees.length > 0 && (
-                            <span className="text-gray-400 text-sm"> — {item.assignees.map((a) => a.username).join(', ')}</span>
+                          {item.assigned_to && (
+                            <span className="text-gray-400 text-sm"> — {item.assigned_to.username}</span>
                           )}
                         </div>
                         <button onClick={() => startEditItem(item)} className="text-gray-300 hover:text-blue-600 px-1" aria-label={t('packingLists.editItem')}>✎</button>

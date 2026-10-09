@@ -454,7 +454,7 @@
     "selectBucket": "Bucket auswählen...",
     "addBucketButton": "Bucket hinzufügen",
     "quantityPlaceholder": "Menge",
-    "assigneesLabel": "Zugewiesen an",
+    "assigneesLabel": "Individuelles Item von:",
     "unassigned": "Niemand zugewiesen",
     "nonParticipantTitle": "Person nicht in der Reise",
     "nonParticipantWarning": "{{name}} ist nicht als Teilnehmer dieser Reise eingetragen.",

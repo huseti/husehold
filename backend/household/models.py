@@ -604,17 +604,29 @@ class PackingListParticipant(models.Model):
 
 
 class PackingListItem(models.Model):
+    """One row per person who needs their own copy of an item -- "Schlafanzug"
+    for Tim and "Schlafanzug" for Eva are two separate rows (same text,
+    different assigned_to), each individually packable and with its own
+    quantity, rather than one row naming two people. A shared item nobody
+    specific needs their own copy of (e.g. a single shared luggage scale)
+    is one row with assigned_to left blank. Adding the same text for several
+    people at once (the "individual item" checkboxes in the UI) fans out
+    into one PackingListItemViewSet.create() call per person rather than
+    one call naming several -- see that view for the fan-out and the
+    per-(text, assigned_to) duplicate check this implies."""
     packing_list = models.ForeignKey(PackingList, on_delete=models.CASCADE, related_name='items')
     text = models.CharField(max_length=200)
     # Optional headcount, e.g. "5" for "5x Unterhemden" -- the unit/noun is
     # just part of the free-text name, there's no separate unit field.
     quantity = models.PositiveIntegerField(null=True, blank=True)
     is_packed = models.BooleanField(default=False)
-    # Blank means "for the whole trip" (nobody specific) -- not restricted to
-    # this list's own PackingListParticipants, since an item can be assigned
-    # to any household member, including one not (yet) on the trip. See
-    # PackingListItemViewSet's non-participant confirmation flow.
-    assignees = models.ManyToManyField(User, blank=True, related_name='packing_list_item_assignments')
+    # Blank means "for the whole trip" (shared, nobody specific) -- not
+    # restricted to this list's own PackingListParticipants, since an item
+    # can be assigned to any household member, including one not (yet) on
+    # the trip. See PackingListItemViewSet's non-participant confirmation flow.
+    assigned_to = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name='packing_list_item_assignments',
+    )
 
     class Meta:
         ordering = ['id']
@@ -641,11 +653,16 @@ class PackingBucket(AuditableMixin):
 class PackingBucketItem(models.Model):
     bucket = models.ForeignKey(PackingBucket, on_delete=models.CASCADE, related_name='items')
     text = models.CharField(max_length=200)
-    # Same meaning as PackingListItem.quantity/assignees -- copied onto the
+    # Same meaning as PackingListItem.quantity/assigned_to -- copied onto the
     # PackingListItem a bucket item becomes when the bucket is added to a
-    # list (see PackingListViewSet.add_bucket).
+    # list (see PackingListViewSet.add_bucket). No participant concept here
+    # at all (a bucket has no trip context), so assigning a bucket item is
+    # always free, unchecked -- the non-participant confirm only ever
+    # triggers once the bucket is added to an actual list.
     quantity = models.PositiveIntegerField(null=True, blank=True)
-    assignees = models.ManyToManyField(User, blank=True, related_name='packing_bucket_item_assignments')
+    assigned_to = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name='packing_bucket_item_assignments',
+    )
 
     class Meta:
         ordering = ['id']

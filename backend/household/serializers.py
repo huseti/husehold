@@ -311,17 +311,21 @@ class VoucherSerializer(serializers.ModelSerializer):
         return bool(obj.valid_until and obj.valid_until < timezone.localdate())
 
 class PackingListItemSerializer(serializers.ModelSerializer):
-    assignees = serializers.SerializerMethodField()
-    assignee_ids = serializers.PrimaryKeyRelatedField(
-        source='assignees', many=True, queryset=User.objects.all(), write_only=True, required=False,
+    assigned_to = serializers.SerializerMethodField()
+    # Singular -- one row is for at most one specific person (or nobody, for
+    # a shared item). PackingListItemViewSet.create() fans a request's
+    # plural assignee_ids out into one row per person instead; this field
+    # is what each of those rows (and a plain single-person PATCH) uses.
+    assigned_to_id = serializers.PrimaryKeyRelatedField(
+        source='assigned_to', queryset=User.objects.all(), write_only=True, required=False, allow_null=True,
     )
 
     class Meta:
         model = PackingListItem
-        fields = ('id', 'packing_list', 'text', 'quantity', 'is_packed', 'assignees', 'assignee_ids')
+        fields = ('id', 'packing_list', 'text', 'quantity', 'is_packed', 'assigned_to', 'assigned_to_id')
 
-    def get_assignees(self, obj):
-        return [{'id': u.id, 'username': u.username} for u in obj.assignees.all()]
+    def get_assigned_to(self, obj):
+        return {'id': obj.assigned_to_id, 'username': obj.assigned_to.username} if obj.assigned_to_id else None
 
 class PackingListParticipantSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)
@@ -340,17 +344,17 @@ class PackingListSerializer(serializers.ModelSerializer):
         fields = ('id', 'name', 'start_date', 'end_date', 'is_archived', 'participants', 'items', 'added_bucket_ids')
 
 class PackingBucketItemSerializer(serializers.ModelSerializer):
-    assignees = serializers.SerializerMethodField()
-    assignee_ids = serializers.PrimaryKeyRelatedField(
-        source='assignees', many=True, queryset=User.objects.all(), write_only=True, required=False,
+    assigned_to = serializers.SerializerMethodField()
+    assigned_to_id = serializers.PrimaryKeyRelatedField(
+        source='assigned_to', queryset=User.objects.all(), write_only=True, required=False, allow_null=True,
     )
 
     class Meta:
         model = PackingBucketItem
-        fields = ('id', 'bucket', 'text', 'quantity', 'assignees', 'assignee_ids')
+        fields = ('id', 'bucket', 'text', 'quantity', 'assigned_to', 'assigned_to_id')
 
-    def get_assignees(self, obj):
-        return [{'id': u.id, 'username': u.username} for u in obj.assignees.all()]
+    def get_assigned_to(self, obj):
+        return {'id': obj.assigned_to_id, 'username': obj.assigned_to.username} if obj.assigned_to_id else None
 
 class PackingBucketSerializer(serializers.ModelSerializer):
     items = PackingBucketItemSerializer(many=True, read_only=True)
