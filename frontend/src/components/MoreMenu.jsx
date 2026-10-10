@@ -30,19 +30,19 @@ export default function MoreMenu() {
     <div className="relative flex-shrink-0" ref={menuRef}>
       <button
         onClick={() => setOpen((v) => !v)}
-        className={`flex items-center gap-1 ${isActive ? 'text-gray-900 font-medium' : 'text-gray-600 hover:text-gray-900'}`}
+        className={`flex items-center gap-1 ${isActive ? 'text-eucalyptus-900 dark:text-eucalyptus-100 font-medium' : 'text-eucalyptus-700 dark:text-eucalyptus-300 hover:text-eucalyptus-900 dark:hover:text-eucalyptus-100'}`}
       >
         {t('nav.more')} <span className="text-xs">▾</span>
       </button>
 
       {open && (
-        <div className="absolute left-0 mt-2 w-44 bg-white rounded-lg shadow-lg border py-1 z-20">
+        <div className="absolute left-0 mt-2 w-44 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-20">
           {LINKS.map((l) => (
             <Link
               key={l.to}
               to={l.to}
               onClick={() => setOpen(false)}
-              className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
             >
               {t(l.labelKey)}
             </Link>
