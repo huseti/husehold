@@ -132,9 +132,11 @@ export default function Dashboard() {
       <Navbar />
 
       <main className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8 space-y-6 md:space-y-8">
-        <h1 className="text-xl md:text-2xl font-bold text-gray-800 dark:text-gray-100">
+        <h1 className="text-xl md:text-2xl font-bold">
           {t('dashboard.welcome', { name: currentUser?.first_name || currentUser?.username, household: householdName })}
         </h1>
+
+        <WeekPreview weekDays={weekDays} instances={tasks} meals={mealEntries} calendarEvents={calendarEvents} />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8">
           <TasksPanel
@@ -161,8 +163,6 @@ export default function Dashboard() {
 
           <TodaysMealsPanel meals={todaysMeals} onMarkCooked={handleComplete} />
         </div>
-
-        <WeekPreview weekDays={weekDays} instances={tasks} meals={mealEntries} calendarEvents={calendarEvents} />
       </main>
       <CookRatingPrompt entry={ratingPromptEntry} onClose={() => setRatingPromptEntry(null)} />
     </div>

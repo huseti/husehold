@@ -119,14 +119,14 @@ export default function Analytics() {
                     <RankedList
                       items={data.meals.top_recipes.map((r) => ({ label: r.title, value: r.count }))}
                       valueLabel={(v) => t('analytics.meals.timesCooked', { count: v })}
-                      color="#f59e0b"
+                      color="#10b981"
                     />
                   ) : <p className="text-gray-400 text-sm">{t('analytics.noData')}</p>}
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-600 mb-2">{t('analytics.meals.trend')}</p>
                   {data.meals.trend.length > 0 ? (
-                    <TrendBarChart points={data.meals.trend} color="#f59e0b" formatLabel={formatBucket} formatValue={(v) => t('analytics.meals.timesCooked', { count: v })} />
+                    <TrendBarChart points={data.meals.trend} color="#10b981" formatLabel={formatBucket} formatValue={(v) => t('analytics.meals.timesCooked', { count: v })} />
                   ) : <p className="text-gray-400 text-sm">{t('analytics.noData')}</p>}
                 </div>
               </div>
@@ -141,14 +141,14 @@ export default function Analytics() {
                     <RankedList
                       items={data.purchases.top_items.map((i) => ({ label: i.title, value: i.count }))}
                       valueLabel={(v) => t('analytics.purchases.timesBought', { count: v })}
-                      color="#22c55e"
+                      color="#059669"
                     />
                   ) : <p className="text-gray-400 text-sm">{t('analytics.noData')}</p>}
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-600 mb-2">{t('analytics.purchases.trend')}</p>
                   {data.purchases.trend.length > 0 ? (
-                    <TrendBarChart points={data.purchases.trend} color="#22c55e" formatLabel={formatBucket} formatValue={(v) => t('analytics.purchases.timesBought', { count: v })} />
+                    <TrendBarChart points={data.purchases.trend} color="#059669" formatLabel={formatBucket} formatValue={(v) => t('analytics.purchases.timesBought', { count: v })} />
                   ) : <p className="text-gray-400 text-sm">{t('analytics.noData')}</p>}
                 </div>
               </div>
@@ -161,7 +161,7 @@ export default function Analytics() {
                 {data.vouchers.active_totals.length > 0 ? (
                   <div className="flex gap-6">
                     {data.vouchers.active_totals.map((ct) => (
-                      <p key={ct.currency} className="text-2xl font-semibold text-amber-600">{ct.total.toFixed(2)} {ct.currency}</p>
+                      <p key={ct.currency} className="text-2xl font-semibold text-eucalyptus-600 dark:text-eucalyptus-400">{ct.total.toFixed(2)} {ct.currency}</p>
                     ))}
                   </div>
                 ) : <p className="text-gray-400 text-sm">{t('analytics.noData')}</p>}
@@ -176,7 +176,7 @@ export default function Analytics() {
                       points={data.vouchers.trend.map((pt) => ({
                         bucket: pt.bucket, value: pt.totals.find((tt) => tt.currency === currency)?.total || 0,
                       }))}
-                      color="#f59e0b"
+                      color="#047857"
                       formatLabel={formatBucket}
                       formatValue={(v) => `${v.toFixed(2)} ${currency}`}
                     />

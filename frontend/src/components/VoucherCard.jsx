@@ -156,7 +156,7 @@ export default function VoucherCard({ voucher, onRedeem, onToggleArchive, onDele
           </div>
 
           <div className="flex gap-2">
-            <button type="submit" className="text-sm btn-primary text-white px-3 py-1.5 rounded hover:bg-amber-600">
+            <button type="submit" className="text-sm btn-primary px-3 py-1.5 rounded">
               {t('vouchers.editSave')}
             </button>
             <button type="button" onClick={() => setIsEditing(false)} className="text-sm text-gray-500 px-2">
@@ -167,7 +167,7 @@ export default function VoucherCard({ voucher, onRedeem, onToggleArchive, onDele
       ) : (
         <>
           <div className="flex items-start gap-3">
-            <VoucherIcon className="text-amber-600 text-2xl flex-shrink-0 mt-1" />
+            <VoucherIcon className="text-eucalyptus-600 dark:text-eucalyptus-400 text-2xl flex-shrink-0 mt-1" />
             <div className="flex-1 min-w-0">
               <h4 className="font-semibold text-lg truncate">{voucher.title}</h4>
               {(voucher.received_from || voucher.location) && (
@@ -196,27 +196,27 @@ export default function VoucherCard({ voucher, onRedeem, onToggleArchive, onDele
               {hasValue ? (
                 <button
                   onClick={() => (showRedeemForm ? setShowRedeemForm(false) : openRedeemForm())}
-                  className="text-sm btn-primary text-white px-3 py-1.5 rounded hover:bg-amber-600"
+                  className="text-sm btn-primary px-3 py-1.5 rounded"
                 >
                   {t('vouchers.redeem')}
                 </button>
               ) : (
                 <button
                   onClick={handleMarkUsed}
-                  className="text-sm btn-primary text-white px-3 py-1.5 rounded hover:bg-amber-600"
+                  className="text-sm btn-primary px-3 py-1.5 rounded"
                 >
                   {t('vouchers.markUsed')}
                 </button>
               )}
               <button
                 onClick={openEditForm}
-                className="text-sm bg-gray-100 text-gray-700 px-3 py-1.5 rounded hover:btn-secondary"
+                className="text-sm btn-secondary px-3 py-1.5 rounded"
               >
                 {t('vouchers.edit')}
               </button>
               <button
                 onClick={() => onToggleArchive(voucher.id)}
-                className="text-sm bg-gray-100 text-gray-700 px-3 py-1.5 rounded hover:btn-secondary"
+                className="text-sm btn-secondary px-3 py-1.5 rounded"
               >
                 {t('vouchers.archive')}
               </button>
@@ -233,13 +233,13 @@ export default function VoucherCard({ voucher, onRedeem, onToggleArchive, onDele
             <div className="mt-4 flex flex-wrap gap-2">
               <button
                 onClick={openEditForm}
-                className="text-sm bg-gray-100 text-gray-700 px-3 py-1.5 rounded hover:btn-secondary"
+                className="text-sm btn-secondary px-3 py-1.5 rounded"
               >
                 {t('vouchers.edit')}
               </button>
               <button
                 onClick={() => onToggleArchive(voucher.id)}
-                className="text-sm bg-gray-100 text-gray-700 px-3 py-1.5 rounded hover:btn-secondary"
+                className="text-sm btn-secondary px-3 py-1.5 rounded"
               >
                 {t('vouchers.unarchive')}
               </button>
@@ -271,7 +271,7 @@ export default function VoucherCard({ voucher, onRedeem, onToggleArchive, onDele
               className="flex-1 accent-amber-500"
               autoFocus
             />
-            <button type="submit" className="text-sm btn-primary text-white px-3 py-1.5 rounded hover:bg-amber-600">
+            <button type="submit" className="text-sm btn-primary px-3 py-1.5 rounded">
               {t('vouchers.redeemSubmit')}
             </button>
             <button

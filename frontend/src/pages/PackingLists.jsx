@@ -226,14 +226,14 @@ export default function PackingLists() {
   const renderPill = (list) => (
     <span
       key={list.id}
-      className={`flex items-center gap-1 pl-4 pr-1 py-1 rounded-full text-sm border ${list.id === selectedId ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'} ${list.is_archived ? 'opacity-60' : ''}`}
+      className={`flex items-center gap-1 pl-4 pr-1 py-1 rounded-full text-sm border ${list.id === selectedId ? 'bg-eucalyptus-300 dark:bg-eucalyptus-500 text-gray-900 dark:text-white border-eucalyptus-300 dark:border-eucalyptus-500' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700'} ${list.is_archived ? 'opacity-60' : ''}`}
     >
       <button onClick={() => setSelectedId(list.id)}>
         {list.name}
       </button>
       <button
         onClick={() => setModal({ mode: 'copy', list })}
-        className={`p-1.5 rounded-full ${list.id === selectedId ? 'hover:bg-gray-700' : 'hover:btn-secondary'}`}
+        className={`p-1.5 rounded-full ${list.id === selectedId ? 'hover:bg-eucalyptus-400 dark:hover:bg-eucalyptus-600' : 'hover:btn-secondary'}`}
         title={t('packingLists.copyToNewList')}
         aria-label={t('packingLists.copyToNewList')}
       >
@@ -241,7 +241,7 @@ export default function PackingLists() {
       </button>
       <button
         onClick={() => setModal({ mode: 'edit', list })}
-        className={`p-1.5 rounded-full ${list.id === selectedId ? 'hover:bg-gray-700' : 'hover:btn-secondary'}`}
+        className={`p-1.5 rounded-full ${list.id === selectedId ? 'hover:bg-eucalyptus-400 dark:hover:bg-eucalyptus-600' : 'hover:btn-secondary'}`}
         title={t('packingLists.editList')}
         aria-label={t('packingLists.editList')}
       >

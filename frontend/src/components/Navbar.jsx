@@ -6,16 +6,18 @@ import AccountMenu from './AccountMenu';
 import MoreMenu from './MoreMenu';
 import HamburgerIcon from './icons/hamburgerIcon';
 import CloseIcon from './icons/closeIcon';
+import TaskIcon from './icons/taskIcons';
+import { TasksMenuIcon, RecipesMenuIcon } from './icons/navIcons';
 
 export default function Navbar() {
   const { t } = useTranslation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navLinks = [
-    { to: '/shopping', label: t('nav.shopping') },
-    { to: '/tasks', label: t('nav.tasks') },
-    { to: '/cooking-plan', label: t('nav.cookingPlan') },
-    { to: '/recipes', label: t('nav.recipes') },
+    { to: '/shopping', label: t('nav.shopping'), icon: <TaskIcon icon="shopping" /> },
+    { to: '/tasks', label: t('nav.tasks'), icon: <TasksMenuIcon /> },
+    { to: '/cooking-plan', label: t('nav.cookingPlan'), icon: <TaskIcon icon="cooking" /> },
+    { to: '/recipes', label: t('nav.recipes'), icon: <RecipesMenuIcon /> },
   ];
 
   return (
@@ -29,7 +31,8 @@ export default function Navbar() {
         <div className="hidden md:flex items-center gap-3 min-w-0">
           <div className="space-x-4 flex items-center overflow-x-auto">
             {navLinks.map((link) => (
-              <Link key={link.to} to={link.to} className="text-eucalyptus-700 dark:text-eucalyptus-300 hover:text-eucalyptus-900 dark:hover:text-eucalyptus-100 hover:font-semibold whitespace-nowrap transition-colors">
+              <Link key={link.to} to={link.to} className="flex items-center gap-1.5 text-eucalyptus-700 dark:text-eucalyptus-300 hover:text-eucalyptus-900 dark:hover:text-eucalyptus-100 hover:font-semibold whitespace-nowrap transition-colors">
+                <span className="text-lg">{link.icon}</span>
                 {link.label}
               </Link>
             ))}
@@ -59,8 +62,9 @@ export default function Navbar() {
               key={link.to}
               to={link.to}
               onClick={() => setMobileMenuOpen(false)}
-              className="block py-2 text-eucalyptus-700 dark:text-eucalyptus-300 hover:text-eucalyptus-900 dark:hover:text-eucalyptus-100 hover:font-semibold transition-colors"
+              className="flex items-center gap-2 py-2 text-eucalyptus-700 dark:text-eucalyptus-300 hover:text-eucalyptus-900 dark:hover:text-eucalyptus-100 hover:font-semibold transition-colors"
             >
+              <span className="text-lg">{link.icon}</span>
               {link.label}
             </Link>
           ))}

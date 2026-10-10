@@ -1,11 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import PackingListIcon from './icons/packingListIcons';
+import VoucherIcon from './icons/voucherIcons';
+import { AnalyticsMenuIcon } from './icons/navIcons';
 
 const LINKS = [
-  { to: '/packing-lists', labelKey: 'nav.packingLists' },
-  { to: '/vouchers', labelKey: 'nav.vouchers' },
-  { to: '/analytics', labelKey: 'nav.analytics' },
+  { to: '/packing-lists', labelKey: 'nav.packingLists', icon: <PackingListIcon /> },
+  { to: '/vouchers', labelKey: 'nav.vouchers', icon: <VoucherIcon /> },
+  { to: '/analytics', labelKey: 'nav.analytics', icon: <AnalyticsMenuIcon /> },
 ];
 
 // Same open/click-outside-to-close pattern as AccountMenu -- groups the
@@ -42,8 +45,9 @@ export default function MoreMenu() {
               key={l.to}
               to={l.to}
               onClick={() => setOpen(false)}
-              className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+              className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
             >
+              <span className="text-eucalyptus-600 dark:text-eucalyptus-400 text-base">{l.icon}</span>
               {t(l.labelKey)}
             </Link>
           ))}

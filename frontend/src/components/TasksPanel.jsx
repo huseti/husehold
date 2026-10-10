@@ -29,7 +29,7 @@ export default function TasksPanel({
       ) : (
         <p className="text-gray-400 text-sm">{t('dashboard.noOpenTasks')}</p>
       )}
-      <Link to="/tasks" className="mt-4 inline-block text-blue-500 hover:text-blue-700 font-medium">
+      <Link to="/tasks" className="mt-4 inline-block text-eucalyptus-600 dark:text-eucalyptus-400 hover:text-eucalyptus-700 dark:hover:text-eucalyptus-300 font-medium">
         {t('dashboard.viewAll')}
       </Link>
 

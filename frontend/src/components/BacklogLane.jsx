@@ -16,11 +16,11 @@ export default function BacklogLane({
   return (
     <div
       ref={setNodeRef}
-      className={`rounded-lg border p-3 mb-3 ${isOver ? 'bg-blue-50 border-blue-300' : 'bg-amber-50 border-amber-200'}`}
+      className={`rounded-lg border p-3 mb-3 ${isOver ? 'bg-eucalyptus-100 dark:bg-eucalyptus-900 border-eucalyptus-400 dark:border-eucalyptus-600' : 'bg-eucalyptus-50 dark:bg-gray-800 border-eucalyptus-200 dark:border-gray-700'}`}
     >
-      <div className="text-sm font-semibold mb-2 text-amber-800">{title || t('tasks.backlog')}</div>
+      <div className="text-sm font-semibold mb-2 text-eucalyptus-800 dark:text-eucalyptus-300">{title || t('tasks.backlog')}</div>
       {instances.length === 0 ? (
-        <p className="text-xs text-amber-700/70">{t('tasks.backlogEmpty')}</p>
+        <p className="text-xs text-eucalyptus-700/70 dark:text-eucalyptus-400/70">{t('tasks.backlogEmpty')}</p>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2">
           {instances.map((instance) => (

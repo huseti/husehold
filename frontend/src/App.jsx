@@ -30,7 +30,7 @@ function App() {
     // Initialize dark mode from localStorage or system preference
     const savedTheme = localStorage.getItem('theme');
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const isDark = savedTheme ? savedTheme === 'dark' : prefersDark;
+    const isDark = savedTheme === 'dark' || ((!savedTheme || savedTheme === 'system') && prefersDark);
     if (isDark) {
       document.documentElement.classList.add('dark');
     }

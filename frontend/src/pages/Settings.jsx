@@ -550,8 +550,6 @@ export default function Settings() {
             </ul>
           )}
         </div>
-
-        <p className="text-gray-600">{t('settings.comingSoon')}</p>
       </main>
     </div>
   );

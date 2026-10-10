@@ -298,7 +298,7 @@ export default function ShoppingList() {
             <button
               key={list.id}
               onClick={() => { setSelectedId(list.id); setShowSettings(false); }}
-              className={`px-4 py-2 rounded-full text-sm border ${list.id === selectedId ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'}`}
+              className={`px-4 py-2 rounded-full text-sm border ${list.id === selectedId ? 'bg-eucalyptus-300 dark:bg-eucalyptus-500 text-gray-900 dark:text-white border-eucalyptus-300 dark:border-eucalyptus-500' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
             >
               {list.is_favorite_for_cooking_plan && <span className="text-amber-400 mr-1">★</span>}
               {list.name}
