@@ -210,13 +210,13 @@ export default function VoucherCard({ voucher, onRedeem, onToggleArchive, onDele
               )}
               <button
                 onClick={openEditForm}
-                className="text-sm bg-gray-100 text-gray-700 px-3 py-1.5 rounded hover:bg-gray-200"
+                className="text-sm bg-gray-100 text-gray-700 px-3 py-1.5 rounded hover:btn-secondary"
               >
                 {t('vouchers.edit')}
               </button>
               <button
                 onClick={() => onToggleArchive(voucher.id)}
-                className="text-sm bg-gray-100 text-gray-700 px-3 py-1.5 rounded hover:bg-gray-200"
+                className="text-sm bg-gray-100 text-gray-700 px-3 py-1.5 rounded hover:btn-secondary"
               >
                 {t('vouchers.archive')}
               </button>
@@ -233,13 +233,13 @@ export default function VoucherCard({ voucher, onRedeem, onToggleArchive, onDele
             <div className="mt-4 flex flex-wrap gap-2">
               <button
                 onClick={openEditForm}
-                className="text-sm bg-gray-100 text-gray-700 px-3 py-1.5 rounded hover:bg-gray-200"
+                className="text-sm bg-gray-100 text-gray-700 px-3 py-1.5 rounded hover:btn-secondary"
               >
                 {t('vouchers.edit')}
               </button>
               <button
                 onClick={() => onToggleArchive(voucher.id)}
-                className="text-sm bg-gray-100 text-gray-700 px-3 py-1.5 rounded hover:bg-gray-200"
+                className="text-sm bg-gray-100 text-gray-700 px-3 py-1.5 rounded hover:btn-secondary"
               >
                 {t('vouchers.unarchive')}
               </button>

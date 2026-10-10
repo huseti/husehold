@@ -139,7 +139,7 @@ export default function CookingEntryCard({ entry, meals, allMeals, weekDays, onU
             className="border rounded px-2 py-1 flex-1 min-w-32"
           />
           <button onClick={save} className="btn-primary text-white px-2 py-1 rounded dark:hover:bg-eucalyptus-600">{t('recipes.save')}</button>
-          <button onClick={() => setEditing(false)} className="bg-gray-200 text-gray-700 px-2 py-1 rounded hover:bg-gray-300">{t('recipes.cancel')}</button>
+          <button onClick={() => setEditing(false)} className="btn-secondary text-gray-700 px-2 py-1 rounded hover:bg-gray-300">{t('recipes.cancel')}</button>
         </div>
       )}
 

@@ -88,7 +88,7 @@ export default function TaskCard({
           {onReopen && (
             <button
               onClick={() => onReopen(instance.id)}
-              className="text-[11px] px-2 py-0.5 rounded bg-gray-200 text-gray-700 hover:bg-gray-300"
+              className="text-[11px] px-2 py-0.5 rounded btn-secondary text-gray-700 hover:bg-gray-300"
               title={t('tasks.undo')}
             >
               ↺ {t('tasks.undo')}
@@ -107,7 +107,7 @@ export default function TaskCard({
           {planNowPath && (
             <button
               onClick={() => navigate(planNowPath)}
-              className="text-xs px-2 py-0.5 rounded bg-purple-100 text-purple-700 hover:bg-purple-200"
+              className="text-xs px-2 py-0.5 rounded btn-secondary text-purple-700 hover:btn-secondary"
             >
               {t('weeklyPlanning.planNow')}
             </button>
@@ -121,7 +121,7 @@ export default function TaskCard({
           {onSkip && (
             <button
               onClick={() => onSkip(instance.id)}
-              className="text-xs px-2 py-0.5 rounded bg-orange-100 text-orange-700 hover:bg-orange-200"
+              className="text-xs px-2 py-0.5 rounded btn-secondary text-orange-700 hover:bg-orange-200"
             >
               {t('tasks.skip')}
             </button>
@@ -129,7 +129,7 @@ export default function TaskCard({
           {onSnooze && canSnoozeInstance(instance) && (
             <button
               onClick={() => onSnooze(instance.id)}
-              className="text-xs px-2 py-0.5 rounded bg-yellow-100 text-yellow-700 hover:bg-yellow-200"
+              className="text-xs px-2 py-0.5 rounded btn-secondary text-yellow-700 hover:bg-yellow-200"
             >
               {t('tasks.snooze')}
             </button>

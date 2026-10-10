@@ -90,7 +90,7 @@ export default function AddToShoppingDialog({ dishes: initialDishes, onClose, on
         {result ? (
           <div>
             <p className="text-green-700 mb-4">{t('shoppingDialog.result', result)}</p>
-            <button onClick={onClose} className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300">{t('recipes.close')}</button>
+            <button onClick={onClose} className="btn-secondary text-gray-700 px-4 py-2 rounded hover:bg-gray-300">{t('recipes.close')}</button>
           </div>
         ) : (
           <>
@@ -180,7 +180,7 @@ export default function AddToShoppingDialog({ dishes: initialDishes, onClose, on
               >
                 {t('shoppingDialog.add', { count: selectedLines.length })}
               </button>
-              <button onClick={onClose} className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300">{t('recipes.cancel')}</button>
+              <button onClick={onClose} className="btn-secondary text-gray-700 px-4 py-2 rounded hover:bg-gray-300">{t('recipes.cancel')}</button>
             </div>
           </>
         )}

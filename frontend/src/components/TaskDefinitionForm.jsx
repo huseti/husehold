@@ -268,7 +268,7 @@ export default function TaskDefinitionForm({ members, definitions, onSaved }) {
               <button
                 type="button"
                 onClick={handleCancelEdit}
-                className="px-3 py-1 rounded text-sm bg-gray-200 hover:bg-gray-300"
+                className="px-3 py-1 rounded text-sm btn-secondary hover:bg-gray-300"
               >
                 {t('weeklyPlanning.cancel')}
               </button>

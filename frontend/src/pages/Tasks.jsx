@@ -225,9 +225,9 @@ export default function Tasks() {
 
           {mode === 'calendar' && (
             <div className="flex items-center gap-2">
-              <button onClick={() => setWeekStart(addDays(weekStart, -7))} className="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300">←</button>
+              <button onClick={() => setWeekStart(addDays(weekStart, -7))} className="px-3 py-1 rounded btn-secondary hover:bg-gray-300">←</button>
               <span className="text-sm text-gray-600">{toISODate(weekStart)} – {toISODate(weekEnd)}</span>
-              <button onClick={() => setWeekStart(addDays(weekStart, 7))} className="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300">→</button>
+              <button onClick={() => setWeekStart(addDays(weekStart, 7))} className="px-3 py-1 rounded btn-secondary hover:bg-gray-300">→</button>
               <button
                 onClick={() => setShowAddSingle((v) => !v)}
                 className="ml-2 px-3 py-1 rounded bg-gray-800 text-white hover:bg-black"
@@ -267,7 +267,7 @@ export default function Tasks() {
               <button onClick={handleFinishPlanning} className="px-3 py-1 rounded btn-primary text-white dark:hover:bg-eucalyptus-600">
                 {t('weeklyPlanning.finish')}
               </button>
-              <button onClick={handleCancelPlanning} className="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300">
+              <button onClick={handleCancelPlanning} className="px-3 py-1 rounded btn-secondary hover:bg-gray-300">
                 {t('weeklyPlanning.cancel')}
               </button>
             </div>
@@ -286,7 +286,7 @@ export default function Tasks() {
               </button>
               <button
                 onClick={() => setMode('calendar')}
-                className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300"
+                className="px-4 py-2 rounded btn-secondary hover:bg-gray-300"
               >
                 {t('tasks.configCancel')}
               </button>

@@ -41,7 +41,7 @@ export default function CookingStepModal({ weekStart, onOpenCookingPlan, onSkip 
           <button onClick={onOpenCookingPlan} className="btn-primary text-white px-4 py-2 rounded dark:hover:bg-eucalyptus-600">
             {done ? t('cookingStep.review') : t('cookingStep.open')}
           </button>
-          <button onClick={onSkip} className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300">
+          <button onClick={onSkip} className="btn-secondary text-gray-700 px-4 py-2 rounded hover:bg-gray-300">
             {done ? t('cookingStep.continue') : t('cookingStep.skip')}
           </button>
         </div>

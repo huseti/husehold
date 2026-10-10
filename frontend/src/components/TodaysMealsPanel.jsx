@@ -32,7 +32,7 @@ export default function TodaysMealsPanel({ meals, onMarkCooked }) {
               {entry.kind === 'cook' && entry.recipe && (
                 <Link
                   to={`/recipes/${entry.recipe}/highlight?servings=${entry.servings}`}
-                  className="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  className="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-600 hover:btn-secondary"
                   aria-label={t('recipes.highlightMode')}
                   title={t('recipes.highlightMode')}
                 >

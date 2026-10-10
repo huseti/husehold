@@ -274,7 +274,7 @@ export default function RecipeForm({ recipe, draft, units, categories, labels, i
         <button type="submit" disabled={saving} className="btn-primary text-white px-4 py-2 rounded dark:hover:bg-eucalyptus-600 disabled:opacity-50">
           {t('recipes.save')}
         </button>
-        <button type="button" onClick={onCancel} className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300">
+        <button type="button" onClick={onCancel} className="btn-secondary text-gray-700 px-4 py-2 rounded hover:bg-gray-300">
           {t('recipes.cancel')}
         </button>
       </div>

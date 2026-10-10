@@ -233,7 +233,7 @@ export default function PackingLists() {
       </button>
       <button
         onClick={() => setModal({ mode: 'copy', list })}
-        className={`p-1.5 rounded-full ${list.id === selectedId ? 'hover:bg-gray-700' : 'hover:bg-gray-200'}`}
+        className={`p-1.5 rounded-full ${list.id === selectedId ? 'hover:bg-gray-700' : 'hover:btn-secondary'}`}
         title={t('packingLists.copyToNewList')}
         aria-label={t('packingLists.copyToNewList')}
       >
@@ -241,7 +241,7 @@ export default function PackingLists() {
       </button>
       <button
         onClick={() => setModal({ mode: 'edit', list })}
-        className={`p-1.5 rounded-full ${list.id === selectedId ? 'hover:bg-gray-700' : 'hover:bg-gray-200'}`}
+        className={`p-1.5 rounded-full ${list.id === selectedId ? 'hover:bg-gray-700' : 'hover:btn-secondary'}`}
         title={t('packingLists.editList')}
         aria-label={t('packingLists.editList')}
       >
@@ -347,7 +347,7 @@ export default function PackingLists() {
                     <option value="">{t('packingLists.selectBucket')}</option>
                     {availableBuckets.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
                   </select>
-                  <button type="submit" className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 text-sm">
+                  <button type="submit" className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:btn-secondary text-sm">
                     {t('packingLists.addBucketButton')}
                   </button>
                 </form>
@@ -380,7 +380,7 @@ export default function PackingLists() {
                           <button onClick={saveEditItem} className="btn-primary text-white px-3 py-1.5 rounded dark:hover:bg-eucalyptus-600 text-sm">
                             {t('recipes.save')}
                           </button>
-                          <button onClick={() => setEditingItemId(null)} className="bg-gray-200 text-gray-700 px-3 py-1.5 rounded hover:bg-gray-300 text-sm">
+                          <button onClick={() => setEditingItemId(null)} className="btn-secondary text-gray-700 px-3 py-1.5 rounded hover:bg-gray-300 text-sm">
                             {t('recipes.cancel')}
                           </button>
                         </div>

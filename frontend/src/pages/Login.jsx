@@ -38,7 +38,7 @@ export default function Login({ setIsAuthenticated }) {
         <p className="text-center text-gray-600 mb-8">{t('login.subtitle')}</p>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+          <div className="mb-4 p-3 btn-danger border border-red-400 text-red-700 rounded">
             {error}
           </div>
         )}

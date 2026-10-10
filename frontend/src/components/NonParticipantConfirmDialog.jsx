@@ -39,7 +39,7 @@ export default function NonParticipantConfirmDialog({ missing, onAccept, onCance
           >
             {t('packingLists.nonParticipantAccept')}
           </button>
-          <button onClick={onCancel} className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300">
+          <button onClick={onCancel} className="btn-secondary text-gray-700 px-4 py-2 rounded hover:bg-gray-300">
             {t('recipes.cancel')}
           </button>
         </div>

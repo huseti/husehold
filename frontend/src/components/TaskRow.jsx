@@ -26,7 +26,7 @@ export default function TaskRow({
       {planNowPath && (
         <button
           onClick={() => navigate(planNowPath)}
-          className="text-xs px-2 py-0.5 rounded bg-purple-100 text-purple-700 hover:bg-purple-200"
+          className="text-xs px-2 py-0.5 rounded btn-secondary text-purple-700 hover:btn-secondary"
         >
           {t('weeklyPlanning.planNow')}
         </button>
@@ -39,14 +39,14 @@ export default function TaskRow({
       </button>
       <button
         onClick={() => onSkip(task.id)}
-        className="text-xs px-2 py-0.5 rounded bg-orange-100 text-orange-700 hover:bg-orange-200"
+        className="text-xs px-2 py-0.5 rounded btn-secondary text-orange-700 hover:bg-orange-200"
       >
         {t('tasks.skip')}
       </button>
       {canSnoozeInstance(task) && (
         <button
           onClick={() => onSnooze(task.id)}
-          className="text-xs px-2 py-0.5 rounded bg-yellow-100 text-yellow-700 hover:bg-yellow-200"
+          className="text-xs px-2 py-0.5 rounded btn-secondary text-yellow-700 hover:bg-yellow-200"
         >
           {t('tasks.snooze')}
         </button>

@@ -160,7 +160,7 @@ export default function Recipes() {
             </button>
             <button
               onClick={() => setShowImportModal(true)}
-              className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300"
+              className="btn-secondary text-gray-700 px-4 py-2 rounded hover:bg-gray-300"
             >
               {t('recipes.importButton')}
             </button>

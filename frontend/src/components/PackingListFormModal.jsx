@@ -135,7 +135,7 @@ export default function PackingListFormModal({
             >
               {submitLabel ? t(`packingLists.${submitLabel}`) : t('recipes.save')}
             </button>
-            <button type="button" onClick={onClose} className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300">
+            <button type="button" onClick={onClose} className="btn-secondary text-gray-700 px-4 py-2 rounded hover:bg-gray-300">
               {t('recipes.cancel')}
             </button>
           </div>

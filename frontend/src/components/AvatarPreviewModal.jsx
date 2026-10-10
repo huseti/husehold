@@ -70,7 +70,7 @@ export default function AvatarPreviewModal({ member, onClose, onChanged }) {
           </button>
           <button
             onClick={onClose}
-            className="text-sm px-3 py-1.5 rounded bg-gray-200 hover:bg-gray-300"
+            className="text-sm px-3 py-1.5 rounded btn-secondary hover:bg-gray-300"
           >
             {t('weeklyPlanning.cancel')}
           </button>

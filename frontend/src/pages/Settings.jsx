@@ -396,14 +396,14 @@ export default function Settings() {
             <button
               onClick={handleSendTestEmail}
               disabled={testEmailBusy}
-              className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300 disabled:opacity-50 text-sm"
+              className="btn-secondary text-gray-700 px-4 py-2 rounded hover:bg-gray-300 disabled:opacity-50 text-sm"
             >
               {testEmailBusy ? t('settings.testSending') : t('settings.sendTestEmail')}
             </button>
             <button
               onClick={handleSendTestPush}
               disabled={testPushBusy}
-              className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300 disabled:opacity-50 text-sm"
+              className="btn-secondary text-gray-700 px-4 py-2 rounded hover:bg-gray-300 disabled:opacity-50 text-sm"
             >
               {testPushBusy ? t('settings.testSending') : t('settings.sendTestPush')}
             </button>
@@ -466,7 +466,7 @@ export default function Settings() {
                   <button
                     onClick={handleSyncNow}
                     disabled={googleCalendarBusy}
-                    className="text-sm bg-gray-200 text-gray-700 px-3 py-1.5 rounded hover:bg-gray-300 disabled:opacity-50"
+                    className="text-sm btn-secondary text-gray-700 px-3 py-1.5 rounded hover:bg-gray-300 disabled:opacity-50"
                   >
                     {t('settings.googleCalendarSyncNow')}
                   </button>

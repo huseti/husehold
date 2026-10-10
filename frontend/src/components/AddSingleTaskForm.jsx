@@ -93,7 +93,7 @@ export default function AddSingleTaskForm({ weekDays, members, onClose, onAdded 
           <button type="submit" className="btn-primary text-white px-3 py-1 rounded text-sm hover:btn-primary">
             {t('tasks.addSingleTask')}
           </button>
-          <button type="button" onClick={onClose} className="px-3 py-1 rounded text-sm bg-gray-200 hover:bg-gray-300">
+          <button type="button" onClick={onClose} className="px-3 py-1 rounded text-sm btn-secondary hover:bg-gray-300">
             {t('weeklyPlanning.cancel')}
           </button>
         </div>

@@ -225,13 +225,13 @@ export default function CookingPlan() {
             <button
               onClick={() => setWeekStart(thisWeekStart)}
               disabled={toISODate(weekStart) === toISODate(thisWeekStart)}
-              className="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="px-3 py-1 rounded btn-secondary hover:bg-gray-300 disabled:opacity-40 disabled:cursor-not-allowed"
             >←</button>
             <span className="text-sm text-gray-600">{rangeLabel}</span>
             <button
               onClick={() => setWeekStart(nextWeekStart)}
               disabled={toISODate(weekStart) === toISODate(nextWeekStart)}
-              className="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="px-3 py-1 rounded btn-secondary hover:bg-gray-300 disabled:opacity-40 disabled:cursor-not-allowed"
             >→</button>
             <button onClick={handleFinish} className="ml-2 btn-primary text-white px-4 py-2 rounded dark:hover:bg-eucalyptus-600">
               {draftCount > 0 ? t('cookingPlan.finishWithCount', { count: draftCount }) : t('cookingPlan.finish')}
@@ -250,7 +250,7 @@ export default function CookingPlan() {
         {householdReturn && (
           <div className="bg-purple-50 text-purple-800 rounded-lg px-4 py-3 mb-4 text-sm flex flex-wrap items-center gap-3">
             <span className="flex-1">{t('cookingPlan.householdStepBanner', { range: rangeLabel })}</span>
-            <button onClick={goBackToHousehold} className="bg-white text-purple-800 border border-purple-300 px-3 py-1 rounded hover:bg-purple-100">
+            <button onClick={goBackToHousehold} className="bg-white text-purple-800 border border-purple-300 px-3 py-1 rounded hover:btn-secondary">
               {t('cookingPlan.skipToHousehold')}
             </button>
           </div>

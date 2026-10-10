@@ -65,19 +65,33 @@ textarea {
 
 /* Icon sizing standard */
 .icon-sm {
-  @apply w-4 h-4;
+  @apply w-4 h-4 text-gray-600 dark:text-gray-400;
 }
 
 .icon-base {
-  @apply w-5 h-5;
+  @apply w-5 h-5 text-gray-600 dark:text-gray-400;
 }
 
 .icon-lg {
-  @apply w-6 h-6;
+  @apply w-6 h-6 text-gray-600 dark:text-gray-400;
 }
 
 .icon-xl {
-  @apply w-8 h-8;
+  @apply w-8 h-8 text-gray-600 dark:text-gray-400;
+}
+
+/* Text utilities for better consistency */
+.text-muted {
+  @apply text-gray-500 dark:text-gray-400;
+}
+
+.border-light {
+  @apply border-gray-200 dark:border-gray-700;
+}
+
+/* Link styling */
+a {
+  @apply text-eucalyptus-600 dark:text-eucalyptus-400 hover:text-eucalyptus-700 dark:hover:text-eucalyptus-300 transition-colors;
 }
 
 /* "Export as PDF" (RecipeDetail/RecipeHighlight) is just the browser's own
