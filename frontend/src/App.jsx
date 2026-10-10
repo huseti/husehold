@@ -26,6 +26,15 @@ function App() {
     // A stored refresh token is enough: an expired access token is swapped for
     // a new one on the first API call (see services/api.js).
     setIsAuthenticated(!!(localStorage.getItem('access_token') || localStorage.getItem('refresh_token')));
+
+    // Initialize dark mode from localStorage or system preference
+    const savedTheme = localStorage.getItem('theme');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const isDark = savedTheme ? savedTheme === 'dark' : prefersDark;
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+    }
+
     setLoading(false);
   }, []);
 

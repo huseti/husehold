@@ -176,7 +176,7 @@ export default function AddToShoppingDialog({ dishes: initialDishes, onClose, on
               <button
                 onClick={handleAdd}
                 disabled={busy || !listId || selectedLines.length === 0}
-                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-50"
+                className="btn-primary text-white px-4 py-2 rounded dark:hover:bg-eucalyptus-600 disabled:opacity-50"
               >
                 {t('shoppingDialog.add', { count: selectedLines.length })}
               </button>

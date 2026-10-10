@@ -7,6 +7,7 @@ evaluated top-down:
                    + neglect percentile * neglect_weight
   2. top_rated  -- the best-rated top_rating_percentile% of the rest
   3. long_ago   -- never cooked, or not cooked for uncooked_threshold_days
+                   (capped at long_ago_count)
   4. random     -- a few random picks from what is left (random_count)
   5. rest       -- everything else, alphabetical
 
@@ -111,7 +112,7 @@ def build_suggestions(meal_category_id, exclude_ids=(), seed=None, today=None, c
         (s for s in candidates
          if s['recipe'].id not in taken and s['days_since'] >= config.uncooked_threshold_days),
         key=lambda s: (-s['days_since'], by_title(s)),
-    )
+    )[:config.long_ago_count]
     taken |= {s['recipe'].id for s in long_ago}
 
     remaining = sorted((s for s in candidates if s['recipe'].id not in taken), key=by_title)

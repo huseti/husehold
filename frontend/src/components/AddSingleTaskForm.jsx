@@ -80,7 +80,7 @@ export default function AddSingleTaskForm({ weekDays, members, onClose, onAdded 
                 title={t(`tasks.icon.${key}`)}
                 onClick={() => setIcon(key)}
                 className={`p-2 rounded border text-lg ${
-                  icon === key ? 'bg-blue-500 text-white border-blue-500' : 'bg-white text-gray-600 border-gray-300'
+                  icon === key ? 'btn-primary text-white border-blue-500' : 'bg-white text-gray-600 border-gray-300'
                 }`}
               >
                 <TaskIcon icon={key} />
@@ -90,7 +90,7 @@ export default function AddSingleTaskForm({ weekDays, members, onClose, onAdded 
         </div>
 
         <div className="flex gap-2">
-          <button type="submit" className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600">
+          <button type="submit" className="btn-primary text-white px-3 py-1 rounded text-sm hover:btn-primary">
             {t('tasks.addSingleTask')}
           </button>
           <button type="button" onClick={onClose} className="px-3 py-1 rounded text-sm bg-gray-200 hover:bg-gray-300">

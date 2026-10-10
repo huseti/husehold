@@ -233,7 +233,7 @@ export default function CookingPlan() {
               disabled={toISODate(weekStart) === toISODate(nextWeekStart)}
               className="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-40 disabled:cursor-not-allowed"
             >→</button>
-            <button onClick={handleFinish} className="ml-2 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+            <button onClick={handleFinish} className="ml-2 btn-primary text-white px-4 py-2 rounded dark:hover:bg-eucalyptus-600">
               {draftCount > 0 ? t('cookingPlan.finishWithCount', { count: draftCount }) : t('cookingPlan.finish')}
             </button>
             <Link

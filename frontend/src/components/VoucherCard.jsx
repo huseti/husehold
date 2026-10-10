@@ -80,7 +80,7 @@ export default function VoucherCard({ voucher, onRedeem, onToggleArchive, onDele
   };
 
   return (
-    <div className={`bg-white rounded-lg shadow p-5 ${voucher.is_archived ? 'opacity-60' : ''}`}>
+    <div className={`card ${voucher.is_archived ? 'opacity-60' : ''}`}>
       {isEditing ? (
         <form onSubmit={handleEditSubmit} className="space-y-3">
           <input
@@ -156,7 +156,7 @@ export default function VoucherCard({ voucher, onRedeem, onToggleArchive, onDele
           </div>
 
           <div className="flex gap-2">
-            <button type="submit" className="text-sm bg-amber-500 text-white px-3 py-1.5 rounded hover:bg-amber-600">
+            <button type="submit" className="text-sm btn-primary text-white px-3 py-1.5 rounded hover:bg-amber-600">
               {t('vouchers.editSave')}
             </button>
             <button type="button" onClick={() => setIsEditing(false)} className="text-sm text-gray-500 px-2">
@@ -196,14 +196,14 @@ export default function VoucherCard({ voucher, onRedeem, onToggleArchive, onDele
               {hasValue ? (
                 <button
                   onClick={() => (showRedeemForm ? setShowRedeemForm(false) : openRedeemForm())}
-                  className="text-sm bg-amber-500 text-white px-3 py-1.5 rounded hover:bg-amber-600"
+                  className="text-sm btn-primary text-white px-3 py-1.5 rounded hover:bg-amber-600"
                 >
                   {t('vouchers.redeem')}
                 </button>
               ) : (
                 <button
                   onClick={handleMarkUsed}
-                  className="text-sm bg-amber-500 text-white px-3 py-1.5 rounded hover:bg-amber-600"
+                  className="text-sm btn-primary text-white px-3 py-1.5 rounded hover:bg-amber-600"
                 >
                   {t('vouchers.markUsed')}
                 </button>
@@ -271,7 +271,7 @@ export default function VoucherCard({ voucher, onRedeem, onToggleArchive, onDele
               className="flex-1 accent-amber-500"
               autoFocus
             />
-            <button type="submit" className="text-sm bg-amber-500 text-white px-3 py-1.5 rounded hover:bg-amber-600">
+            <button type="submit" className="text-sm btn-primary text-white px-3 py-1.5 rounded hover:bg-amber-600">
               {t('vouchers.redeemSubmit')}
             </button>
             <button

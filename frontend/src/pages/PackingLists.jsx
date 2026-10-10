@@ -260,7 +260,7 @@ export default function PackingLists() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setModal({ mode: 'create', list: null })}
-              className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+              className="btn-primary text-white px-4 py-2 rounded dark:hover:bg-eucalyptus-600"
             >
               + {t('packingLists.newButton')}
             </button>
@@ -330,7 +330,7 @@ export default function PackingLists() {
                     onChange={(e) => setItemQuantity(e.target.value)}
                     className="w-20 px-3 py-2 border border-gray-300 rounded-lg"
                   />
-                  <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600">
+                  <button type="submit" className="btn-primary text-white px-4 py-2 rounded-lg hover:btn-primary">
                     {t('packingLists.addButton')}
                   </button>
                 </div>
@@ -377,7 +377,7 @@ export default function PackingLists() {
                             onChange={(e) => setEditItemQuantity(e.target.value)}
                             className="w-20 px-3 py-1.5 border border-gray-300 rounded-lg"
                           />
-                          <button onClick={saveEditItem} className="bg-green-600 text-white px-3 py-1.5 rounded hover:bg-green-700 text-sm">
+                          <button onClick={saveEditItem} className="btn-primary text-white px-3 py-1.5 rounded dark:hover:bg-eucalyptus-600 text-sm">
                             {t('recipes.save')}
                           </button>
                           <button onClick={() => setEditingItemId(null)} className="bg-gray-200 text-gray-700 px-3 py-1.5 rounded hover:bg-gray-300 text-sm">

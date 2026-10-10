@@ -64,7 +64,7 @@ export default function AvatarPreviewModal({ member, onClose, onChanged }) {
         <div className="flex gap-2">
           <button
             onClick={handleUploadClick}
-            className="text-sm px-3 py-1.5 rounded bg-blue-500 text-white hover:bg-blue-600"
+            className="text-sm px-3 py-1.5 rounded btn-primary text-white hover:btn-primary"
           >
             {t('common.uploadNewPhoto')}
           </button>

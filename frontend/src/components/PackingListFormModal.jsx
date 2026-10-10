@@ -131,7 +131,7 @@ export default function PackingListFormModal({
             <button
               type="submit"
               disabled={busy || !canSubmit}
-              className="bg-amber-500 text-white px-4 py-2 rounded hover:bg-amber-600 disabled:opacity-50"
+              className="btn-primary text-white px-4 py-2 rounded hover:bg-amber-600 disabled:opacity-50"
             >
               {submitLabel ? t(`packingLists.${submitLabel}`) : t('recipes.save')}
             </button>

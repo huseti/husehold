@@ -138,7 +138,7 @@ export default function CookingEntryCard({ entry, meals, allMeals, weekDays, onU
             onChange={(e) => setForm({ ...form, notes: e.target.value })}
             className="border rounded px-2 py-1 flex-1 min-w-32"
           />
-          <button onClick={save} className="bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700">{t('recipes.save')}</button>
+          <button onClick={save} className="btn-primary text-white px-2 py-1 rounded dark:hover:bg-eucalyptus-600">{t('recipes.save')}</button>
           <button onClick={() => setEditing(false)} className="bg-gray-200 text-gray-700 px-2 py-1 rounded hover:bg-gray-300">{t('recipes.cancel')}</button>
         </div>
       )}
@@ -157,7 +157,7 @@ export default function CookingEntryCard({ entry, meals, allMeals, weekDays, onU
                   </option>
                 ))}
               </select>
-              <button onClick={submitLeftovers} className="bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700">{t('cookingPlan.add')}</button>
+              <button onClick={submitLeftovers} className="btn-primary text-white px-2 py-1 rounded dark:hover:bg-eucalyptus-600">{t('cookingPlan.add')}</button>
             </>
           )}
         </div>

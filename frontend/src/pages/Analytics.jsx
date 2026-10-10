@@ -73,7 +73,7 @@ export default function Analytics() {
 
         {data && (
           <>
-            <section className="bg-white rounded-lg shadow p-6">
+            <section className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
               <h3 className="text-xl font-semibold mb-1">{t('analytics.tasks.title')}</h3>
               <p className="text-sm text-gray-500 mb-4">
                 {t('analytics.tasks.overall', {
@@ -110,7 +110,7 @@ export default function Analytics() {
               </div>
             </section>
 
-            <section className="bg-white rounded-lg shadow p-6">
+            <section className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
               <h3 className="text-xl font-semibold mb-4">{t('analytics.meals.title')}</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
@@ -132,7 +132,7 @@ export default function Analytics() {
               </div>
             </section>
 
-            <section className="bg-white rounded-lg shadow p-6">
+            <section className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
               <h3 className="text-xl font-semibold mb-4">{t('analytics.purchases.title')}</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
@@ -154,7 +154,7 @@ export default function Analytics() {
               </div>
             </section>
 
-            <section className="bg-white rounded-lg shadow p-6">
+            <section className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
               <h3 className="text-xl font-semibold mb-4">{t('analytics.vouchers.title')}</h3>
               <div className="mb-6">
                 <p className="text-sm font-medium text-gray-600 mb-2">{t('analytics.vouchers.activeTotal')}</p>

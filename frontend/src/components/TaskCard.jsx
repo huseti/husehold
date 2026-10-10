@@ -114,7 +114,7 @@ export default function TaskCard({
           )}
           <button
             onClick={() => onComplete(instance.id)}
-            className="text-xs px-2 py-0.5 rounded bg-green-100 text-green-700 hover:bg-green-200"
+            className="text-xs px-2 py-0.5 rounded btn-primary text-green-700 hover:bg-green-200"
           >
             {t('tasks.complete')}
           </button>

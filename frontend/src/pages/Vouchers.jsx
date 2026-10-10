@@ -175,7 +175,7 @@ export default function Vouchers() {
 
             <button
               type="submit"
-              className="bg-amber-500 text-white px-4 py-2 rounded hover:bg-amber-600"
+              className="btn-primary text-white px-4 py-2 rounded hover:bg-amber-600"
             >
               {t('vouchers.addButton')}
             </button>

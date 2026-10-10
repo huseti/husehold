@@ -35,7 +35,7 @@ export default function NonParticipantConfirmDialog({ missing, onAccept, onCance
         <div className="flex gap-3">
           <button
             onClick={() => onAccept([...checked])}
-            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+            className="btn-primary text-white px-4 py-2 rounded dark:hover:bg-eucalyptus-600"
           >
             {t('packingLists.nonParticipantAccept')}
           </button>

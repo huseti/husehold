@@ -137,7 +137,7 @@ export default function WeeklyPlanningConfig({ definitions, members, onSaved, ki
             </select>
           </div>
         )}
-        <button type="submit" className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600">
+        <button type="submit" className="btn-primary text-white px-3 py-1 rounded text-sm hover:btn-primary">
           {t('weeklyPlanning.save')}
         </button>
       </form>

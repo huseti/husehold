@@ -38,7 +38,7 @@ export default function CookingStepModal({ weekStart, onOpenCookingPlan, onSkip 
         <p className="text-sm text-gray-600 mb-2">{t('cookingStep.explanation')}</p>
         <p className={`text-sm font-medium mb-5 ${done ? 'text-green-700' : 'text-gray-800'}`}>{status}</p>
         <div className="flex flex-wrap gap-3">
-          <button onClick={onOpenCookingPlan} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+          <button onClick={onOpenCookingPlan} className="btn-primary text-white px-4 py-2 rounded dark:hover:bg-eucalyptus-600">
             {done ? t('cookingStep.review') : t('cookingStep.open')}
           </button>
           <button onClick={onSkip} className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300">

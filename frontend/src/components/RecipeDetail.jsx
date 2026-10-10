@@ -194,7 +194,7 @@ export default function RecipeDetail({
               : t('recipes.neverCooked')}
           </span>
           {!showCookForm && (
-            <button onClick={openCookForm} className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700">
+            <button onClick={openCookForm} className="btn-primary text-white px-3 py-1 rounded text-sm dark:hover:bg-eucalyptus-600">
               {t('recipes.cookedButton')}
             </button>
           )}
@@ -212,7 +212,7 @@ export default function RecipeDetail({
               <input type="number" min="1" value={cookServings} onChange={(e) => setCookServings(e.target.value)}
                 className="block w-24 mt-1 px-3 py-1.5 border border-gray-300 rounded-lg" required />
             </label>
-            <button type="submit" className="bg-green-600 text-white px-3 py-1.5 rounded hover:bg-green-700">{t('recipes.save')}</button>
+            <button type="submit" className="btn-primary text-white px-3 py-1.5 rounded dark:hover:bg-eucalyptus-600">{t('recipes.save')}</button>
             <button type="button" onClick={() => setShowCookForm(false)} className="bg-gray-200 text-gray-700 px-3 py-1.5 rounded hover:bg-gray-300">{t('recipes.cancel')}</button>
             {cookError && <p className="w-full text-sm text-red-600">{cookError}</p>}
           </form>
@@ -249,7 +249,7 @@ export default function RecipeDetail({
       </p>
 
       <div className="flex gap-3 pt-2 border-t print:hidden">
-        <button onClick={onEdit} className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">{t('recipes.edit')}</button>
+        <button onClick={onEdit} className="btn-primary text-white px-4 py-2 rounded hover:btn-primary">{t('recipes.edit')}</button>
         {recipe.ingredients.length > 0 && (
           <button onClick={() => onAddToShopping(servings)} className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300">
             {t('recipes.addToShopping')}

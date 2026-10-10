@@ -14,6 +14,70 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  @apply bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-50;
+}
+
+/* Headings: Eukalyptus primary color */
+h1, h2, h3, h4, h5, h6 {
+  @apply text-eucalyptus-700 dark:text-eucalyptus-300;
+}
+
+/* Card components: consistent border, shadow, padding, rounded corners */
+.card {
+  @apply bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 shadow-sm;
+}
+
+.card-lg {
+  @apply bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow;
+}
+
+/* Button base styles: ensure min touch targets + responsive padding */
+button, [role="button"], .button {
+  @apply px-3 py-2 h-10 focus:outline-none focus:ring-2 focus:ring-eucalyptus-300 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-colors rounded inline-flex items-center justify-center flex-wrap;
+}
+
+/* Primary button: Eukalyptus */
+.btn-primary {
+  @apply bg-eucalyptus-300 text-gray-900 hover:bg-eucalyptus-400 dark:bg-eucalyptus-500 dark:text-white dark:hover:bg-eucalyptus-600;
+}
+
+/* Secondary button: Gray */
+.btn-secondary {
+  @apply bg-gray-200 text-gray-900 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600;
+}
+
+/* Danger button: Red */
+.btn-danger {
+  @apply bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900 dark:text-red-100 dark:hover:bg-red-800;
+}
+
+/* Form input base styles: min touch target (40px) */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="date"],
+input[type="time"],
+select,
+textarea {
+  @apply min-h-10 focus:outline-none focus:ring-2 focus:ring-eucalyptus-300 dark:focus:ring-eucalyptus-400 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-colors;
+}
+
+/* Icon sizing standard */
+.icon-sm {
+  @apply w-4 h-4;
+}
+
+.icon-base {
+  @apply w-5 h-5;
+}
+
+.icon-lg {
+  @apply w-6 h-6;
+}
+
+.icon-xl {
+  @apply w-8 h-8;
 }
 
 /* "Export as PDF" (RecipeDetail/RecipeHighlight) is just the browser's own

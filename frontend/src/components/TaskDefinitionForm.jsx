@@ -238,7 +238,7 @@ export default function TaskDefinitionForm({ members, definitions, onSaved }) {
                   onClick={() => setForm({ ...form, icon: key })}
                   className={`p-2 rounded border text-lg ${
                     form.icon === key
-                      ? 'bg-blue-500 text-white border-blue-500'
+                      ? 'btn-primary text-white border-blue-500'
                       : 'bg-white text-gray-600 border-gray-300'
                   }`}
                 >
@@ -261,7 +261,7 @@ export default function TaskDefinitionForm({ members, definitions, onSaved }) {
           </div>
 
           <div className="flex gap-2">
-            <button type="submit" className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600">
+            <button type="submit" className="btn-primary text-white px-3 py-1 rounded text-sm hover:btn-primary">
               {editingId ? t('weeklyPlanning.save') : t('tasks.addRecurringTask')}
             </button>
             {editingId && (

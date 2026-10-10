@@ -72,13 +72,14 @@ export default function RecipePicker({
           ))}
         </div>
       </div>
-      <button onClick={() => onPickRecipe(item)} className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700">
+      <button onClick={() => onPickRecipe(item)} className="btn-primary text-white px-3 py-1 rounded text-sm dark:hover:bg-eucalyptus-600">
         + {t('cookingPlan.add')}
       </button>
     </li>
   );
 
   const bucketTitle = { craving: 'craving', top_rated: 'topRated', long_ago: 'longAgo', random: 'random', rest: 'rest' };
+  const bucketIcon = { craving: '🤤', top_rated: '⭐', long_ago: '🕐', random: '❓', rest: '🍝' };
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 overflow-y-auto p-4" onClick={onClose}>
@@ -118,7 +119,7 @@ export default function RecipePicker({
               placeholder={t('cookingPlan.freeDishPlaceholder')}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg"
             />
-            <button type="submit" disabled={!freeTitle.trim()} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-50">
+            <button type="submit" disabled={!freeTitle.trim()} className="btn-primary text-white px-4 py-2 rounded dark:hover:bg-eucalyptus-600 disabled:opacity-50">
               + {t('cookingPlan.add')}
             </button>
           </form>
@@ -133,7 +134,7 @@ export default function RecipePicker({
                     <span className="font-medium">{entry.recipe_title}</span>
                     <span className="text-sm text-gray-500"> · {new Date(`${entry.date}T00:00:00`).toLocaleDateString(i18n.language, { weekday: 'short', day: 'numeric', month: 'short' })}, {mealName(entry, i18n)}</span>
                   </span>
-                  <button onClick={() => onPickLeftovers(entry)} className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700">
+                  <button onClick={() => onPickLeftovers(entry)} className="btn-primary text-white px-3 py-1 rounded text-sm dark:hover:bg-eucalyptus-600">
                     + {t('cookingPlan.add')}
                   </button>
                 </li>
@@ -169,6 +170,7 @@ export default function RecipePicker({
                 {BUCKETS.filter((b) => suggestions[b].length > 0).map((bucket) => {
                   const heading = (
                     <>
+                      <span className="mr-1" aria-hidden="true">{bucketIcon[bucket]}</span>
                       <span className="font-semibold">{t(`cookingPlan.bucket.${bucketTitle[bucket]}`)}</span>
                       <span className="text-xs text-gray-400 ml-2">{t(`cookingPlan.bucketHint.${bucketTitle[bucket]}`)}</span>
                     </>

@@ -650,6 +650,7 @@
     "hint": "Decides which meals appear in the weekly plan and how the recipe suggestions are ranked.",
     "plannedMeals": "Planned meals",
     "cravingCount": "Number of “craving”",
+    "longAgoCount": "Number of “not cooked in a while”",
     "randomCount": "Number of random picks",
     "topPercentile": "Best rated (top %)",
     "uncookedDays": "Not cooked in a while (days)",

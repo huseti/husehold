@@ -60,6 +60,7 @@ export default function Settings() {
   const [googleCalendarList, setGoogleCalendarList] = useState(null);
   const [syncNowStatus, setSyncNowStatus] = useState(null);
   const [serviceStatus, setServiceStatus] = useState(null);
+  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'system');
 
   const loadGoogleCalendar = () => googleCalendarService.getStatus().then((res) => {
     setGoogleCalendar(res.data);
@@ -112,6 +113,17 @@ export default function Settings() {
       await loadGoogleCalendar();
     } finally {
       setGoogleCalendarBusy(false);
+    }
+  };
+
+  const handleThemeChange = (newTheme) => {
+    setTheme(newTheme);
+    localStorage.setItem('theme', newTheme);
+    const isDark = newTheme === 'dark' || (newTheme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
     }
   };
 
@@ -259,7 +271,7 @@ export default function Settings() {
               <p className="text-xs text-gray-400 mt-1">{t('settings.timezoneHint')}</p>
             </div>
             <div className="flex items-center gap-2">
-              <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+              <button type="submit" className="btn-primary text-white px-4 py-2 rounded hover:btn-primary">
                 {t('weeklyPlanning.save')}
               </button>
               {saved && <span className="text-sm text-green-600">{t('settings.saved')}</span>}
@@ -267,7 +279,7 @@ export default function Settings() {
           </form>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6 mb-8">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-8">
           <h3 className="text-lg font-semibold mb-4">{t('settings.language')}</h3>
           <div className="space-x-2">
             {LANGUAGES.map(({ code, labelKey }) => (
@@ -276,8 +288,8 @@ export default function Settings() {
                 onClick={() => handleLanguageChange(code)}
                 className={
                   i18n.resolvedLanguage === code
-                    ? 'bg-blue-500 text-white px-4 py-2 rounded'
-                    : 'bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300'
+                    ? 'btn-primary'
+                    : 'btn-secondary'
                 }
               >
                 {t(labelKey)}
@@ -286,7 +298,26 @@ export default function Settings() {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6 mb-8">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-8">
+          <h3 className="text-lg font-semibold mb-4">🌙 Dark Mode</h3>
+          <div className="space-x-2">
+            {[
+              { value: 'light', label: '☀️ Light' },
+              { value: 'dark', label: '🌙 Dark' },
+              { value: 'system', label: '🖥️ System' },
+            ].map(({ value, label }) => (
+              <button
+                key={value}
+                onClick={() => handleThemeChange(value)}
+                className={theme === value ? 'btn-primary' : 'btn-secondary'}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-8">
           <h3 className="text-lg font-semibold mb-4">{t('settings.notifications')}</h3>
 
           {member && (
@@ -350,7 +381,7 @@ export default function Settings() {
                 <button
                   onClick={handleEnablePush}
                   disabled={pushBusy}
-                  className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:opacity-50"
+                  className="btn-primary text-white px-4 py-2 rounded hover:btn-primary disabled:opacity-50"
                 >
                   {pushBusy ? t('settings.pushEnabling') : t('settings.enablePushOnDevice')}
                 </button>
@@ -459,7 +490,7 @@ export default function Settings() {
               <button
                 onClick={handleConnectGoogleCalendar}
                 disabled={googleCalendarBusy}
-                className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:opacity-50"
+                className="btn-primary text-white px-4 py-2 rounded hover:btn-primary disabled:opacity-50"
               >
                 {googleCalendarBusy ? t('settings.googleCalendarConnecting') : t('settings.googleCalendarConnectButton')}
               </button>

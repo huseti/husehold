@@ -170,7 +170,7 @@ export default function RecipeImportModal({ onClose, onExtracted }) {
             type="button"
             onClick={submit}
             disabled={busy}
-            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-50"
+            className="btn-primary text-white px-4 py-2 rounded dark:hover:bg-eucalyptus-600 disabled:opacity-50"
           >
             {busy ? t('recipes.importExtracting') : t('recipes.importExtractButton')}
           </button>

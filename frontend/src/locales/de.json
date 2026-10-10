@@ -650,6 +650,7 @@
     "hint": "Bestimmt, welche Mahlzeiten im Wochenplan stehen und wie die Rezeptvorschläge sortiert werden.",
     "plannedMeals": "Geplante Mahlzeiten",
     "cravingCount": "Anzahl „Lust darauf“",
+    "longAgoCount": "Anzahl „lange nicht gekocht“",
     "randomCount": "Anzahl Zufallsvorschläge",
     "topPercentile": "Beste Bewertung (Top %)",
     "uncookedDays": "Lange nicht gekocht (Tage)",

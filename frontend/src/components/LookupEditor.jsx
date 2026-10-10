@@ -216,7 +216,7 @@ export default function LookupEditor({ titleKey, service, fields, newItemDefault
               />
             )
           ))}
-          <button type="submit" className="bg-green-600 text-white px-3 py-1.5 rounded hover:bg-green-700 text-sm">
+          <button type="submit" className="btn-primary text-white px-3 py-1.5 rounded dark:hover:bg-eucalyptus-600 text-sm">
             {t('recipeConfig.add')}
           </button>
         </form>

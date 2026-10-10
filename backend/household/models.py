@@ -232,6 +232,7 @@ class CookingPlanConfig(AuditableMixin):
     rating_weight = models.FloatField(default=0.7, validators=[MinValueValidator(0)])
     neglect_weight = models.FloatField(default=0.3, validators=[MinValueValidator(0)])
     craving_count = models.PositiveSmallIntegerField(default=5, help_text='How many "craving" suggestions to show.')
+    long_ago_count = models.PositiveSmallIntegerField(default=10, help_text='How many "not cooked in a while" suggestions to show.')
     random_count = models.PositiveSmallIntegerField(default=3, help_text='How many random suggestions to show before the rest.')
     planned_meal_categories = models.ManyToManyField(
         MealTimeCategory, blank=True, related_name='+',

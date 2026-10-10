@@ -193,7 +193,7 @@ export default function PackingBuckets() {
               className="px-3 py-2 border border-gray-300 rounded-full text-sm w-40"
               required
             />
-            <button type="submit" className="bg-green-600 text-white px-3 py-2 rounded-full text-sm hover:bg-green-700">+</button>
+            <button type="submit" className="btn-primary text-white px-3 py-2 rounded-full text-sm dark:hover:bg-eucalyptus-600">+</button>
           </form>
         </div>
 
@@ -241,7 +241,7 @@ export default function PackingBuckets() {
                   onChange={(e) => setItemQuantity(e.target.value)}
                   className="w-20 px-3 py-2 border border-gray-300 rounded-lg"
                 />
-                <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600">
+                <button type="submit" className="btn-primary text-white px-4 py-2 rounded-lg hover:btn-primary">
                   {t('packingBuckets.addButton')}
                 </button>
               </div>
@@ -271,7 +271,7 @@ export default function PackingBuckets() {
                             onChange={(e) => setEditItemQuantity(e.target.value)}
                             className="w-20 px-3 py-1.5 border border-gray-300 rounded-lg"
                           />
-                          <button onClick={saveEditItem} className="bg-green-600 text-white px-3 py-1.5 rounded hover:bg-green-700 text-sm">
+                          <button onClick={saveEditItem} className="btn-primary text-white px-3 py-1.5 rounded dark:hover:bg-eucalyptus-600 text-sm">
                             {t('recipes.save')}
                           </button>
                           <button onClick={() => setEditingItemId(null)} className="bg-gray-200 text-gray-700 px-3 py-1.5 rounded hover:bg-gray-300 text-sm">

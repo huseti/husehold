@@ -73,7 +73,7 @@ export default function Login({ setIsAuthenticated }) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 disabled:opacity-50 font-medium transition"
+            className="w-full btn-primary text-white py-2 rounded-lg hover:btn-primary disabled:opacity-50 font-medium transition"
           >
             {loading ? t('login.loggingIn') : t('login.loginButton')}
           </button>

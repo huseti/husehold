@@ -1,4 +1,4 @@
-import { DndContext } from '@dnd-kit/core';
+import { DndContext, useSensor, useSensors, PointerSensor, TouchSensor } from '@dnd-kit/core';
 import { useTranslation } from 'react-i18next';
 import BacklogLane from './BacklogLane';
 import TaskDayColumn from './TaskDayColumn';
@@ -15,6 +15,10 @@ export default function WeekBoard({
   planningWeekStart, calendarEvents = [],
 }) {
   const { t } = useTranslation();
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(TouchSensor, { delay: 200, tolerance: 5 }),
+  );
   const backlogInstances = instances.filter((i) => i.is_in_backlog);
 
   const planningWeekStartISO = planningWeekStart ? toISODate(planningWeekStart) : null;
@@ -49,7 +53,7 @@ export default function WeekBoard({
   const newThisWeek = planningWeekStartISO ? backlogInstances.filter((i) => !wasCarriedOver(i)) : backlogInstances;
 
   return (
-    <DndContext onDragEnd={onDragEnd}>
+    <DndContext sensors={sensors} onDragEnd={onDragEnd}>
       {planningWeekStartISO ? (
         <>
           <BacklogLane

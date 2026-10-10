@@ -1,38 +1,74 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import logoIcon from '../assets/logo-icon.png';
 import AccountMenu from './AccountMenu';
 import MoreMenu from './MoreMenu';
+import HamburgerIcon from './icons/hamburgerIcon';
+import CloseIcon from './icons/closeIcon';
 
 export default function Navbar() {
   const { t } = useTranslation();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const navLinks = [
+    { to: '/shopping', label: t('nav.shopping') },
+    { to: '/tasks', label: t('nav.tasks') },
+    { to: '/cooking-plan', label: t('nav.cookingPlan') },
+    { to: '/recipes', label: t('nav.recipes') },
+  ];
 
   return (
-    <nav className="bg-white shadow-sm border-b print:hidden">
+    <nav className="bg-eucalyptus-50 dark:bg-gray-800 shadow-sm border-b border-eucalyptus-200 dark:border-gray-700 print:hidden">
       <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center gap-3">
-        {/* Clicking the logo is the way back to the dashboard -- no separate
-            "Übersicht" link needed in the row below. */}
         <Link to="/" className="flex-shrink-0">
           <img src={logoIcon} alt={t('common.appName')} className="h-10 w-10" />
         </Link>
-        {/* MoreMenu is a sibling of, not nested inside, the overflow-x-auto
-            row below -- overflow-x-auto without an explicit overflow-y
-            implicitly computes overflow-y as auto too, which would clip
-            MoreMenu's absolutely-positioned dropdown down to an empty,
-            scrollable sliver. */}
-        <div className="flex items-center gap-3 min-w-0">
+
+        {/* Desktop nav: visible only on md+ */}
+        <div className="hidden md:flex items-center gap-3 min-w-0">
           <div className="space-x-4 flex items-center overflow-x-auto">
-            <Link to="/shopping" className="text-gray-600 hover:text-gray-900">{t('nav.shopping')}</Link>
-            <Link to="/tasks" className="text-gray-600 hover:text-gray-900">{t('nav.tasks')}</Link>
-            <Link to="/cooking-plan" className="text-gray-600 hover:text-gray-900">{t('nav.cookingPlan')}</Link>
-            <Link to="/recipes" className="text-gray-600 hover:text-gray-900">{t('nav.recipes')}</Link>
+            {navLinks.map((link) => (
+              <Link key={link.to} to={link.to} className="text-eucalyptus-700 dark:text-eucalyptus-300 hover:text-eucalyptus-900 dark:hover:text-eucalyptus-100 hover:font-semibold whitespace-nowrap transition-colors">
+                {link.label}
+              </Link>
+            ))}
           </div>
           <MoreMenu />
         </div>
-        {/* Pinned outside the scrollable link row above so it stays visible
-            on narrow screens instead of scrolling off with the rest. */}
+
+        {/* Mobile hamburger: visible only on < md */}
+        <div className="flex md:hidden items-center gap-3">
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="text-eucalyptus-700 dark:text-eucalyptus-300 hover:text-eucalyptus-900 dark:hover:text-eucalyptus-100 p-2"
+            aria-label={t('common.menu')}
+          >
+            {mobileMenuOpen ? <CloseIcon /> : <HamburgerIcon />}
+          </button>
+        </div>
+
         <AccountMenu />
       </div>
+
+      {/* Mobile drawer: slides in from top */}
+      {mobileMenuOpen && (
+        <div className="md:hidden bg-eucalyptus-50 dark:bg-gray-800 border-t border-eucalyptus-200 dark:border-gray-700 px-4 py-3 space-y-2">
+          {navLinks.map((link) => (
+            <Link
+              key={link.to}
+              to={link.to}
+              onClick={() => setMobileMenuOpen(false)}
+              className="block py-2 text-eucalyptus-700 dark:text-eucalyptus-300 hover:text-eucalyptus-900 dark:hover:text-eucalyptus-100 hover:font-semibold transition-colors"
+            >
+              {link.label}
+            </Link>
+          ))}
+          <div className="border-t border-eucalyptus-200 dark:border-gray-700 pt-2 mt-2">
+            <MoreMenu />
+          </div>
+        </div>
+      )}
     </nav>
   );
 }

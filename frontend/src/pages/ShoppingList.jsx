@@ -235,7 +235,7 @@ export default function ShoppingList() {
             className="flex-1 min-w-32 px-3 py-1.5 border border-gray-300 rounded-lg"
             required
           />
-          <button onClick={saveEditItem} className="bg-green-600 text-white px-3 py-1.5 rounded hover:bg-green-700 text-sm">
+          <button onClick={saveEditItem} className="btn-primary text-white px-3 py-1.5 rounded dark:hover:bg-eucalyptus-600 text-sm">
             {t('recipes.save')}
           </button>
           <button onClick={() => setEditingItemId(null)} className="bg-gray-200 text-gray-700 px-3 py-1.5 rounded hover:bg-gray-300 text-sm">
@@ -314,7 +314,7 @@ export default function ShoppingList() {
               className="px-3 py-2 border border-gray-300 rounded-full text-sm w-40"
               required
             />
-            <button type="submit" className="bg-green-600 text-white px-3 py-2 rounded-full text-sm hover:bg-green-700">+</button>
+            <button type="submit" className="btn-primary text-white px-3 py-2 rounded-full text-sm dark:hover:bg-eucalyptus-600">+</button>
           </form>
         </div>
 
@@ -387,7 +387,7 @@ export default function ShoppingList() {
                   className="flex-1 min-w-40 px-3 py-2 border border-gray-300 rounded-lg"
                   required
                 />
-                <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600">
+                <button type="submit" className="btn-primary text-white px-4 py-2 rounded-lg hover:btn-primary">
                   {t('shoppingList.addButton')}
                 </button>
               </form>

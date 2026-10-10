@@ -239,7 +239,7 @@ export default function Tasks() {
                 onClick={handleStartPlanning}
                 disabled={!canPlanThisWeek}
                 title={canPlanThisWeek ? undefined : t('weeklyPlanning.onlyThisOrNextWeek')}
-                className={`px-3 py-1 rounded text-white ${canPlanThisWeek ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-300 cursor-not-allowed'}`}
+                className={`px-3 py-1 rounded text-white ${canPlanThisWeek ? 'btn-primary dark:hover:bg-eucalyptus-600' : 'bg-gray-300 cursor-not-allowed'}`}
               >
                 {t('weeklyPlanning.startNow')}
               </button>
@@ -264,7 +264,7 @@ export default function Tasks() {
               >
                 +
               </button>
-              <button onClick={handleFinishPlanning} className="px-3 py-1 rounded bg-green-600 text-white hover:bg-green-700">
+              <button onClick={handleFinishPlanning} className="px-3 py-1 rounded btn-primary text-white dark:hover:bg-eucalyptus-600">
                 {t('weeklyPlanning.finish')}
               </button>
               <button onClick={handleCancelPlanning} className="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300">

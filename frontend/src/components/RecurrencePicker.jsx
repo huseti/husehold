@@ -127,7 +127,7 @@ export default function RecurrencePicker({ value, onChange, initialRule, hasPref
               onClick={() => toggleDay(day)}
               className={`text-xs px-2 py-1 rounded border ${
                 state.byday.includes(day)
-                  ? 'bg-blue-500 text-white border-blue-500'
+                  ? 'btn-primary text-white border-blue-500'
                   : 'bg-white text-gray-600 border-gray-300'
               }`}
             >

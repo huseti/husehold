@@ -128,15 +128,15 @@ export default function Dashboard() {
   const todaysMeals = mealEntries.filter((entry) => entry.date === todayISO);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Navbar />
 
-      <main className="max-w-7xl mx-auto px-4 py-8 space-y-8">
-        <h1 className="text-2xl font-bold text-gray-800">
+      <main className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8 space-y-6 md:space-y-8">
+        <h1 className="text-xl md:text-2xl font-bold text-gray-800 dark:text-gray-100">
           {t('dashboard.welcome', { name: currentUser?.first_name || currentUser?.username, household: householdName })}
         </h1>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8">
           <TasksPanel
             overdueTasks={overdueTasks}
             todayTasks={todayTasks}

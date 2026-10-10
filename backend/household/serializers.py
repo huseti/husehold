@@ -457,7 +457,7 @@ class CookingPlanConfigSerializer(serializers.ModelSerializer):
         model = CookingPlanConfig
         fields = (
             'id', 'top_rating_percentile', 'uncooked_threshold_days', 'rating_weight', 'neglect_weight',
-            'craving_count', 'random_count', 'planned_meal_categories', 'updated_at',
+            'craving_count', 'long_ago_count', 'random_count', 'planned_meal_categories', 'updated_at',
         )
         read_only_fields = ('updated_at',)
 

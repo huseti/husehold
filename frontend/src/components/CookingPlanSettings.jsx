@@ -32,6 +32,7 @@ export default function CookingPlanSettings({ config, meals, onSaved }) {
         rating_weight: Number(form.rating_weight),
         neglect_weight: Number(form.neglect_weight),
         craving_count: Number(form.craving_count),
+        long_ago_count: Number(form.long_ago_count),
         random_count: Number(form.random_count),
         planned_meal_categories: form.planned_meal_categories,
       });
@@ -73,6 +74,7 @@ export default function CookingPlanSettings({ config, meals, onSaved }) {
 
       <div className="flex flex-wrap gap-x-6 gap-y-3 text-sm text-gray-600">
         <label>{t('cookingSettings.cravingCount')}{number('craving_count', 0)}</label>
+        <label>{t('cookingSettings.longAgoCount')}{number('long_ago_count', 0)}</label>
         <label>{t('cookingSettings.randomCount')}{number('random_count', 0)}</label>
         <label>{t('cookingSettings.topPercentile')}{number('top_rating_percentile', 1)}</label>
         <label>{t('cookingSettings.uncookedDays')}{number('uncooked_threshold_days', 1)}</label>
@@ -81,7 +83,7 @@ export default function CookingPlanSettings({ config, meals, onSaved }) {
       </div>
 
       <div className="flex items-center gap-3">
-        <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">{t('recipes.save')}</button>
+        <button type="submit" className="btn-primary text-white px-4 py-2 rounded hover:btn-primary">{t('recipes.save')}</button>
         {status && <span className="text-sm text-gray-600">{status}</span>}
       </div>
     </form>
