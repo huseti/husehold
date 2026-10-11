@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import TaskIcon from './icons/taskIcons';
 import { memberService } from '../services/api';
+import { resizeAvatarFile } from '../utils/imageResize';
 
 // Opened from the account menu's "Edit Image" item -- shows the current
 // photo a bit larger, lets you delete it (hover reveals a trash overlay,
@@ -20,7 +21,7 @@ export default function AvatarPreviewModal({ member, onClose, onChanged }) {
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const res = await memberService.uploadAvatar(member.id, file);
+    const res = await memberService.uploadAvatar(member.id, await resizeAvatarFile(file));
     onChanged(res.data);
     e.target.value = '';
   };
