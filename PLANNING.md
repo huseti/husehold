@@ -784,3 +784,24 @@ Follow-up (2026-10-11, later) -- Tim's per-page wish list:
 - `reset_test_data` (commit `f5b0216`) was run both on the Pi (intended) and against the **local** DB (not intended), wiping local recipes/tasks/shopping lists/calendar cache. No backup of the local DB from before that exists: `dev.ps1`'s `local-db-*` backups don't exist, so there's no evidence `dev.ps1`'s overwrite prompt was ever confirmed.
 - Local DB was then restored from `backups/db-20261010-101957.sqlite3` -- which is a **production** backup made by `deploy.ps1` before the 10:19 deploy, not a local one. So local now holds production data from before the reset, not Tim's previous local test data. The previous (wiped) local DB is kept as `backups/pre-rollback-20261010-165030.sqlite3`.
 - After the restore, `manage.py migrate` was needed (backup was 3 migrations behind, `0041`-`0043`; the missing `long_ago_count` column made `/api/cooking-plan-config/` 500, which blanked the whole Dashboard because it loads everything in one `Promise.all`). Tim's avatar reference was re-set by hand (file was still in `media/avatars/`).
+
+### Nightly backups to the FritzBox NAS (2026-10-11) -- shipped
+
+Tim asked for a nightly DB backup, stored on the FritzBox's NAS.
+
+- **Storage**: the FritzBox's internal storage (9.8 MB total, ~9.2 MB free) -- enough because one backup is only ~141 KB compressed (DB 816 KB + media 108 KB). A USB stick on the FritzBox is the planned upgrade if it gets tight; switching is just a new `BACKUP_DIR`.
+- **Retention**: 7 nightly backups (Tim's call -- leaves buffer for data growth on the small internal storage).
+- **Tim's key requirement**: an empty/broken DB (e.g. SD card trouble) must trigger an email warning and must *never* overwrite the last good backups. Implemented in `household/management/commands/backup_db.py`:
+  - Snapshot via SQLite's online backup API (consistent while Gunicorn writes, unlike `cp`), then checked: `PRAGMA integrity_check`, at least one `auth_user` + `household_householdmember` row, and total rows not under 50% of the previous backup's manifest (`--force` overrides once, after an intentional bulk delete).
+  - The NAS must contain a `.husehold-backup-target` marker -- otherwise the share isn't mounted and `/mnt/fritz-nas` is just an empty folder on the SD card.
+  - Any failure: warning email to `BACKUP_ALERT_EMAILS`, nothing written, nothing rotated. Rotation runs only right after a successful write, so failed nights never eat the good copies.
+  - Weekly "Backup OK" summary on Sundays (agreed as the dead-man's switch: if the Pi dies, cron never runs, so silence is the only signal); low-space warning when fewer than 3 more backups fit.
+  - Archive = `husehold-<date>_<time>.tar.gz` (db.sqlite3 + media/) plus a `.json` manifest with row counts, copied as `.partial` and renamed so an interrupted copy never looks like a real backup.
+- **Pi setup** (DEPLOYMENT.md section 13): `cifs-utils`, FritzBox user `pi-backup` (NAS access only), root-only credentials file, `/etc/fstab` cifs mount at `/mnt/fritz-nas` with `nofail,x-systemd.automount` (FritzBox down never blocks boot), cron `0 3 * * *` logging to `backend/backup.log`.
+- **Gotcha found on the real FritzBox**: reading the freshly renamed archive failed with "Stale file handle" -- the FritzBox doesn't keep SMB file IDs stable. Fixed with the `noserverino` mount option.
+- **Verified end to end on the Pi**: backup written, "Backup OK" mail received, restore test (archive extracts, `integrity_check` = ok, all 3 users present).
+- **Tests**: 6 new (`BackupDbCommandTests`) -- a `TransactionTestCase`, because SQLite's backup API waits forever on the write lock that `TestCase`'s wrapping transaction holds. 277 backend tests total.
+
+**Related cleanup the same day -- orphaned avatar files**: `media/` was 4.9 MB for one avatar in use. Django never deletes a `FileField`'s old file when it's replaced, so every avatar change left the previous image behind (one was a 4.7 MB original from before the client-side 400px downscale). `HouseholdMemberSerializer.update()` now deletes the replaced file, and a new `cleanup_orphan_avatars` command (dry run by default, `--delete` to remove) cleared the 3 orphans on the Pi -- `media/` is now 108 KB.
+
+**Also resolved the same day -- `husehold.duckdns.org` on the LAN**: see the Item C follow-up above (FritzBox DNS-rebind exception).

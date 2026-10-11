@@ -98,11 +98,12 @@ Frontend runs at: `http://localhost:3000`
 - **Icons**: tasks (recurring and one-off) and shopping categories offer a curated quick-pick plus "Weitere…" — a searchable picker over all ~1500 Phosphor icons (English names), loaded on demand
 - **Calendar overlay**: Google Calendar events show on every day they touch (all-day and multi-day timed events) in the dashboard week, the household plan and the cooking plan
 - **Dark mode**: Light/Dark/System in Settings; light-only markup is remapped centrally in `index.css`
-- **Account**: profile avatar (upload/preview/remove; center-cropped and downscaled to 400px JPEG in the browser before upload) via the navbar account menu, alongside Settings and Logout
+- **Account**: profile avatar (upload/preview/remove; center-cropped and downscaled to 400px JPEG in the browser before upload; replacing it deletes the previous file on the server) via the navbar account menu, alongside Settings and Logout
 - **Settings**: household name and timezone (used for "today"/"overdue" comparisons, not the server's own timezone; both autosave), language (German/English), light/dark/system theme, notification preferences
 - **Popups for create/edit**: new vouchers, new/edit packing lists and editing a shopping list (name, favorite, delete) open as dialogs; the packing lists page opens the next/current trip automatically (else the latest past one, else the latest archived)
 - **Notifications**: email (SMTP) and Web Push, per-type/per-channel toggles, for tasks due today, weekly household planning due, weekly meal planning due and "Cooking today: <dish>" (goes to the assignee, or to the whole household while unassigned, from 08:00) — **each member picks their own notification language in Settings** (German by default, independent of the browser's app language), so a household can read email/push in two languages; delivered by a cron-driven management command, not a background daemon; test-email/test-push buttons in Settings for on-demand verification
 - **Vouchers**: track gift/store vouchers (monetary, redeemed down over time with a logged history) and non-monetary gifts (e.g. a dinner invitation, marked used in one go); soonest-expiring first, auto-archived once fully used or manually archived, with an "expiring soon" (next 6 months) indicator on each card and a household-overview count; inline editing (value/currency locked once a redemption has been logged)
+- **Nightly backups**: a cron-driven `backup_db` command writes a consistent SQLite snapshot plus `media/` (avatars) as one `.tar.gz` to the FritzBox NAS every night at 03:00 and keeps the newest 7. Before writing it checks the snapshot (SQLite integrity check, users/members present, not under half the rows of the last backup) and that the NAS is really mounted; if anything fails it emails a warning and leaves the existing backups untouched. A "Backup OK" summary mail goes out every Sunday (a missing one means the Pi or cron is down), and a low-space warning when fewer than 3 more backups fit. Setup and restore steps: [DEPLOYMENT.md](DEPLOYMENT.md) section 13
 - **User Authentication**: JWT-based auth
 - **Responsive Design**: Works on mobile and desktop
 
@@ -147,7 +148,8 @@ Quick summary:
 3. Setup backend (virtualenv, migrations, superuser)
 4. Build frontend
 5. Configure Gunicorn + Nginx with HTTPS (self-signed cert — required for Web Push)
-6. Schedule `send_notifications` via cron
+6. Schedule `send_notifications` (and `sync_google_calendar`) via cron
+7. Mount the FritzBox NAS and schedule the nightly `backup_db` via cron (DEPLOYMENT.md section 13)
 
 Access at: `https://<pi-ip>` (self-signed cert — browser warns once per device, accept permanently)
 
@@ -244,6 +246,11 @@ CORS_ALLOWED_ORIGINS=http://localhost:3000
 EMAIL_HOST=...
 VAPID_PUBLIC_KEY=...
 VAPID_PRIVATE_KEY=...
+
+# Nightly backups -- Pi only, see DEPLOYMENT.md section 13
+BACKUP_DIR=/mnt/fritz-nas/husehold-backups
+BACKUP_KEEP=7
+BACKUP_ALERT_EMAILS=...
 ```
 
 ## 🔗 External Services
@@ -257,6 +264,7 @@ All optional except DuckDNS/Let's Encrypt (needed for Web Push on the deployed P
 | **DuckDNS + Let's Encrypt** | A trusted hostname/HTTPS cert for the Pi (needed for devices, e.g. MDM-managed phones, that block self-signed certs) -- not app config, set up directly on the Pi (see DEPLOYMENT.md) | *(none -- Pi-side only)* |
 | **Google Calendar API** (OAuth) | One-way, read-only sync of a shared calendar into the weekly plan overlay | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `FRONTEND_URL` |
 | **Anthropic (Claude API)** | Shopping list categorization fallback, plus recipe import extraction (photo/paste-text/URL/social) -- skipped entirely if unset | `ANTHROPIC_API_KEY` |
+| **FritzBox NAS** (SMB) | Target for the nightly backups -- the FritzBox's internal storage (or a USB stick on it), mounted on the Pi via `cifs` with a NAS-only FritzBox user | `BACKUP_DIR`, `BACKUP_KEEP`, `BACKUP_ALERT_EMAILS` |
 | **OpenAI (Whisper API)** | Audio transcription for social media (video) recipe import -- also needs `ffmpeg` installed on the server; skipped entirely if unset | `OPENAI_API_KEY` |
 
 ## 📚 Learn More
