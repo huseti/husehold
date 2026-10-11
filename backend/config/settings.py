@@ -178,3 +178,11 @@ ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY', '')
 # Also needs the `ffmpeg` binary installed on the server (checked separately,
 # not an env var -- see DEPLOYMENT.md).
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
+
+# Nightly backups (DB snapshot + media, one .tar.gz per run) -- see
+# household/management/commands/backup_db.py and DEPLOYMENT.md. BACKUP_DIR
+# is the mounted NAS share; left blank, the command refuses to run.
+BACKUP_DIR = os.getenv('BACKUP_DIR', '')
+BACKUP_KEEP = int(os.getenv('BACKUP_KEEP', '7'))
+# Comma-separated; falls back to every superuser's email when blank.
+BACKUP_ALERT_EMAILS = [e.strip() for e in os.getenv('BACKUP_ALERT_EMAILS', '').split(',') if e.strip()]

@@ -7,7 +7,7 @@ from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
 from django.contrib.auth.models import User
-from django.test import TestCase, override_settings
+from django.test import TestCase, TransactionTestCase, override_settings
 from django.utils import timezone as dj_timezone
 from rest_framework.test import APIClient
 
@@ -3557,3 +3557,125 @@ class RecipeImportViewTests(TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertIn('OPENAI_API_KEY', response.data['detail'])
+
+
+# WEEKLY_REPORT_WEEKDAY patched to an impossible weekday so these tests don't
+# start sending "backup OK" mails when the suite happens to run on a Sunday.
+# TransactionTestCase, not TestCase: SQLite's backup API waits forever on the
+# write lock TestCase's wrapping transaction holds (cron runs never have one open).
+@patch('household.management.commands.backup_db.WEEKLY_REPORT_WEEKDAY', 99)
+class BackupDbCommandTests(TransactionTestCase):
+    def setUp(self):
+        from pathlib import Path
+        self.backup_dir = Path(tempfile.mkdtemp())
+        (self.backup_dir / '.husehold-backup-target').touch()
+        self.media_dir = Path(tempfile.mkdtemp())
+        (self.media_dir / 'avatars').mkdir()
+        (self.media_dir / 'avatars' / 'tim.jpg').write_bytes(b'jpeg')
+        self.settings_override = override_settings(
+            BACKUP_DIR=str(self.backup_dir), BACKUP_KEEP=7, MEDIA_ROOT=str(self.media_dir),
+            BACKUP_ALERT_EMAILS=['tim@example.com'],
+        )
+        self.settings_override.enable()
+        self.addCleanup(self.settings_override.disable)
+
+        self.user = User.objects.create_user(username='tim', password='pw')
+        HouseholdMember.objects.create(user=self.user, role='admin')
+
+    def _run(self, *args):
+        from django.core.management import call_command
+        call_command('backup_db', *args, stdout=io.StringIO(), stderr=io.StringIO())
+
+    def _archives(self):
+        return sorted(p.name for p in self.backup_dir.glob('husehold-*.tar.gz'))
+
+    def _fake_backup(self, stem, total_rows):
+        (self.backup_dir / f'{stem}.tar.gz').write_bytes(b'old')
+        (self.backup_dir / f'{stem}.json').write_text(json.dumps({'name': f'{stem}.tar.gz', 'total_rows': total_rows}))
+
+    def test_writes_archive_with_db_snapshot_and_media(self):
+        import sqlite3
+        import tarfile
+        from django.core import mail
+
+        self._run()
+
+        archives = self._archives()
+        self.assertEqual(len(archives), 1)
+        extract_dir = tempfile.mkdtemp()
+        with tarfile.open(self.backup_dir / archives[0]) as tar:
+            self.assertIn('media/avatars/tim.jpg', tar.getnames())
+            tar.extract('db.sqlite3', extract_dir)
+        db = sqlite3.connect(os.path.join(extract_dir, 'db.sqlite3'))
+        self.assertEqual(db.execute("SELECT username FROM auth_user").fetchall(), [('tim',)])
+        db.close()
+
+        manifest = json.loads((self.backup_dir / archives[0].replace('.tar.gz', '.json')).read_text())
+        self.assertGreater(manifest['total_rows'], 0)
+        self.assertEqual(mail.outbox, [])  # no mail on an ordinary night
+
+    def test_missing_marker_fails_and_alerts(self):
+        from django.core import mail
+        from django.core.management.base import CommandError
+
+        (self.backup_dir / '.husehold-backup-target').unlink()
+
+        with self.assertRaises(CommandError):
+            self._run()
+
+        self.assertEqual(self._archives(), [])
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('FAILED', mail.outbox[0].subject)
+        self.assertIn('not mounted', mail.outbox[0].body)
+
+    def test_empty_db_fails_and_keeps_existing_backups(self):
+        from django.core import mail
+        from django.core.management.base import CommandError
+
+        for day in range(1, 8):
+            self._fake_backup(f'husehold-2000-01-0{day}_030000', total_rows=1)
+        HouseholdMember.objects.all().delete()
+        User.objects.all().delete()
+
+        with self.assertRaises(CommandError):
+            self._run()
+
+        self.assertEqual(len(self._archives()), 7)
+        self.assertIn('looks empty', mail.outbox[0].body)
+
+    def test_sharp_shrink_fails_unless_forced(self):
+        from django.core import mail
+        from django.core.management.base import CommandError
+
+        self._fake_backup('husehold-2000-01-01_030000', total_rows=10_000)
+
+        with self.assertRaises(CommandError):
+            self._run()
+        self.assertEqual(len(self._archives()), 1)
+        self.assertIn('data loss', mail.outbox[0].body)
+
+        self._run('--force')
+        self.assertEqual(len(self._archives()), 2)
+
+    def test_keeps_only_newest_backups(self):
+        for day in range(1, 9):
+            self._fake_backup(f'husehold-2000-01-0{day}_030000', total_rows=1)
+
+        self._run()
+
+        archives = self._archives()
+        self.assertEqual(len(archives), 7)
+        self.assertNotIn('husehold-2000-01-01_030000.tar.gz', archives)
+        self.assertNotIn('husehold-2000-01-02_030000.tar.gz', archives)
+        self.assertFalse((self.backup_dir / 'husehold-2000-01-01_030000.json').exists())
+        self.assertTrue(archives[-1] > 'husehold-2000')  # the new one is among them
+
+    def test_report_flag_sends_ok_summary(self):
+        from django.core import mail
+
+        self._run('--report')
+
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].subject, '[HUSEHOLD] Backup OK')
+        self.assertEqual(mail.outbox[0].to, ['tim@example.com'])
+        self.assertIn('Backups kept (1)', mail.outbox[0].body)

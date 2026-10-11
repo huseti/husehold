@@ -301,6 +301,74 @@ Redeploy (or just restart Gunicorn) after adding the env var so it's picked up.
 
 Until both the API key and `ffmpeg` are set up: the Social media tab's requests fail with a clear message rather than hanging or silently doing nothing, and the other three import paths (photo/text/URL) are unaffected.
 
+### 13. Nightly backups to the FritzBox NAS
+
+`python manage.py backup_db` writes one `husehold-<date>_<time>.tar.gz` (a consistent SQLite snapshot via SQLite's online backup API + the whole `media/` folder) plus a small `.json` manifest into `BACKUP_DIR`, and keeps the newest `BACKUP_KEEP` (default 7).
+
+Before writing, it checks the snapshot -- SQLite `integrity_check`, at least one user and household member, and not under half the rows of the last backup. If any check fails, or the NAS isn't mounted (detected via a `.husehold-backup-target` marker file that only exists on the share), **nothing is written or rotated** and a warning email goes out. Old backups are only ever deleted right after a new good one was written, so a run of failed nights can never eat into the last good copies. On Sundays it also sends a "Backup OK" summary (kept backups + free space), so a dead Pi -- where the job doesn't run at all -- shows up as a missing Sunday mail. A low-space warning goes out whenever the share has room for fewer than 3 more backups.
+
+After an intentional bulk delete that trips the shrink check, run it once by hand with `--force`. `--report` sends the summary mail immediately (handy to test email).
+
+**FritzBox side** (`http://fritz.box`):
+1. Heimnetz → USB / Speicher (newer firmware: Heimnetz → Speicher (NAS)) -- enable the NAS and SMB.
+2. System → FRITZ!Box-Benutzer -- add a user `pi-backup` with only "Zugang zu NAS-Inhalten" (read + write). A dedicated user means the password stored on the Pi can't touch the router's admin settings.
+
+**Pi side:**
+```bash
+sudo apt install -y cifs-utils
+sudo mkdir -p /mnt/fritz-nas
+
+# Credentials file -- root-only, never committed anywhere
+sudo tee /etc/husehold-backup.cred > /dev/null << 'EOF'
+username=pi-backup
+password=<the pi-backup password>
+EOF
+sudo chmod 600 /etc/husehold-backup.cred
+```
+
+Add to `/etc/fstab` (`FRITZ.NAS` is the FritzBox's default share name; `nofail` + `x-systemd.automount` mean a FritzBox that's down never blocks the Pi from booting -- the mount is retried on first access instead):
+```
+//192.168.178.1/FRITZ.NAS /mnt/fritz-nas cifs credentials=/etc/husehold-backup.cred,uid=admin,gid=admin,file_mode=0600,dir_mode=0700,vers=3.0,_netdev,nofail,x-systemd.automount 0 0
+```
+```bash
+sudo systemctl daemon-reload && sudo mount /mnt/fritz-nas && ls /mnt/fritz-nas
+```
+
+Create the backup folder and marker inside whichever storage the `ls` shows (internal storage or a USB stick):
+```bash
+mkdir -p "/mnt/fritz-nas/<storage>/husehold-backups"
+touch "/mnt/fritz-nas/<storage>/husehold-backups/.husehold-backup-target"
+```
+
+In `backend/.env`:
+```
+BACKUP_DIR=/mnt/fritz-nas/<storage>/husehold-backups
+BACKUP_KEEP=7
+BACKUP_ALERT_EMAILS=<your email>
+```
+Set `BACKUP_ALERT_EMAILS` explicitly rather than relying on the superuser fallback -- if the DB itself is what's broken, the fallback has nobody to look up.
+
+Test once by hand, then schedule (`crontab -e`, 03:00 nightly):
+```bash
+cd ~/husehold/backend && venv/bin/python manage.py backup_db --report
+```
+```
+0 3 * * * cd /home/admin/husehold/backend && venv/bin/python manage.py backup_db >> /home/admin/husehold/backend/backup.log 2>&1
+```
+
+**Restoring** a backup:
+```bash
+mkdir ~/restore && tar -xzf "/mnt/fritz-nas/<storage>/husehold-backups/husehold-<date>_<time>.tar.gz" -C ~/restore
+sudo systemctl stop gunicorn
+cp ~/husehold/backend/db.sqlite3 ~/db-before-restore.sqlite3   # keep the current one, just in case
+cp ~/restore/db.sqlite3 ~/husehold/backend/db.sqlite3
+mkdir -p ~/husehold/backend/media && cp -a ~/restore/media/. ~/husehold/backend/media/
+cd ~/husehold/backend && venv/bin/python manage.py migrate     # in case the backup predates newer migrations
+sudo systemctl start gunicorn
+```
+
+Moving backups to a USB stick later: plug it in, create the folder + marker there, point `BACKUP_DIR` at it. Nothing else changes.
+
 ## Deployment Workflow
 
 The frontend is **built on your laptop**, not on the Pi. A Raspberry Pi 3 only has 1GB RAM, and Vite's bundler can use 300-500MB+ during a build — on top of Django, Gunicorn, and Nginx already running, that risks swap thrashing or the build getting OOM-killed. Building locally is fast and keeps the Pi free to just serve files.
@@ -378,8 +446,9 @@ Also watch out for group membership: Linux applies the file's **group** permissi
 ## Maintenance
 
 ### Backup database
+Nightly automated backups to the FritzBox NAS -- see section 13. For a one-off manual copy, use SQLite's backup command rather than `cp` (a plain copy taken while Gunicorn is writing can be inconsistent):
 ```bash
-cp /home/husehold/husehold/backend/db.sqlite3 ~/db.sqlite3.backup
+sqlite3 ~/husehold/backend/db.sqlite3 ".backup '$HOME/db.sqlite3.backup'"
 ```
 
 ### Update dependencies
