@@ -80,7 +80,7 @@ Type=notify
 User=husehold
 Group=www-data
 WorkingDirectory=/home/husehold/husehold/backend
-ExecStart=/home/husehold/husehold/backend/venv/bin/gunicorn --workers 2 --bind 127.0.0.1:8000 config.wsgi:application
+ExecStart=/home/husehold/husehold/backend/venv/bin/gunicorn --workers 2 --timeout 300 --bind 127.0.0.1:8000 config.wsgi:application
 
 [Install]
 WantedBy=multi-user.target
@@ -297,7 +297,17 @@ Two things need setting up, independently of each other (Settings → Connected 
 
 Redeploy (or just restart Gunicorn) after adding the env var so it's picked up.
 
-**Known limitation, not yet addressed**: downloading a video and transcribing it can take longer than Gunicorn's default 30-second worker timeout, especially on the Pi's upload bandwidth. If imports time out once this is configured, raise `--timeout` in `/etc/systemd/system/gunicorn.service`'s `ExecStart` line (e.g. `--timeout 120`) and `sudo systemctl daemon-reload && sudo systemctl restart gunicorn` -- not done proactively since it also needs a password-prompting `sudo` edit, and there's no point tuning a timeout for a feature that isn't configured yet.
+**Raise the request timeouts (done on the Pi 2026-10-11)**: an import request runs the whole pipeline synchronously -- video download (no overall cap, only a 20s per-stall socket timeout), Whisper (up to 120s), Claude (up to 60s) -- so it can take 3+ minutes. Gunicorn's default worker timeout is 30s and Nginx's default `proxy_read_timeout` is 60s, so both would cut it off first. Photo import is affected too (its Claude call alone may take up to 60s). Both raised to 300s:
+```bash
+# Gunicorn: add --timeout 300 to ExecStart (the service file in section 6 already includes it for new setups)
+sudo sed -i 's|--workers 2 --bind|--workers 2 --timeout 300 --bind|' /etc/systemd/system/gunicorn.service
+sudo systemctl daemon-reload && sudo systemctl restart gunicorn
+
+# Nginx: global, applies to both server blocks -- run once (it inserts a line, a second run would duplicate it)
+sudo sed -i '/^http {/a\    proxy_read_timeout 300s;' /etc/nginx/nginx.conf
+sudo nginx -t && sudo systemctl reload nginx
+```
+This is only an upper bound -- nothing gets slower. With 2 Gunicorn workers, a long import occupies one while the other keeps serving the app.
 
 Until both the API key and `ffmpeg` are set up: the Social media tab's requests fail with a clear message rather than hanging or silently doing nothing, and the other three import paths (photo/text/URL) are unaffected.
 
