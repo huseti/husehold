@@ -326,9 +326,9 @@ EOF
 sudo chmod 600 /etc/husehold-backup.cred
 ```
 
-Add to `/etc/fstab` (`FRITZ.NAS` is the FritzBox's default share name; `nofail` + `x-systemd.automount` mean a FritzBox that's down never blocks the Pi from booting -- the mount is retried on first access instead):
+Add to `/etc/fstab` (`FRITZ.NAS` is the FritzBox's default share name; `nofail` + `x-systemd.automount` mean a FritzBox that's down never blocks the Pi from booting -- the mount is retried on first access instead; `noserverino` is required -- the FritzBox doesn't keep SMB file IDs stable, so without it a file that was renamed (as `backup_db` does after copying) fails with "Stale file handle"):
 ```
-//192.168.178.1/FRITZ.NAS /mnt/fritz-nas cifs credentials=/etc/husehold-backup.cred,uid=admin,gid=admin,file_mode=0600,dir_mode=0700,vers=3.0,_netdev,nofail,x-systemd.automount 0 0
+//192.168.178.1/FRITZ.NAS /mnt/fritz-nas cifs credentials=/etc/husehold-backup.cred,uid=admin,gid=admin,file_mode=0600,dir_mode=0700,vers=3.0,noserverino,_netdev,nofail,x-systemd.automount 0 0
 ```
 ```bash
 sudo systemctl daemon-reload && sudo mount /mnt/fritz-nas && ls /mnt/fritz-nas
