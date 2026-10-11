@@ -5,7 +5,7 @@ import CalendarEventList from './CalendarEventList';
 
 export default function TaskDayColumn({
   date, dateISO, instances, members, onComplete, onSkip, onSnooze, onReassign, onReopen, onDelete,
-  attentionHighlight = false, calendarEvents = [],
+  attentionHighlight = false, calendarEvents = [], weekDays, onMove,
 }) {
   const { t, i18n } = useTranslation();
   const { setNodeRef, isOver } = useDroppable({ id: dateISO });
@@ -38,6 +38,9 @@ export default function TaskDayColumn({
             onReopen={onReopen}
             onDelete={onDelete}
             attentionHighlight={attentionHighlight}
+            weekDays={weekDays}
+            onMove={onMove}
+            dayPickerMobileOnly
           />
         ))}
       </div>

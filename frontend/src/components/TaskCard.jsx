@@ -6,10 +6,12 @@ import MemberAvatar from './MemberAvatar';
 import { getDisplayTitle, canSnoozeInstance, getPlanNowPath } from '../utils/taskDisplay';
 import { getWeekStart, parseISODate, toISODate } from '../utils/weekDates';
 import { UndoGlyph } from './icons/uiIcons';
+import DayPicker from './DayPicker';
 
 export default function TaskCard({
   instance, members, onComplete, onSkip, onSnooze, onReassign, onReopen, onDelete,
   interactive = true, attentionHighlight = false, planningWeekStartISO,
+  weekDays, onMove, dayPickerMobileOnly = false,
 }) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
@@ -162,6 +164,16 @@ export default function TaskCard({
             </button>
           )}
         </div>
+      )}
+
+      {interactive && !isResolved && weekDays && onMove && (
+        <DayPicker
+          weekDays={weekDays}
+          selectedISO={instance.is_in_backlog ? null : instance.scheduled_date}
+          onPick={(iso) => onMove(instance, iso)}
+          showBacklog={!instance.is_in_backlog}
+          className={dayPickerMobileOnly ? 'md:hidden' : ''}
+        />
       )}
     </div>
   );

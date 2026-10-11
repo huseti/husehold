@@ -81,7 +81,7 @@ Frontend runs at: `http://localhost:3000`
 
 ## 📱 Features
 
-- **Household Plan**: recurring tasks (RFC 5545 recurrence via a friendly picker, no raw RRULE editing), a color-coded drag-and-drop weekly calendar, a backlog for tasks with no fixed day, one-off tasks, and three distinct modes on one page — calendar (browse/act on any week), config (manage recurring tasks, member colors), and weekly planning (assign/organize next week's tasks, with carried-over-from-last-week items called out)
+- **Household Plan**: recurring tasks (RFC 5545 recurrence via a friendly picker, no raw RRULE editing), a color-coded weekly calendar (tasks are moved by tapping a day chip on the card -- the main way on phones -- or by drag and drop on laptop; every move shows a toast with Undo), a backlog for tasks with no fixed day, one-off tasks, and three distinct modes on one page — calendar (browse/act on any week), config (manage recurring tasks, member colors), and weekly planning (assign/organize next week's tasks, with carried-over-from-last-week items called out)
 - **Task actions**: complete, skip (this occurrence only), snooze (defers to next week's backlog while leaving a greyed-out marker behind), reassign, delete, and undo for any resolved state
 - **Assignment modes**: fixed member, alternating (rotates between household members; skipping doesn't advance the rotation), or decided during weekly planning
 - **Weekly planning reminder**: a configurable recurring system task (day/time, same assignment modes) that shows the target week's date range in its own name and can jump you straight into planning mode

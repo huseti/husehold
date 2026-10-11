@@ -8,7 +8,7 @@ import TaskCard from './TaskCard';
 // two separate buckets (carried-over vs. new) instead of one generic lane.
 export default function BacklogLane({
   instances, members, onComplete, onSkip, onSnooze, onReassign, onReopen, onDelete,
-  droppableId = 'backlog', title, attentionHighlight = false, planningWeekStartISO,
+  droppableId = 'backlog', title, attentionHighlight = false, planningWeekStartISO, weekDays, onMove,
 }) {
   const { t } = useTranslation();
   const { setNodeRef, isOver } = useDroppable({ id: droppableId });
@@ -22,7 +22,7 @@ export default function BacklogLane({
       {instances.length === 0 ? (
         <p className="text-xs text-eucalyptus-700/70 dark:text-eucalyptus-400/70">{t('tasks.backlogEmpty')}</p>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-2">
           {instances.map((instance) => (
             <TaskCard
               key={instance.id}
@@ -36,6 +36,8 @@ export default function BacklogLane({
               onDelete={onDelete}
               attentionHighlight={attentionHighlight}
               planningWeekStartISO={planningWeekStartISO}
+              weekDays={weekDays}
+              onMove={onMove}
             />
           ))}
         </div>

@@ -815,4 +815,16 @@ While reviewing open topics: the OpenAI key and `ffmpeg` had been set up on the 
 - Both raised to 300s on the Pi: `--timeout 300` in `/etc/systemd/system/gunicorn.service`, `proxy_read_timeout 300s;` in `nginx.conf`'s `http` block (next to `client_max_body_size 20M`, so it covers both server blocks). Verified: Gunicorn running with the new flag, `nginx -t` ok, API answering. DEPLOYMENT.md sections 6 and 12 updated.
 - Upper bound only, nothing gets slower. With 2 workers, a long import ties up one while the other keeps serving.
 
+### Household plan: day chips instead of drag and drop on mobile (2026-10-11)
+
+Tim: dragging tasks onto days in the weekly planning didn't work well on a phone. Two causes: on mobile the 7 days stack into a ~4000px column, so dragging from the backlog to Sunday meant holding a card at the screen edge while the page crawled down; and the dnd-kit sensors were misconfigured -- `TouchSensor` got `{ delay, tolerance }` directly instead of under `activationConstraint` (so ignored), and `PointerSensor` also reacts to touch, starting a drag instantly and fighting scrolling.
+
+- **`DayPicker`** (new): a `Mo Di Mi Do Fr Sa So` chip row on every open task card (plus "Backlog" for tasks that already have a day); one tap moves the task. Current day filled eucalyptus, today underlined. Shown everywhere on phones; on laptop only in the backlog lane -- in the narrow day columns drag and drop stays the way to move.
+- **`UndoToast`** (new, generic): bottom snackbar "Auf Mittwoch verschoben · „…“ · Rückgängig", 5s auto-dismiss. Every move (chip or drag) shows it; Undo moves the task back to its previous day or the backlog.
+- `Tasks.jsx`: one `handleMove(instance, isoOrNull)` shared by drag and chips (the leftovers-order error is still shown as before).
+- Sensors: `MouseSensor` (5px distance) + `TouchSensor` (250ms long-press) instead of `PointerSensor`.
+- Backlog lane on phones: one card per row instead of two (room for the chips).
+
+Alternatives considered and not built (yet): "tap card, then tap day" pick-up mode; a one-task-at-a-time weekly planning wizard (day + person per task) -- a possible next step for the planning ritual.
+
 **Still open (minor, from the 2026-10-11 review)**: light label colors with white text are hard to read (pick text color by luminance); real-phone testing (touch, iOS Safari dark mode) not done; ESLint not installed in `frontend/`; a ~6 MB frontend chunk (likely the full Phosphor icon set) that could be loaded only when the icon picker opens; first automatic nightly backup to be checked on 2026-10-12; optional USB stick / off-site backup later.

@@ -1,4 +1,4 @@
-import { DndContext, useSensor, useSensors, PointerSensor, TouchSensor } from '@dnd-kit/core';
+import { DndContext, useSensor, useSensors, MouseSensor, TouchSensor } from '@dnd-kit/core';
 import { useTranslation } from 'react-i18next';
 import BacklogLane from './BacklogLane';
 import TaskDayColumn from './TaskDayColumn';
@@ -11,13 +11,17 @@ import { eventsOnDay } from '../utils/calendarEvents';
 // buckets -- carried-over/unfinalized vs. new for the week being planned --
 // and unassigned tasks get a visual "needs attention" highlight.
 export default function WeekBoard({
-  weekDays, instances, members, onComplete, onSkip, onSnooze, onReassign, onReopen, onDelete, onDragEnd,
+  weekDays, instances, members, onComplete, onSkip, onSnooze, onReassign, onReopen, onDelete, onDragEnd, onMove,
   planningWeekStart, calendarEvents = [],
 }) {
   const { t } = useTranslation();
+  // Mouse + Touch rather than PointerSensor: pointer events also fire for
+  // touch, which would start a drag instantly and fight page scrolling. On
+  // touch, a drag needs a long-press; the day chips on each card are the
+  // primary way to move tasks on a phone.
   const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(TouchSensor, { delay: 200, tolerance: 5 }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
   );
   const backlogInstances = instances.filter((i) => i.is_in_backlog);
 
@@ -67,6 +71,8 @@ export default function WeekBoard({
             onReassign={onReassign}
             onReopen={onReopen}
             onDelete={onDelete}
+            weekDays={weekDays}
+            onMove={onMove}
             planningWeekStartISO={planningWeekStartISO}
             attentionHighlight
           />
@@ -81,6 +87,8 @@ export default function WeekBoard({
             onReassign={onReassign}
             onReopen={onReopen}
             onDelete={onDelete}
+            weekDays={weekDays}
+            onMove={onMove}
             attentionHighlight
           />
         </>
@@ -94,6 +102,8 @@ export default function WeekBoard({
           onReassign={onReassign}
           onReopen={onReopen}
           onDelete={onDelete}
+          weekDays={weekDays}
+          onMove={onMove}
         />
       )}
       <div className="grid grid-cols-1 md:grid-cols-7 gap-3">
@@ -114,6 +124,8 @@ export default function WeekBoard({
               onReassign={onReassign}
               onReopen={onReopen}
               onDelete={onDelete}
+              weekDays={weekDays}
+              onMove={onMove}
               attentionHighlight={!!planningWeekStartISO}
             />
           );

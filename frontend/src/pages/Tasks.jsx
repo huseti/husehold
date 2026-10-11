@@ -8,12 +8,14 @@ import TaskDefinitionForm from '../components/TaskDefinitionForm';
 import AddSingleTaskForm from '../components/AddSingleTaskForm';
 import CookRatingPrompt from '../components/CookRatingPrompt';
 import CookingStepModal from '../components/CookingStepModal';
+import UndoToast from '../components/UndoToast';
+import { getDisplayTitle } from '../utils/taskDisplay';
 import GearIcon from '../components/icons/gearIcon';
 import { getWeekStart, toISODate, addDays, parseISODate } from '../utils/weekDates';
 import { BackArrow, NextArrow, PrevArrow } from '../components/icons/uiIcons';
 
 export default function Tasks() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   // Set when arriving here via a weekly-planning task's "Plan now" button
@@ -36,6 +38,9 @@ export default function Tasks() {
   const [ratingPromptEntry, setRatingPromptEntry] = useState(null);
   // Step 1 of every household planning: the cooking plan for the same week.
   const [showCookingStep, setShowCookingStep] = useState(false);
+  // Confirmation + undo after moving a task to another day (see handleMove).
+  const [moveToast, setMoveToast] = useState(null);
+  const closeMoveToast = useCallback(() => setMoveToast(null), []);
 
   useEffect(() => {
     const planWeek = searchParams.get('planWeek');
@@ -147,25 +152,49 @@ export default function Tasks() {
     setMode('calendar');
   };
 
-  const handleDragEnd = async (event) => {
+  // Moves a task to a day (ISO date) or, with targetISO = null, to the
+  // backlog. Shared by drag & drop and the day chips on each card.
+  const moveTask = async (instanceId, targetISO) => {
+    try {
+      if (targetISO === null) await taskInstanceService.moveToBacklog(instanceId);
+      else await taskInstanceService.postpone(instanceId, targetISO);
+      loadWeek();
+      return true;
+    } catch (error) {
+      console.error('Error moving task:', error);
+      // A cook task can't be moved behind the leftovers planned from it.
+      if (error.response?.data?.leftovers) window.alert(t('cookingPlan.leftoversOrderError'));
+      return false;
+    }
+  };
+
+  const handleMove = async (instance, targetISO) => {
+    const fromISO = instance.is_in_backlog ? null : instance.scheduled_date;
+    if (targetISO === fromISO) return;
+    if (!(await moveTask(instance.id, targetISO))) return;
+    const title = getDisplayTitle(instance, t, i18n);
+    const message = targetISO === null
+      ? t('tasks.movedToBacklog', { title })
+      : t('tasks.movedToDay', {
+        title,
+        day: parseISODate(targetISO).toLocaleDateString(i18n.resolvedLanguage, { weekday: 'long' }),
+      });
+    setMoveToast({ message, instanceId: instance.id, fromISO });
+  };
+
+  const handleUndoMove = async () => {
+    const { instanceId, fromISO } = moveToast;
+    setMoveToast(null);
+    await moveTask(instanceId, fromISO);
+  };
+
+  const handleDragEnd = (event) => {
     const { active, over } = event;
     if (!over) return;
     const instance = instances.find((i) => i.id === active.id);
     if (!instance) return;
-    try {
-      if (over.id === 'backlog' || over.id === 'backlog-a' || over.id === 'backlog-b') {
-        if (!instance.is_in_backlog) await taskInstanceService.moveToBacklog(instance.id);
-      } else if (instance.scheduled_date !== over.id || instance.is_in_backlog) {
-        await taskInstanceService.postpone(instance.id, over.id);
-      } else {
-        return;
-      }
-      loadWeek();
-    } catch (error) {
-      console.error('Error moving task:', error);
-      // A cook task can't be dragged behind the leftovers planned from it.
-      if (error.response?.data?.leftovers) window.alert(t('cookingPlan.leftoversOrderError'));
-    }
+    const isBacklogLane = over.id === 'backlog' || over.id === 'backlog-a' || over.id === 'backlog-b';
+    handleMove(instance, isBacklogLane ? null : over.id);
   };
 
   const handleComplete = async (id) => {
@@ -305,12 +334,14 @@ export default function Tasks() {
               onReopen={handleReopen}
               onDelete={handleDeleteInstance}
               onDragEnd={handleDragEnd}
+              onMove={handleMove}
               planningWeekStart={mode === 'planning' ? weekStart : undefined}
             />
           </>
         )}
       </main>
       <CookRatingPrompt entry={ratingPromptEntry} onClose={() => setRatingPromptEntry(null)} />
+      <UndoToast toast={moveToast} onUndo={handleUndoMove} onClose={closeMoveToast} />
       {mode === 'planning' && showCookingStep && (
         <CookingStepModal
           weekStart={weekStart}
