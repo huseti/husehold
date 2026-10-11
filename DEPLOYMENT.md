@@ -156,6 +156,11 @@ server {
     location /static {
         alias /home/husehold/husehold/backend/staticfiles/;
     }
+
+    # User uploads (avatars) -- Django only serves these itself when DEBUG=True
+    location /media {
+        alias /home/husehold/husehold/backend/media/;
+    }
 }
 ```
 
