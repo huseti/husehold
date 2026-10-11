@@ -24,6 +24,16 @@ class HouseholdMemberSerializer(serializers.ModelSerializer):
         model = HouseholdMember
         fields = ('id', 'user', 'role', 'color_hex', 'avatar', 'notification_language', 'joined_date')
 
+    def update(self, instance, validated_data):
+        # Django never deletes a FileField's old file when it's replaced, so
+        # every new avatar upload would otherwise leave the previous image
+        # orphaned in MEDIA_ROOT forever.
+        old_avatar = instance.avatar.name if instance.avatar else ''
+        instance = super().update(instance, validated_data)
+        if old_avatar and old_avatar != instance.avatar.name:
+            instance.avatar.storage.delete(old_avatar)
+        return instance
+
 class HouseholdSettingsSerializer(serializers.ModelSerializer):
     class Meta:
         model = HouseholdSettings

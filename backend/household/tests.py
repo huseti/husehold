@@ -1,3 +1,4 @@
+import io
 import json
 import os
 import tempfile
@@ -117,6 +118,46 @@ class HouseholdMemberAvatarTests(TestCase):
         self.assertEqual(response.status_code, 200, response.data)
         self.member.refresh_from_db()
         self.assertTrue(self.member.avatar)
+
+    def test_replacing_avatar_deletes_previous_file(self):
+        self.client.patch(f'/api/members/{self.member.id}/', {'avatar': self._tiny_png()}, format='multipart')
+        self.member.refresh_from_db()
+        old_name = self.member.avatar.name
+        storage = self.member.avatar.storage
+        self.assertTrue(storage.exists(old_name))
+
+        self.client.patch(f'/api/members/{self.member.id}/', {'avatar': self._tiny_png()}, format='multipart')
+        self.member.refresh_from_db()
+
+        self.assertNotEqual(self.member.avatar.name, old_name)
+        self.assertFalse(storage.exists(old_name))
+        self.assertTrue(storage.exists(self.member.avatar.name))
+
+    def test_patch_without_avatar_keeps_existing_file(self):
+        self.client.patch(f'/api/members/{self.member.id}/', {'avatar': self._tiny_png()}, format='multipart')
+        self.member.refresh_from_db()
+        name = self.member.avatar.name
+
+        self.client.patch(f'/api/members/{self.member.id}/', {'color_hex': '#123456'}, format='json')
+        self.member.refresh_from_db()
+
+        self.assertEqual(self.member.avatar.name, name)
+        self.assertTrue(self.member.avatar.storage.exists(name))
+
+    def test_cleanup_orphan_avatars_command(self):
+        from django.core.management import call_command
+
+        self.client.patch(f'/api/members/{self.member.id}/', {'avatar': self._tiny_png()}, format='multipart')
+        self.member.refresh_from_db()
+        storage = self.member.avatar.storage
+        orphan = storage.save('avatars/orphan.png', self._tiny_png())
+
+        call_command('cleanup_orphan_avatars', stdout=io.StringIO())
+        self.assertTrue(storage.exists(orphan))  # dry run by default
+
+        call_command('cleanup_orphan_avatars', '--delete', stdout=io.StringIO())
+        self.assertFalse(storage.exists(orphan))
+        self.assertTrue(storage.exists(self.member.avatar.name))
 
     def test_delete_avatar_clears_it_back_to_default(self):
         self.client.patch(f'/api/members/{self.member.id}/', {'avatar': self._tiny_png()}, format='multipart')
