@@ -4,6 +4,7 @@ import { cookingSuggestionService } from '../services/api';
 import { localizedName } from '../utils/localized';
 import { mealName } from '../utils/taskDisplay';
 import StarRating from './StarRating';
+import { CloseGlyph } from './icons/uiIcons';
 
 const BUCKETS = ['craving', 'top_rated', 'long_ago', 'random', 'rest'];
 
@@ -86,7 +87,7 @@ export default function RecipePicker({
       <div className="bg-white rounded-lg shadow-xl max-w-2xl mx-auto my-8 p-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-start mb-4">
           <h3 className="text-xl font-semibold">{t('cookingPlan.pickerTitle', { meal: localizedName(meal, i18n.language), day: dayLabel })}</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-xl leading-none" aria-label={t('recipes.close')}>✕</button>
+          <button onClick={onClose} className="icon-btn text-xl hover:text-gray-700" aria-label={t('recipes.close')}><CloseGlyph /></button>
         </div>
 
         <div className="flex gap-6 border-b mb-4">
@@ -188,7 +189,7 @@ export default function RecipePicker({
                       <div className="flex items-center justify-between">
                         <h4>{heading}</h4>
                         {bucket === 'random' && (
-                          <button onClick={() => setSeed(Math.floor(Math.random() * 1e6))} className="text-sm text-blue-600 hover:underline">
+                          <button onClick={() => setSeed(Math.floor(Math.random() * 1e6))} className="text-sm text-eucalyptus-600 hover:underline">
                             ↻ {t('cookingPlan.reroll')}
                           </button>
                         )}

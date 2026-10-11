@@ -2,6 +2,7 @@
   "common": {
     "appName": "HUSEHOLD",
     "loading": "Loading...",
+    "menu": "Menu",
     "logout": "Log off",
     "editImage": "Edit Image",
     "systemSettings": "System Settings",
@@ -39,6 +40,10 @@
     "tasksPending_other": "{{count}} tasks pending",
     "viewAll": "View all →",
     "weekOverview": "This Week",
+    "dayEmpty": "Nothing planned",
+    "backToCurrentWeek": "Back to this week",
+    "prevWeek": "Previous week",
+    "nextWeek": "Next week",
     "welcome": "Welcome, {{name}}! Here's what's coming up in {{household}}.",
     "myOpenTasks": "My open household tasks",
     "noOpenTasks": "Nothing open — nice.",
@@ -67,7 +72,8 @@
     },
     "progress": {
       "title": "Progress this week",
-      "overall": "Overall"
+      "overall": "Overall",
+      "allDone": "Well done, all finished!"
     },
     "todaysMeals": {
       "title": "Today's meals",
@@ -86,7 +92,6 @@
     "noLists": "No shopping lists yet — create one above.",
     "emptyList": "Nothing on this list yet.",
     "uncategorized": "Uncategorized",
-    "listSettings": "List settings",
     "favoriteLabel": "Favorite list (the Cooking Plan will add ingredients here)",
     "deleteList": "Delete this list",
     "confirmDeleteList": "Delete the list \"{{name}}\" and all its items?",
@@ -108,7 +113,10 @@
     "reAdd": "Add again",
     "reAdded": "\"{{title}}\" added to \"{{list}}\".",
     "historyFor": "History of \"{{list}}\" — pick another list above to see its history.",
-    "editItem": "Edit item"
+    "editItem": "Edit item",
+    "editList": "Edit list",
+    "editFailed": "Could not save the list.",
+    "deleteFailed": "Could not delete the list."
   },
   "recipes": {
     "title": "Recipes",
@@ -116,7 +124,7 @@
     "cookTime": "Cook time: {{minutes}} min",
     "totalMinutes": "{{minutes}} min",
     "servings": "Servings: {{count}}",
-    "newButton": "New recipe",
+    "newButton": "Add recipe manually",
     "newTitle": "New recipe",
     "editTitle": "Edit recipe",
     "importButton": "Import recipe",
@@ -283,11 +291,10 @@
     "backlog": "Backlog — no day yet",
     "backlogEmpty": "Nothing here — drag a task in, or add one without a day.",
     "addSingleTask": "Add a single task",
+    "addManualTask": "Add task manually",
+    "cookMeal": "Cook {{meal}}",
     "formDay": "Day",
     "manageRecurringTasks": "Manage recurring tasks",
-    "configSave": "Save",
-    "configCancel": "Cancel",
-    "configSaveNote": "Changes above save immediately as you make them — Save and Cancel both just take you back to the calendar.",
     "memberColors": "Member colors",
     "recurringTasks": "Recurring tasks",
     "editRecurringTask": "Edit",
@@ -414,7 +421,8 @@
     "noHistory": "No redemptions logged yet.",
     "historyEntry": "{{amount}} used on {{date}} by {{name}} -- {{remaining}} left",
     "historyEntryNoValue": "Used on {{date}} by {{name}}",
-    "createdInfo": "Added {{date}} by {{name}}"
+    "createdInfo": "Added {{date}} by {{name}}",
+    "createFailed": "Could not save the voucher."
   },
   "packingLists": {
     "title": "Packing Lists",
@@ -522,7 +530,6 @@
     "householdName": "Household name",
     "timezone": "Timezone",
     "timezoneHint": "Used for \"today\"/\"overdue\" and, later, reminder times -- not necessarily the server's own timezone.",
-    "saved": "Saved",
     "notifications": "Notifications",
     "notificationType": "Type",
     "emailChannel": "Email",
@@ -550,7 +557,8 @@
     "testFailed": "Something went wrong.",
     "notificationLanguage": "Notification language",
     "notificationLanguageHint": "Applies to emails and push notifications, independent of the app language.",
-    "pushIosHint": "Push also arrives when the app is closed or you are logged out. On iPhone this only works if you add the page to the Home Screen, open it there, log in and enable push here."
+    "pushIosHint": "Push also arrives when the app is closed or you are logged out. On iPhone this only works if you add the page to the Home Screen, open it there, log in and enable push here.",
+    "householdSaveFailed": "Could not be saved."
   },
   "recipeConfig": {
     "title": "Recipes & Shopping Lists",
@@ -575,7 +583,6 @@
     "nameEn": "Name (English)",
     "abbreviationDe": "Abbrev. (DE)",
     "abbreviationEn": "Abbrev. (EN)",
-    "icon": "Icon",
     "categoryIcon": {
       "produce": "Fruit & Vegetables",
       "bakery": "Bakery",
@@ -655,7 +662,6 @@
     "uncookedDays": "Not cooked in a while (days)",
     "ratingWeight": "Weight of rating",
     "neglectWeight": "Weight of “not in a while”",
-    "saved": "Saved.",
     "failed": "Could not save. Please check the values."
   },
   "mealPlanning": {
@@ -675,5 +681,14 @@
     "review": "Review meal planning",
     "skip": "Skip",
     "continue": "Continue to household planning"
+  },
+  "iconPicker": {
+    "title": "Choose an icon",
+    "more": "More…",
+    "suggestions": "Suggestions",
+    "searchPlaceholder": "Search icons (e.g. car, baby, vacuum)",
+    "noMatch": "No icon found.",
+    "refine": "Showing {{shown}} of {{count}} icons – refine the search to see more.",
+    "change": "Change icon"
   }
 }

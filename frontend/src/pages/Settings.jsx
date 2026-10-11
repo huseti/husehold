@@ -40,7 +40,9 @@ export default function Settings() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [householdName, setHouseholdName] = useState('');
   const [timezoneValue, setTimezoneValue] = useState('Europe/Berlin');
-  const [saved, setSaved] = useState(false);
+  // Last server state, so an unchanged or emptied name doesn't trigger a save.
+  const [savedHousehold, setSavedHousehold] = useState({ household_name: '' });
+  const [householdError, setHouseholdError] = useState('');
   const timezoneOptions = getTimezoneOptions();
 
   const [preferences, setPreferences] = useState([]);
@@ -72,6 +74,7 @@ export default function Settings() {
 
   useEffect(() => {
     householdSettingsService.get().then((res) => {
+      setSavedHousehold(res.data);
       setHouseholdName(res.data.household_name);
       setTimezoneValue(res.data.timezone);
     });
@@ -232,11 +235,25 @@ export default function Settings() {
     localStorage.setItem('language', code);
   };
 
-  const handleSaveHouseholdSettings = async (e) => {
-    e.preventDefault();
-    await householdSettingsService.update({ household_name: householdName, timezone: timezoneValue });
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  // Autosave: the name saves when the field is left, the timezone as soon as it changes.
+  const saveHouseholdSetting = async (patch) => {
+    setHouseholdError('');
+    try {
+      const res = await householdSettingsService.update(patch);
+      setSavedHousehold(res.data);
+    } catch (error) {
+      console.error('Error saving household settings:', error);
+      setHouseholdError(t('settings.householdSaveFailed'));
+    }
+  };
+
+  const commitHouseholdName = () => {
+    const name = householdName.trim();
+    if (!name) {
+      setHouseholdName(savedHousehold.household_name);
+      return;
+    }
+    if (name !== savedHousehold.household_name) saveHouseholdSetting({ household_name: name });
   };
 
   return (
@@ -248,21 +265,24 @@ export default function Settings() {
 
         <div className="bg-white rounded-lg shadow p-6 mb-8">
           <h3 className="text-lg font-semibold mb-4">{t('settings.household')}</h3>
-          <form onSubmit={handleSaveHouseholdSettings} className="space-y-4">
+          <div className="space-y-4">
             <div>
               <label className="block text-xs text-gray-500 mb-1">{t('settings.householdName')}</label>
               <input
+                type="text"
                 value={householdName}
                 onChange={(e) => setHouseholdName(e.target.value)}
-                className="border rounded px-3 py-2 text-sm w-64"
+                onBlur={commitHouseholdName}
+                onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+                className="border rounded px-3 py-2 text-sm w-64 max-w-full"
               />
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-1">{t('settings.timezone')}</label>
               <select
                 value={timezoneValue}
-                onChange={(e) => setTimezoneValue(e.target.value)}
-                className="border rounded px-3 py-2 text-sm w-64"
+                onChange={(e) => { setTimezoneValue(e.target.value); saveHouseholdSetting({ timezone: e.target.value }); }}
+                className="border rounded px-3 py-2 text-sm w-64 max-w-full"
               >
                 {timezoneOptions.map((tz) => (
                   <option key={tz} value={tz}>{tz}</option>
@@ -270,27 +290,19 @@ export default function Settings() {
               </select>
               <p className="text-xs text-gray-400 mt-1">{t('settings.timezoneHint')}</p>
             </div>
-            <div className="flex items-center gap-2">
-              <button type="submit" className="btn-primary text-white px-4 py-2 rounded hover:btn-primary">
-                {t('weeklyPlanning.save')}
-              </button>
-              {saved && <span className="text-sm text-green-600">{t('settings.saved')}</span>}
-            </div>
-          </form>
+            {householdError && <p className="text-sm text-red-600">{householdError}</p>}
+          </div>
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-8">
           <h3 className="text-lg font-semibold mb-4">{t('settings.language')}</h3>
-          <div className="space-x-2">
+          <div className="flex flex-wrap gap-2">
             {LANGUAGES.map(({ code, labelKey }) => (
               <button
                 key={code}
                 onClick={() => handleLanguageChange(code)}
-                className={
-                  i18n.resolvedLanguage === code
-                    ? 'btn-primary'
-                    : 'btn-secondary'
-                }
+                aria-pressed={i18n.resolvedLanguage === code}
+                className={`px-4 py-2 rounded ${i18n.resolvedLanguage === code ? 'btn-primary' : 'btn-secondary'}`}
               >
                 {t(labelKey)}
               </button>
@@ -299,8 +311,8 @@ export default function Settings() {
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-8">
-          <h3 className="text-lg font-semibold mb-4">🌙 Dark Mode</h3>
-          <div className="space-x-2">
+          <h3 className="text-lg font-semibold mb-4">Dark Mode</h3>
+          <div className="flex flex-wrap gap-2">
             {[
               { value: 'light', label: '☀️ Light' },
               { value: 'dark', label: '🌙 Dark' },
@@ -309,7 +321,8 @@ export default function Settings() {
               <button
                 key={value}
                 onClick={() => handleThemeChange(value)}
-                className={theme === value ? 'btn-primary' : 'btn-secondary'}
+                aria-pressed={theme === value}
+                className={`px-4 py-2 rounded ${theme === value ? 'btn-primary' : 'btn-secondary'}`}
               >
                 {label}
               </button>

@@ -564,6 +564,7 @@ class CookingPlanEntryViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = CookingPlanEntry.objects.select_related(
             'recipe', 'meal_category', 'source_entry__recipe', 'task_instance__assigned_to__householdmember',
+            'source_entry__task_instance__assigned_to__householdmember',
         ).exclude(task_instance__status='skipped')
         start = parse_date(self.request.query_params.get('start') or '')
         end = parse_date(self.request.query_params.get('end') or '')

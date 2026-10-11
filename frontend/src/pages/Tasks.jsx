@@ -10,6 +10,7 @@ import CookRatingPrompt from '../components/CookRatingPrompt';
 import CookingStepModal from '../components/CookingStepModal';
 import GearIcon from '../components/icons/gearIcon';
 import { getWeekStart, toISODate, addDays, parseISODate } from '../utils/weekDates';
+import { BackArrow, NextArrow, PrevArrow } from '../components/icons/uiIcons';
 
 export default function Tasks() {
   const { t } = useTranslation();
@@ -214,26 +215,37 @@ export default function Tasks() {
             onClick={() => setMode('calendar')}
             className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800 mb-4"
           >
-            ← {t('common.back')}
+            <BackArrow /> {t('common.back')}
           </button>
         )}
 
         <div className="flex items-center justify-between mb-6 flex-wrap gap-2">
-          <h2 className="text-3xl font-bold">
-            {mode === 'planning' ? t('weeklyPlanning.title') : mode === 'config' ? t('tasks.configTitle') : t('tasks.title')}
-          </h2>
+          <div className="flex items-center gap-1">
+            <h2 className="text-3xl font-bold">
+              {mode === 'planning' ? t('weeklyPlanning.title') : mode === 'config' ? t('tasks.configTitle') : t('tasks.title')}
+            </h2>
+            {mode === 'calendar' && (
+              <button
+                onClick={() => setMode('config')}
+                className="text-gray-500 hover:text-gray-800 text-xl p-2"
+                title={t('common.configure')}
+                aria-label={t('common.configure')}
+              >
+                <GearIcon />
+              </button>
+            )}
+          </div>
 
           {mode === 'calendar' && (
-            <div className="flex items-center gap-2">
-              <button onClick={() => setWeekStart(addDays(weekStart, -7))} className="px-3 py-1 rounded btn-secondary hover:bg-gray-300">←</button>
+            <div className="flex flex-wrap items-center gap-2">
+              <button onClick={() => setWeekStart(addDays(weekStart, -7))} className="px-3 py-1 rounded btn-secondary hover:bg-gray-300"><PrevArrow /></button>
               <span className="text-sm text-gray-600">{toISODate(weekStart)} – {toISODate(weekEnd)}</span>
-              <button onClick={() => setWeekStart(addDays(weekStart, 7))} className="px-3 py-1 rounded btn-secondary hover:bg-gray-300">→</button>
+              <button onClick={() => setWeekStart(addDays(weekStart, 7))} className="px-3 py-1 rounded btn-secondary hover:bg-gray-300"><NextArrow /></button>
               <button
                 onClick={() => setShowAddSingle((v) => !v)}
-                className="ml-2 px-3 py-1 rounded bg-gray-800 text-white hover:bg-black"
-                title={t('tasks.addSingleTask')}
+                className="px-3 py-1 rounded btn-secondary hover:bg-gray-300"
               >
-                +
+                + {t('tasks.addManualTask')}
               </button>
               <button
                 onClick={handleStartPlanning}
@@ -243,26 +255,17 @@ export default function Tasks() {
               >
                 {t('weeklyPlanning.startNow')}
               </button>
-              <button
-                onClick={() => setMode('config')}
-                className="ml-1 text-gray-500 hover:text-gray-800 text-xl p-1"
-                title={t('common.configure')}
-                aria-label={t('common.configure')}
-              >
-                <GearIcon />
-              </button>
             </div>
           )}
 
           {mode === 'planning' && (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm text-gray-600">{toISODate(weekStart)} – {toISODate(weekEnd)}</span>
               <button
                 onClick={() => setShowAddSingle((v) => !v)}
-                className="ml-2 px-3 py-1 rounded bg-gray-800 text-white hover:bg-black"
-                title={t('tasks.addSingleTask')}
+                className="px-3 py-1 rounded btn-secondary hover:bg-gray-300"
               >
-                +
+                + {t('tasks.addManualTask')}
               </button>
               <button onClick={handleFinishPlanning} className="px-3 py-1 rounded btn-primary text-white dark:hover:bg-eucalyptus-600">
                 {t('weeklyPlanning.finish')}
@@ -277,21 +280,6 @@ export default function Tasks() {
         {mode === 'config' && (
           <>
             <TaskDefinitionForm members={members} definitions={definitions} onSaved={handleConfigSaved} />
-            <div className="flex gap-2">
-              <button
-                onClick={() => { handleConfigSaved(); setMode('calendar'); }}
-                className="px-4 py-2 rounded bg-gray-700 text-white hover:bg-gray-900"
-              >
-                {t('tasks.configSave')}
-              </button>
-              <button
-                onClick={() => setMode('calendar')}
-                className="px-4 py-2 rounded btn-secondary hover:bg-gray-300"
-              >
-                {t('tasks.configCancel')}
-              </button>
-            </div>
-            <p className="text-xs text-gray-400 mt-2">{t('tasks.configSaveNote')}</p>
           </>
         )}
 

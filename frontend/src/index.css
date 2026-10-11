@@ -2,6 +2,58 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Dark mode for components written light-only: most markup predates dark mode
+   and hard-codes light neutrals (bg-white, text-gray-700, ...). These remaps are plain
+   CSS (not @layer, which would register them as Tailwind classes and leak them
+   into dark: variants); :where() keeps them below any explicit dark:* class. */
+@layer base {
+  .dark { color-scheme: dark; }
+  .dark *, .dark ::before, .dark ::after { border-color: theme('colors.gray.700'); }
+  .dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+  .dark select,
+  .dark textarea {
+    background-color: theme('colors.gray.800');
+  }
+}
+
+:where(.dark) .bg-white { background-color: theme('colors.gray.800'); }
+:where(.dark) .bg-gray-50 { background-color: theme('colors.gray.900'); }
+:where(.dark) .bg-gray-100 { background-color: theme('colors.gray.700'); }
+:where(.dark) .bg-gray-200, :where(.dark) .bg-gray-300 { background-color: theme('colors.gray.600'); }
+:where(.dark) .hover\:bg-gray-50:hover,
+:where(.dark) .hover\:bg-gray-100:hover { background-color: theme('colors.gray.700'); }
+:where(.dark) .hover\:bg-gray-200:hover,
+:where(.dark) .hover\:bg-gray-300:hover { background-color: theme('colors.gray.600'); }
+
+:where(.dark) .text-gray-900, :where(.dark) .text-gray-800 { color: theme('colors.gray.100'); }
+:where(.dark) .text-gray-700 { color: theme('colors.gray.200'); }
+:where(.dark) .text-gray-600 { color: theme('colors.gray.300'); }
+:where(.dark) .text-gray-500 { color: theme('colors.gray.400'); }
+:where(.dark) .text-gray-300 { color: theme('colors.gray.600'); }
+:where(.dark) .hover\:text-gray-700:hover,
+:where(.dark) .hover\:text-gray-800:hover,
+:where(.dark) .hover\:text-gray-900:hover { color: theme('colors.gray.100'); }
+
+:where(.dark) .border-gray-100, :where(.dark) .border-gray-200 { border-color: theme('colors.gray.700'); }
+:where(.dark) .border-gray-300 { border-color: theme('colors.gray.600'); }
+:where(.dark) .border-gray-800 { border-color: theme('colors.gray.200'); }
+
+:where(.dark) .bg-red-50, :where(.dark) .hover\:bg-red-50:hover { background-color: rgb(127 29 29 / 0.35); }
+:where(.dark) .bg-red-100 { background-color: rgb(127 29 29 / 0.5); }
+:where(.dark) .bg-green-50 { background-color: rgb(20 83 45 / 0.35); }
+:where(.dark) .bg-purple-50 { background-color: rgb(88 28 135 / 0.35); }
+:where(.dark) .bg-amber-50 { background-color: rgb(120 53 15 / 0.35); }
+:where(.dark) .bg-eucalyptus-50, :where(.dark) .bg-eucalyptus-100 { background-color: rgb(6 78 59 / 0.35); }
+
+:where(.dark) .text-red-600, :where(.dark) .text-red-700 { color: theme('colors.red.400'); }
+:where(.dark) .text-green-600, :where(.dark) .text-green-700 { color: theme('colors.green.400'); }
+:where(.dark) .text-purple-600, :where(.dark) .text-purple-700, :where(.dark) .text-purple-800 { color: theme('colors.purple.300'); }
+:where(.dark) .text-amber-700, :where(.dark) .text-amber-800 { color: theme('colors.amber.300'); }
+:where(.dark) .text-orange-600, :where(.dark) .text-orange-700 { color: theme('colors.orange.300'); }
+:where(.dark) .text-yellow-700 { color: theme('colors.yellow.300'); }
+:where(.dark) .text-eucalyptus-700, :where(.dark) .text-eucalyptus-800, :where(.dark) .text-eucalyptus-900 { color: theme('colors.eucalyptus.300'); }
+:where(.dark) .text-eucalyptus-600 { color: theme('colors.eucalyptus.400'); }
+
 * {
   margin: 0;
   padding: 0;
@@ -31,14 +83,20 @@ h1, h2, h3, h4, h5, h6 {
   @apply bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow;
 }
 
-/* Button base styles: ensure min touch targets + responsive padding */
+/* Sizing/padding stays per button: a global height or padding here overrides
+   multi-line buttons (recipe cards) and pushes icon glyphs off-center. */
 button, [role="button"], .button {
-  @apply px-3 py-2 h-10 focus:outline-none focus:ring-2 focus:ring-eucalyptus-300 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-colors rounded inline-flex items-center justify-center flex-wrap;
+  @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-eucalyptus-300 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-800 transition-colors;
+}
+
+/* Small glyph-only actions (✎, ✕): round 36px tap target, glyph centered */
+.icon-btn {
+  @apply inline-flex items-center justify-center w-9 h-9 flex-shrink-0 rounded-full leading-none text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700;
 }
 
 /* Primary button: Eukalyptus */
 .btn-primary {
-  @apply bg-eucalyptus-300 text-gray-900 hover:bg-eucalyptus-400 dark:bg-eucalyptus-500 dark:text-white dark:hover:bg-eucalyptus-600;
+  @apply bg-eucalyptus-300 text-gray-900 hover:bg-eucalyptus-400 dark:bg-eucalyptus-700 dark:text-white dark:hover:bg-eucalyptus-600;
 }
 
 /* Secondary button: Gray */
@@ -51,8 +109,22 @@ button, [role="button"], .button {
   @apply bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900 dark:text-red-100 dark:hover:bg-red-800;
 }
 
+/* Fields have a built-in intrinsic width (~20 chars) that stops them shrinking in
+   flex rows and pushes sibling buttons off-screen on phones. Zero specificity, so
+   any min-w-* class still applies. */
+:where(input, select, textarea) {
+  min-width: 0;
+}
+
+:where(input[type="checkbox"], input[type="radio"], input[type="range"]) {
+  accent-color: theme('colors.eucalyptus.600');
+}
+
 /* Form input base styles: min touch target (40px) */
 input[type="text"],
+input[type="search"],
+input[type="url"],
+input[type="tel"],
 input[type="email"],
 input[type="password"],
 input[type="number"],

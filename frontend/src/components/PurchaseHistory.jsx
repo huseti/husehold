@@ -104,7 +104,7 @@ export default function PurchaseHistory({ units, listId, listName, onReAdd }) {
                 <span className="flex-1 min-w-32 font-medium">{entry.title}</span>
                 <span className="text-sm text-gray-600">{t('shoppingList.boughtTimes', { count: entry.count })}</span>
                 <span className="text-sm text-gray-400">{t('shoppingList.lastBought', { date: formatDate(entry.last_purchased) })}</span>
-                <button onClick={() => handleReAdd(entry)} className="text-sm text-blue-600 hover:underline">
+                <button onClick={() => handleReAdd(entry)} className="text-sm text-eucalyptus-600 hover:underline">
                   + {t('shoppingList.reAdd')}
                 </button>
               </div>

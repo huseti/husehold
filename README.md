@@ -5,7 +5,7 @@ A lightweight web application for managing household tasks, shopping lists, cook
 ## 🏗️ Architecture
 
 - **Backend**: Django 5.2 + Django REST Framework + SimpleJWT
-- **Frontend**: React 18 + Vite + Tailwind CSS
+- **Frontend**: React 18 + Vite + Tailwind CSS (default spacing/type scale, Eukalyptus palette, class-based dark mode), [Phosphor](https://phosphoricons.com) icons (MIT, "fill" weight)
 - **Database**: SQLite3
 - **Server**: Nginx + Gunicorn
 - **Deployment**: Raspberry Pi 3 (1GB RAM) — see [PLANNING.md](PLANNING.md) for the full domain model and phased build plan
@@ -90,12 +90,17 @@ Frontend runs at: `http://localhost:3000`
 - **Recipes**: structured ingredients (free-text entry, auto-created case-insensitively) with quantity/unit/note, servings scaling with kitchen-fraction rounding, meal types, labels, 1-5 star ratings per member (both scores + average shown), prep/cook time, source link, notes. Import recipes from: (1) **pasted text** (e.g. recipe from website caption), (2) **up to 3 photos** of cookbook pages (via Claude vision), (3) **URL** (tries JSON-LD first, falls back to Claude), (4) **social media video** (Instagram, TikTok, YouTube Shorts, etc. — downloads audio via `yt-dlp`, transcribes via Whisper, extracts recipe via Claude). All imports produce a reviewable draft before saving; photo limit, transcription quality, and extracting invalid URLs are all handled gracefully
 - **Cooking log**: "I cooked this" on a recipe records the date and servings (last-cooked / times-cooked are derived from the log), followed by a rate-after-cooking prompt; queryable by day or range for the upcoming Cooking Plan
 - **Bilingual config**: labels, meal types and units have a German name (required) and an English name (optional, falls back to German); ingredients are single-language free text. All editable under Settings
-- **Cooking Plan**: a weekly meal plan (lunch/dinner by default, configurable) -- edited on its own page, `/cooking-plan`. Dishes are picked from five suggestion buckets per meal type — *craving* (rating and "not cooked lately" combined), *best rated*, *not cooked in a while* (capped at a configurable count, default 10), *random picks*, *rest* — or by search/label; a **free dish** (no recipe -- ready meal, takeaway...) needs just a name; a dish can be re-planned as "leftovers of ..." (no task, no extra shopping) but only into a slot *after* the source dish (a later day, or a later meal the same day) -- enforced on create/edit and when dragging the cook task, and a snoozed dish carries its leftovers along by the same number of days. Cooking plan config's `default_excluded_from_shopping_list` per ingredient controls which staples start unticked in the shopping step. Planning is **step 1 of the weekly household planning** (a modal offers it first, with a status line and a skip) and is also driven by its own recurring **weekly meal planning** task ("Plan now" opens the plan for next week). "Finish plan" creates **one cook task per dish/free dish** in the household plan, where it is assigned and dragged like any task (moving/skipping/snoozing/deleting the task moves/removes the dish), then previews every remaining dish's shopping lines (untick dishes/ingredients, merges equal ingredient+unit) before returning to household planning. Ticking a cook task off logs the cooking (`MealEvent`, skipped for free dishes) and asks for a rating if the user has none yet and the dish has a recipe
+- **Cooking Plan**: a weekly meal plan (lunch/dinner by default, configurable) -- edited on its own page, `/cooking-plan`, laid out like the household plan (one column per day from laptop width, stacked on phones, the day's Google Calendar events on top); its config autosaves. Dishes are picked from five suggestion buckets per meal type — *craving* (rating and "not cooked lately" combined), *best rated*, *not cooked in a while* (capped at a configurable count, default 10), *random picks*, *rest* — or by search/label; a **free dish** (no recipe -- ready meal, takeaway...) needs just a name; a dish can be re-planned as "leftovers of ..." (no task, no extra shopping) but only into a slot *after* the source dish (a later day, or a later meal the same day) -- enforced on create/edit and when dragging the cook task, and a snoozed dish carries its leftovers along by the same number of days. Cooking plan config's `default_excluded_from_shopping_list` per ingredient controls which staples start unticked in the shopping step. Planning is **step 1 of the weekly household planning** (a modal offers it first, with a status line and a skip) and is also driven by its own recurring **weekly meal planning** task ("Plan now" opens the plan for next week). "Finish plan" creates **one cook task per dish/free dish** in the household plan, where it is assigned and dragged like any task (moving/skipping/snoozing/deleting the task moves/removes the dish), then previews every remaining dish's shopping lines (untick dishes/ingredients, merges equal ingredient+unit) before returning to household planning. Ticking a cook task off logs the cooking (`MealEvent`, skipped for free dishes) and asks for a rating if the user has none yet and the dish has a recipe
 - **Packing Lists**: organize items for trips (luggage, what to bring). A list has a start/end date and a set of trip participants; items are organized under optional reusable buckets ("Summer Kit", "Toiletries", ...). Each item optionally carries a quantity and is assignable to one household member (creating one row per person, e.g. "Schlafanzug - Tim" and "Schlafanzug - Eva" are separate items). A copy action lets you clone a previous trip's list into a new one with items unpacked. Integration with notifications: a "trip starting tomorrow" alert goes to that trip's own participants. Buckets are templates that can be added to any list (items are copied, so editing a bucket afterward doesn't change lists it was already added to)
 - **Analytics**: read-only overview of household activity — most-cooked dishes, most-bought ingredients, task completion rates, shopping frequency, and more. Powered by the existing audit fields on config changes (who changed what, when) without needing a separate audit table
-- **Dashboard**: welcome message, a KPI overview (shopping/recipes/meals/overdue tasks) with shortcuts, "my open household tasks" grouped by overdue/today/this-week followed by the rest of the household's overdue tasks in the same card, this week's completion progress (overall plus per member), today's planned meals with a one-click "mark cooked", and a read-only weekly preview
+- **Dashboard**: welcome message, a KPI overview (shopping/recipes/meals/overdue tasks/vouchers/trips, whole tile clickable) with shortcuts, "my open household tasks" grouped by overdue/today/this-week followed by the rest of the household's overdue tasks in the same card, this week's completion progress (overall plus per member, "Bravo, alles geschafft!" once everything is done), today's planned meals with the cook's avatar (leftovers: whoever cooks the original dish) and a one-click "mark cooked", and a weekly preview that can page through weeks (back-to-this-week button). On phones the panels reorder: open tasks, today's meals, progress, week, KPIs
+- **Avatars & member colors**: task icons take the assignee's color (gray when unassigned) and task cards/rows show a small avatar (photo, else initial on the member color, gray placeholder when unassigned)
+- **Icons**: tasks (recurring and one-off) and shopping categories offer a curated quick-pick plus "Weitere…" — a searchable picker over all ~1500 Phosphor icons (English names), loaded on demand
+- **Calendar overlay**: Google Calendar events show on every day they touch (all-day and multi-day timed events) in the dashboard week, the household plan and the cooking plan
+- **Dark mode**: Light/Dark/System in Settings; light-only markup is remapped centrally in `index.css`
 - **Account**: profile avatar (upload/preview/remove) via the navbar account menu, alongside Settings and Logout
-- **Settings**: household name and timezone (used for "today"/"overdue" comparisons, not the server's own timezone), language (German/English), notification preferences
+- **Settings**: household name and timezone (used for "today"/"overdue" comparisons, not the server's own timezone; both autosave), language (German/English), light/dark/system theme, notification preferences
+- **Popups for create/edit**: new vouchers, new/edit packing lists and editing a shopping list (name, favorite, delete) open as dialogs; the packing lists page opens the next/current trip automatically (else the latest past one, else the latest archived)
 - **Notifications**: email (SMTP) and Web Push, per-type/per-channel toggles, for tasks due today, weekly household planning due, weekly meal planning due and "Cooking today: <dish>" (goes to the assignee, or to the whole household while unassigned, from 08:00) — **each member picks their own notification language in Settings** (German by default, independent of the browser's app language), so a household can read email/push in two languages; delivered by a cron-driven management command, not a background daemon; test-email/test-push buttons in Settings for on-demand verification
 - **Vouchers**: track gift/store vouchers (monetary, redeemed down over time with a logged history) and non-monetary gifts (e.g. a dinner invitation, marked used in one go); soonest-expiring first, auto-archived once fully used or manually archived, with an "expiring soon" (next 6 months) indicator on each card and a household-overview count; inline editing (value/currency locked once a redemption has been logged)
 - **User Authentication**: JWT-based auth
@@ -153,14 +158,14 @@ Access at: `https://<pi-ip>` (self-signed cert — browser warns once per device
 - **ShoppingList** / **ShoppingListItem**: named lists (favorite flag, optional member visibility) and their items (quantity, unit, optional ingredient link, source)
 - **Recipe**: title, servings, times, source link, notes, meal-type and label M2Ms
 - **RecipeIngredient** / **Ingredient** / **UnitOfMeasure**: structured ingredient lines against a shared, case-insensitively unique ingredient catalogue and plain (non-converting) unit labels
-- **IngredientCategory**: shopping list category (e.g. "Produce", "Dairy", "Meat") — bilingual, icon, color, sort order; auto-categorized via a German dictionary (instant, free) or Claude Haiku fallback (optional API cost)
+- **IngredientCategory**: shopping list category (e.g. "Produce", "Dairy", "Meat") — bilingual, icon (curated key like `produce` or any Phosphor icon name like `Carrot`), color, sort order; auto-categorized via a German dictionary (instant, free) or Claude Haiku fallback (optional API cost)
 - **Label** / **MealTimeCategory**: bilingual (`name_de` required, `name_en` optional), seeded with editable starter sets
 - **PurchaseRecord**: one logged purchase — title/quantity/unit/list name snapshot, date, who ticked it off (~200 bytes each, well under 1 MB/year for two people)
 - **RecipeRating**: one 1-5 score per (recipe, member)
 - **MealEvent**: one logged cooking of a recipe — date, servings made, who logged it
 - **CookingPlanEntry**: one planned meal — date, meal type, kind (cook / leftovers / free), recipe (null for `free`, which has a plain `title` instead), servings; a cook/free entry owns one `HouseholdTaskInstance` (`system_action=cook_meal`) and, once cooked (recipe-backed only), a `MealEvent`
 - **CookingPlanConfig**: singleton — suggestion tuning and which meal types the plan shows
-- **HouseholdTaskDefinition**: recurring task template (RRULE recurrence, icon, assignment mode, optional system_action like the weekly planning reminder)
+- **HouseholdTaskDefinition**: recurring task template (RRULE recurrence, icon — curated key or Phosphor name, same for a one-off task's `standalone_icon` —, assignment mode, optional system_action like the weekly planning reminder)
 - **HouseholdTaskInstance**: one occurrence — either generated from a definition, or standalone (one-off, `definition=None`); tracks `occurrence_date` (immutable, what generation keys on) separately from `scheduled_date` (mutable, what dragging/postponing changes) to avoid regenerating duplicates
 - **HouseholdTaskEvent**: audit trail per instance (created/reassigned/snoozed/skipped/postponed/completed/reopened)
 - **NotificationPreference**: per-user, per-type email/push toggles
@@ -188,6 +193,26 @@ Access at: `https://<pi-ip>` (self-signed cert — browser warns once per device
 1. Create component in `frontend/src/pages/`
 2. Import in `frontend/src/App.jsx`
 3. Add route
+
+### UI conventions
+
+- **Tailwind scale**: default spacing and font sizes — don't override them in `tailwind.config.js` (a doubled scale once broke every component). Buttons get their size/padding from their own classes; the global `button` rule only sets the focus ring.
+- **Colors**: Eukalyptus for primary actions, links, selection and highlights (no blue/black selected states); `.btn-primary`/`.btn-secondary`/`.btn-danger`, `.icon-btn` (round 36px tap target for glyph-only actions).
+- **Dark mode**: write normal light classes; `index.css` remaps light neutrals/tints under `:where(.dark)` (plain CSS, not `@layer`, so explicit `dark:*` classes still win).
+- **Icons**: Phosphor, imported per icon (`@phosphor-icons/react/dist/csr/<Name>`) so only used icons are bundled; the full library (`utils/phosphorLibrary.js`) is a lazy chunk for the icon picker and picked icons. Curated sets live in `components/icons/` (`taskIcons`, `categoryIcons`, `uiIcons`, …); avatars via `MemberAvatar`.
+- After editing `tailwind.config.js`, restart `npm run dev` — Vite doesn't pick the config change up while running.
+
+### UI audit (screenshots + layout checks)
+
+`frontend/scripts/ui-audit.mjs` (Playwright) opens every page and the main dialogs at phone (390px) and laptop (1440px) width, saves full-page screenshots and reports text overflowing buttons, off-center icons, unpadded filled buttons, off-screen elements, horizontal scroll and low text contrast:
+
+```bash
+cd frontend
+npx playwright install chromium   # once
+node scripts/ui-audit.mjs <tokens.json> <outDir> [light|dark]
+```
+
+Both dev servers must be running. `tokens.json` is `{"access": "...", "refresh": "..."}` for a local user, e.g. minted with `RefreshToken.for_user(...)` in `python manage.py shell` (no password needed).
 
 ## 🐛 Debugging
 

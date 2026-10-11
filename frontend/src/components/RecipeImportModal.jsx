@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { recipeImportService } from '../services/api';
 import { resizeImageFile } from '../utils/imageResize';
+import { CloseGlyph } from './icons/uiIcons';
 
 const TABS = [
   { key: 'photo', labelKey: 'recipes.importTabPhoto' },
@@ -75,7 +76,7 @@ export default function RecipeImportModal({ onClose, onExtracted }) {
       <div className="bg-white rounded-lg shadow-xl max-w-xl mx-auto my-8 p-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-start mb-4">
           <h3 className="text-xl font-semibold">{t('recipes.importTitle')}</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-xl leading-none" aria-label={t('recipes.close')}>✕</button>
+          <button onClick={onClose} className="icon-btn text-xl hover:text-gray-700" aria-label={t('recipes.close')}><CloseGlyph /></button>
         </div>
 
         <div className="flex gap-4 border-b mb-4">
@@ -114,7 +115,7 @@ export default function RecipeImportModal({ onClose, onExtracted }) {
                       className="absolute -top-2 -right-2 bg-white border border-gray-300 rounded-full w-5 h-5 text-xs text-gray-500 hover:text-red-600 leading-none"
                       aria-label={t('recipes.removeLine')}
                     >
-                      ✕
+                      <CloseGlyph />
                     </button>
                   </div>
                 ))}

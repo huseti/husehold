@@ -3,7 +3,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'rec
 // A rate (0-1) over time as a line -- unlike TrendBarChart's counts, this
 // tracks a percentage, so the y-axis is fixed to [0, 1] rather than scaled
 // to the tallest point. Flat single color, no gradients.
-export default function TrendLineChart({ points, color = '#3b82f6', formatLabel, formatValue }) {
+export default function TrendLineChart({ points, color = '#059669', formatLabel, formatValue }) {
   if (points.length === 0) return null;
 
   return (

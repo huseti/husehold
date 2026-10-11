@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { shoppingListService, unitService, recipeService } from '../services/api';
 import { unitLabel } from '../utils/localized';
 import { mealName } from '../utils/taskDisplay';
+import { CloseGlyph } from './icons/uiIcons';
 
 // "Add ingredients to a shopping list": one block per dish (so each dish can
 // be skipped as a whole), one checkbox per ingredient (staples such as salt
@@ -84,7 +85,7 @@ export default function AddToShoppingDialog({ dishes: initialDishes, onClose, on
       <div className="bg-white rounded-lg shadow-xl max-w-xl mx-auto my-8 p-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-start mb-4">
           <h3 className="text-xl font-semibold">{t('shoppingDialog.title')}</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-xl leading-none" aria-label={t('recipes.close')}>✕</button>
+          <button onClick={onClose} className="icon-btn text-xl hover:text-gray-700" aria-label={t('recipes.close')}><CloseGlyph /></button>
         </div>
 
         {result ? (

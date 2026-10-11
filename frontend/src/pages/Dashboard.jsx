@@ -33,9 +33,14 @@ export default function Dashboard() {
   const [householdName, setHouseholdName] = useState('');
   const [calendarEvents, setCalendarEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  // Week shown in the "This week" preview, relative to the current week. Other
+  // weeks are fetched separately so KPIs/today's meals keep referring to now.
+  const [weekOffset, setWeekOffset] = useState(0);
+  const [otherWeek, setOtherWeek] = useState(null);
 
   const weekStart = getWeekStart(new Date());
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  const previewDays = weekDays.map((day) => addDays(day, 7 * weekOffset));
   const todayISO = toISODate(new Date());
 
   const loadData = useCallback(async () => {
@@ -76,6 +81,29 @@ export default function Dashboard() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    if (weekOffset === 0) {
+      setOtherWeek(null);
+      return undefined;
+    }
+    let cancelled = false;
+    const start = toISODate(addDays(weekStart, 7 * weekOffset));
+    const end = toISODate(addDays(weekStart, 7 * weekOffset + 6));
+    Promise.all([
+      taskInstanceService.getRange(start, end),
+      cookingPlanEntryService.getRange(start, end),
+      calendarEventService.getRange(start, end),
+    ]).then(([tasksRes, mealsRes, eventsRes]) => {
+      if (cancelled) return;
+      setOtherWeek({
+        instances: tasksRes.data.results || tasksRes.data || [],
+        meals: mealsRes.data.results || [],
+        events: eventsRes.data.results || [],
+      });
+    }).catch((error) => console.error('Error loading week:', error));
+    return () => { cancelled = true; };
+  }, [weekOffset]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleComplete = async (id) => {
     const response = await taskInstanceService.complete(id);
@@ -131,25 +159,41 @@ export default function Dashboard() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <Navbar />
 
-      <main className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8 space-y-6 md:space-y-8">
-        <h1 className="text-xl md:text-2xl font-bold">
+      {/* One flat grid so `order` can resequence panels on mobile (tasks, today's
+          meals, progress, week, KPIs) without changing the desktop layout. */}
+      <main className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8 grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+        <h1 className="order-first md:col-span-2 text-xl md:text-2xl font-bold">
           {t('dashboard.welcome', { name: currentUser?.first_name || currentUser?.username, household: householdName })}
         </h1>
 
-        <WeekPreview weekDays={weekDays} instances={tasks} meals={mealEntries} calendarEvents={calendarEvents} />
+        <div className="order-4 md:order-1 md:col-span-2">
+          <WeekPreview
+            weekDays={previewDays}
+            instances={weekOffset === 0 ? tasks : otherWeek?.instances || []}
+            meals={weekOffset === 0 ? mealEntries : otherWeek?.meals || []}
+            calendarEvents={weekOffset === 0 ? calendarEvents : otherWeek?.events || []}
+            isCurrentWeek={weekOffset === 0}
+            onPrev={() => setWeekOffset((o) => o - 1)}
+            onNext={() => setWeekOffset((o) => o + 1)}
+            onCurrent={() => setWeekOffset(0)}
+          />
+        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8">
+        <div className="order-1 md:order-2 [&>*]:h-full">
           <TasksPanel
             overdueTasks={overdueTasks}
             todayTasks={todayTasks}
             thisWeekTasks={thisWeekTasks}
             otherOverdueTasks={otherOverdueTasks}
+            members={members}
             onComplete={handleComplete}
             onSkip={handleSkip}
             onSnooze={handleSnooze}
             navigate={navigate}
           />
+        </div>
 
+        <div className="order-5 md:order-3">
           <OverviewPanel
             shoppingCount={incompleteShopping.length}
             recipeCount={recipeCount}
@@ -158,10 +202,14 @@ export default function Dashboard() {
             expiringVoucherCount={expiringVoucherCount}
             upcomingPackingListCount={upcomingPackingListCount}
           />
+        </div>
 
+        <div className="order-3 md:order-4 [&>*]:h-full">
           <ProgressPanel weekDone={weekDone} weekTotal={weekTotal} members={members} weekTasks={weekTasks} />
+        </div>
 
-          <TodaysMealsPanel meals={todaysMeals} onMarkCooked={handleComplete} />
+        <div className="order-2 md:order-5 [&>*]:h-full">
+          <TodaysMealsPanel meals={todaysMeals} members={members} onMarkCooked={handleComplete} />
         </div>
       </main>
       <CookRatingPrompt entry={ratingPromptEntry} onClose={() => setRatingPromptEntry(null)} />

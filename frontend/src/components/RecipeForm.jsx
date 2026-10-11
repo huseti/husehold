@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { parseIngredientLine } from '../utils/recipeDisplay';
 import { localizedName, unitLabel } from '../utils/localized';
+import { CloseGlyph } from './icons/uiIcons';
 
 const emptyLine = () => ({ quantity: '', unit: '', name: '', note: '' });
 
@@ -162,7 +163,7 @@ export default function RecipeForm({ recipe, draft, units, categories, labels, i
                 key={c.id}
                 type="button"
                 onClick={() => toggleId('categories', c.id)}
-                className={`px-3 py-1 rounded-full text-sm border ${form.categories.includes(c.id) ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-700 border-gray-300'}`}
+                className={`px-3 py-1 rounded-full text-sm border ${form.categories.includes(c.id) ? 'bg-eucalyptus-300 text-gray-900 border-eucalyptus-300 dark:bg-eucalyptus-700 dark:text-white dark:border-eucalyptus-500' : 'bg-white text-gray-700 border-gray-300'}`}
               >
                 {localizedName(c, i18n.language)}
               </button>
@@ -226,11 +227,11 @@ export default function RecipeForm({ recipe, draft, units, categories, labels, i
                 onChange={(e) => updateLine(index, 'note', e.target.value)}
                 className={`w-36 ${inputClass}`}
               />
-              <button type="button" onClick={() => removeLine(index)} className="text-gray-400 hover:text-red-600 px-1" aria-label={t('recipes.removeLine')}>✕</button>
+              <button type="button" onClick={() => removeLine(index)} className="icon-btn hover:text-red-600" aria-label={t('recipes.removeLine')}><CloseGlyph /></button>
             </div>
           ))}
         </div>
-        <button type="button" onClick={() => setForm((f) => ({ ...f, lines: [...f.lines, emptyLine()] }))} className="text-sm text-blue-600 mt-2">
+        <button type="button" onClick={() => setForm((f) => ({ ...f, lines: [...f.lines, emptyLine()] }))} className="text-sm text-eucalyptus-600 mt-2">
           + {t('recipes.addIngredient')}
         </button>
       </div>

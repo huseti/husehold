@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { taskDefinitionService, memberService } from '../services/api';
 import RecurrencePicker from './RecurrencePicker';
 import WeeklyPlanningConfig from './WeeklyPlanningConfig';
-import TaskIcon, { TASK_ICON_KEYS } from './icons/taskIcons';
+import TaskIcon from './icons/taskIcons';
+import TaskIconChooser from './TaskIconChooser';
 import { summarizeRecurrenceRule } from '../utils/recurrenceSummary';
 import { toISODate } from '../utils/weekDates';
 
@@ -155,7 +156,7 @@ export default function TaskDefinitionForm({ members, definitions, onSaved }) {
               <button
                 type="button"
                 onClick={() => handleEdit(d)}
-                className="text-xs text-blue-600 hover:text-blue-800"
+                className="text-xs text-eucalyptus-600 hover:text-eucalyptus-800"
               >
                 {t('tasks.editRecurringTask')}
               </button>
@@ -173,7 +174,7 @@ export default function TaskDefinitionForm({ members, definitions, onSaved }) {
 
         <form onSubmit={handleSubmit} className="space-y-3">
           {editingId && (
-            <p className="text-xs text-blue-700 bg-blue-50 rounded px-2 py-1">{t('tasks.nowEditing')}</p>
+            <p className="text-xs text-eucalyptus-700 bg-eucalyptus-50 rounded px-2 py-1">{t('tasks.nowEditing')}</p>
           )}
           <div className="flex gap-2 flex-wrap items-end">
             <div>
@@ -229,23 +230,7 @@ export default function TaskDefinitionForm({ members, definitions, onSaved }) {
 
           <div>
             <label className="block text-xs text-gray-500 mb-1">{t('tasks.formIcon')}</label>
-            <div className="flex gap-1 flex-wrap">
-              {TASK_ICON_KEYS.filter((key) => key !== 'calendar').map((key) => (
-                <button
-                  key={key}
-                  type="button"
-                  title={t(`tasks.icon.${key}`)}
-                  onClick={() => setForm({ ...form, icon: key })}
-                  className={`p-2 rounded border text-lg ${
-                    form.icon === key
-                      ? 'btn-primary text-white border-blue-500'
-                      : 'bg-white text-gray-600 border-gray-300'
-                  }`}
-                >
-                  <TaskIcon icon={key} />
-                </button>
-              ))}
-            </div>
+            <TaskIconChooser value={form.icon} onChange={(icon) => setForm((f) => ({ ...f, icon }))} />
           </div>
 
           <div>

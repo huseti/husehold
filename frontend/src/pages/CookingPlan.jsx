@@ -3,16 +3,19 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   cookingPlanEntryService, cookingPlanConfigService, mealCategoryService, labelService, recipeService,
-  taskInstanceService,
+  taskInstanceService, calendarEventService,
 } from '../services/api';
 import Navbar from '../components/Navbar';
 import CookingEntryCard from '../components/CookingEntryCard';
+import CalendarEventList from '../components/CalendarEventList';
+import { eventsOnDay } from '../utils/calendarEvents';
 import RecipePicker from '../components/RecipePicker';
 import AddToShoppingDialog from '../components/AddToShoppingDialog';
 import GearIcon from '../components/icons/gearIcon';
 import { localizedName } from '../utils/localized';
 import { slotKey } from '../utils/mealSlots';
 import { getWeekStart, toISODate, addDays, parseISODate } from '../utils/weekDates';
+import { NextArrow, PrevArrow } from '../components/icons/uiIcons';
 
 // The weekly meal plan. Two ways in besides the navbar:
 //  - the recurring "weekly meal planning" task's "Plan now" (planWeek + planInstance):
@@ -52,6 +55,7 @@ export default function CookingPlan() {
       : null
   ));
   const [entries, setEntries] = useState([]);
+  const [calendarEvents, setCalendarEvents] = useState([]);
   const [config, setConfig] = useState(null);
   const [meals, setMeals] = useState([]);
   const [labels, setLabels] = useState([]);
@@ -98,6 +102,14 @@ export default function CookingPlan() {
   useEffect(() => {
     loadEntries();
   }, [loadEntries]);
+
+  useEffect(() => {
+    let cancelled = false;
+    calendarEventService.getRange(rangeStart, rangeEnd)
+      .then((res) => { if (!cancelled) setCalendarEvents(res.data.results || []); })
+      .catch((error) => console.error('Error loading calendar events:', error));
+    return () => { cancelled = true; };
+  }, [rangeStart, rangeEnd]);
 
   const shownMeals = useMemo(() => {
     if (!config) return meals;
@@ -218,24 +230,10 @@ export default function CookingPlan() {
     <div className="min-h-screen bg-gray-50">
       <Navbar />
 
-      <main className="max-w-4xl mx-auto px-4 py-8">
+      <main className="max-w-7xl mx-auto px-4 py-8">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-          <h2 className="text-3xl font-bold">{t('cookingPlan.title')}</h2>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setWeekStart(thisWeekStart)}
-              disabled={toISODate(weekStart) === toISODate(thisWeekStart)}
-              className="px-3 py-1 rounded btn-secondary hover:bg-gray-300 disabled:opacity-40 disabled:cursor-not-allowed"
-            >←</button>
-            <span className="text-sm text-gray-600">{rangeLabel}</span>
-            <button
-              onClick={() => setWeekStart(nextWeekStart)}
-              disabled={toISODate(weekStart) === toISODate(nextWeekStart)}
-              className="px-3 py-1 rounded btn-secondary hover:bg-gray-300 disabled:opacity-40 disabled:cursor-not-allowed"
-            >→</button>
-            <button onClick={handleFinish} className="ml-2 btn-primary text-white px-4 py-2 rounded dark:hover:bg-eucalyptus-600">
-              {draftCount > 0 ? t('cookingPlan.finishWithCount', { count: draftCount }) : t('cookingPlan.finish')}
-            </button>
+          <div className="flex items-center gap-1">
+            <h2 className="text-3xl font-bold">{t('cookingPlan.title')}</h2>
             <Link
               to="/cooking-plan-config"
               className="text-gray-500 hover:text-gray-800 text-xl p-2"
@@ -244,6 +242,22 @@ export default function CookingPlan() {
             >
               <GearIcon />
             </Link>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setWeekStart(thisWeekStart)}
+              disabled={toISODate(weekStart) === toISODate(thisWeekStart)}
+              className="px-3 py-1 rounded btn-secondary hover:bg-gray-300 disabled:opacity-40 disabled:cursor-not-allowed"
+            ><PrevArrow /></button>
+            <span className="text-sm text-gray-600">{rangeLabel}</span>
+            <button
+              onClick={() => setWeekStart(nextWeekStart)}
+              disabled={toISODate(weekStart) === toISODate(nextWeekStart)}
+              className="px-3 py-1 rounded btn-secondary hover:bg-gray-300 disabled:opacity-40 disabled:cursor-not-allowed"
+            ><NextArrow /></button>
+            <button onClick={handleFinish} className="btn-primary text-white px-4 py-2 rounded dark:hover:bg-eucalyptus-600">
+              {draftCount > 0 ? t('cookingPlan.finishWithCount', { count: draftCount }) : t('cookingPlan.finish')}
+            </button>
           </div>
         </div>
 
@@ -265,24 +279,34 @@ export default function CookingPlan() {
         {notice && (
           <p className={`text-sm mb-4 ${notice.error ? 'text-red-600' : 'text-green-700'}`}>
             {notice.text}{' '}
-            {notice.showHouseholdLink && <Link to="/tasks" className="text-blue-600 hover:underline">{t('cookingPlan.toHouseholdPlan')}</Link>}
+            {notice.showHouseholdLink && <Link to="/tasks" className="text-eucalyptus-600 hover:underline">{t('cookingPlan.toHouseholdPlan')}</Link>}
           </p>
         )}
 
         {meals.length === 0 && <p className="text-gray-500">{t('cookingPlan.noMeals')}</p>}
 
-        <div className="space-y-4">
+        {/* Same week layout as the household plan: one column per day (stacked on
+            phones), the day's calendar events on top, then the planned meals. */}
+        <div className="grid grid-cols-1 lg:grid-cols-7 gap-3">
           {weekDays.map((iso) => {
+            const date = parseISODate(iso);
             const isToday = iso === toISODate(new Date());
             return (
-              <section key={iso} className={`bg-white rounded-lg shadow p-4 ${isToday ? 'ring-2 ring-blue-300' : ''}`}>
-                <h3 className="font-semibold mb-3">{dayLabel(iso)}</h3>
+              <section
+                key={iso}
+                className={`rounded-lg border bg-white p-2 min-w-0 ${isToday ? 'border-eucalyptus-400 ring-2 ring-eucalyptus-400' : 'border-gray-200'}`}
+              >
+                <h3 className="text-sm font-semibold mb-2 text-gray-900">
+                  {date.toLocaleDateString(i18n.language, { weekday: 'short' })}{' '}
+                  <span className="text-gray-400 font-normal">{date.toLocaleDateString(i18n.language, { day: 'numeric', month: 'short' })}</span>
+                </h3>
+                <CalendarEventList events={eventsOnDay(calendarEvents, iso)} className="mb-3" />
                 <div className="space-y-3">
                   {shownMeals.map((meal) => {
                     const cell = entries.filter((e) => e.date === iso && e.meal_category === meal.id);
                     return (
-                      <div key={meal.id} className="grid grid-cols-1 sm:grid-cols-[8rem_1fr] gap-2">
-                        <div className="text-sm text-gray-500 pt-1">{localizedName(meal, i18n.language)}</div>
+                      <div key={meal.id}>
+                        <div className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">{localizedName(meal, i18n.language)}</div>
                         <div className="space-y-2">
                           {cell.map((entry) => (
                             <CookingEntryCard
@@ -298,7 +322,7 @@ export default function CookingPlan() {
                           ))}
                           <button
                             onClick={() => setPicker({ date: iso, meal })}
-                            className="text-sm text-blue-600 hover:underline"
+                            className="w-full text-left text-sm text-eucalyptus-600 rounded border border-dashed border-gray-300 px-2 py-1 hover:bg-eucalyptus-50 hover:border-eucalyptus-300"
                           >
                             + {t('cookingPlan.addDish')}
                           </button>

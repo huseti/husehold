@@ -8,6 +8,9 @@ import RankedList from '../components/charts/RankedList';
 import PieChart from '../components/charts/PieChart';
 import { analyticsService } from '../services/api';
 
+// eucalyptus-600, one color for every single-series chart
+const CHART_COLOR = '#059669';
+
 // Same period convention as PurchaseHistory (shoppingList.period.* strings) --
 // consistent with the rest of the app rather than a bespoke set of labels.
 const PERIODS = [
@@ -101,7 +104,7 @@ export default function Analytics() {
                   {data.tasks.on_time_trend.length > 0 ? (
                     <TrendLineChart
                       points={data.tasks.on_time_trend.map((p) => ({ bucket: p.bucket, value: p.rate }))}
-                      color="#3b82f6"
+                      color={CHART_COLOR}
                       formatLabel={formatBucket}
                       formatValue={(v) => `${Math.round(v * 100)}%`}
                     />
@@ -119,14 +122,14 @@ export default function Analytics() {
                     <RankedList
                       items={data.meals.top_recipes.map((r) => ({ label: r.title, value: r.count }))}
                       valueLabel={(v) => t('analytics.meals.timesCooked', { count: v })}
-                      color="#10b981"
+                      color={CHART_COLOR}
                     />
                   ) : <p className="text-gray-400 text-sm">{t('analytics.noData')}</p>}
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-600 mb-2">{t('analytics.meals.trend')}</p>
                   {data.meals.trend.length > 0 ? (
-                    <TrendBarChart points={data.meals.trend} color="#10b981" formatLabel={formatBucket} formatValue={(v) => t('analytics.meals.timesCooked', { count: v })} />
+                    <TrendBarChart points={data.meals.trend.map((p) => ({ bucket: p.bucket, value: p.count }))} color={CHART_COLOR} formatLabel={formatBucket} formatValue={(v) => t('analytics.meals.timesCooked', { count: v })} />
                   ) : <p className="text-gray-400 text-sm">{t('analytics.noData')}</p>}
                 </div>
               </div>
@@ -141,14 +144,14 @@ export default function Analytics() {
                     <RankedList
                       items={data.purchases.top_items.map((i) => ({ label: i.title, value: i.count }))}
                       valueLabel={(v) => t('analytics.purchases.timesBought', { count: v })}
-                      color="#059669"
+                      color={CHART_COLOR}
                     />
                   ) : <p className="text-gray-400 text-sm">{t('analytics.noData')}</p>}
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-600 mb-2">{t('analytics.purchases.trend')}</p>
                   {data.purchases.trend.length > 0 ? (
-                    <TrendBarChart points={data.purchases.trend} color="#059669" formatLabel={formatBucket} formatValue={(v) => t('analytics.purchases.timesBought', { count: v })} />
+                    <TrendBarChart points={data.purchases.trend.map((p) => ({ bucket: p.bucket, value: p.count }))} color={CHART_COLOR} formatLabel={formatBucket} formatValue={(v) => t('analytics.purchases.timesBought', { count: v })} />
                   ) : <p className="text-gray-400 text-sm">{t('analytics.noData')}</p>}
                 </div>
               </div>
@@ -176,7 +179,7 @@ export default function Analytics() {
                       points={data.vouchers.trend.map((pt) => ({
                         bucket: pt.bucket, value: pt.totals.find((tt) => tt.currency === currency)?.total || 0,
                       }))}
-                      color="#047857"
+                      color={CHART_COLOR}
                       formatLabel={formatBucket}
                       formatValue={(v) => `${v.toFixed(2)} ${currency}`}
                     />

@@ -1,10 +1,17 @@
-﻿from django.core.validators import MaxValueValidator, MinValueValidator
+﻿from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
 from django.db import models
 from django.db.models.functions import Lower
 from django.contrib.auth.models import User
 from django.utils import timezone
 
 from .mixins import AuditableMixin
+
+# Task/category icons: either a curated key ("cleaning", "produce") or any
+# Phosphor icon name ("Vacuum") picked in the UI; the frontend renders unknown
+# names with a fallback icon, so only the shape is checked here.
+icon_name_validator = RegexValidator(
+    r'^[A-Za-z][A-Za-z0-9]*$', 'Icon must be a curated key or a Phosphor icon name.',
+)
 
 class HouseholdMember(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
@@ -62,15 +69,10 @@ class IngredientCategory(AuditableMixin):
     ...) -- sort_order mirrors how a typical supermarket is laid out, so the
     shopping list can walk the store in one pass instead of back and forth.
     See services/ingredient_categorization.py for how items land in one."""
-    ICON_CHOICES = [
-        ('produce', 'Produce'), ('bakery', 'Bakery'), ('dairy', 'Dairy'), ('meat', 'Meat'),
-        ('frozen', 'Frozen'), ('pantry', 'Pantry'), ('spices', 'Spices'), ('drinks', 'Drinks'),
-        ('sweets', 'Sweets'), ('household', 'Household'), ('other', 'Other'),
-    ]
     name_de = models.CharField(max_length=50)
     name_en = models.CharField(max_length=50, blank=True)
     sort_order = models.PositiveIntegerField(default=0)
-    icon = models.CharField(max_length=20, choices=ICON_CHOICES, default='other')
+    icon = models.CharField(max_length=50, validators=[icon_name_validator], default='other')
     color_hex = models.CharField(max_length=7, default='#9e9e9e')
 
     class Meta:
@@ -399,26 +401,6 @@ class HouseholdTaskDefinition(AuditableMixin):
         ('cook_meal', 'Cook a planned meal'),
     ]
 
-    # Flat, single-color icon set for the weekly view -- keep additions in
-    # this same style (simple silhouette, no gradients/multi-color) rather
-    # than mixing icon styles.
-    ICON_CHOICES = [
-        ('cleaning', 'Cleaning'),
-        ('trash', 'Trash'),
-        ('coffee', 'Coffee'),
-        ('laundry', 'Laundry'),
-        ('dishes', 'Dishes'),
-        ('vacuum', 'Vacuum'),
-        ('shopping', 'Shopping'),
-        ('plant', 'Plant'),
-        ('pet', 'Pet'),
-        ('tool', 'Repair'),
-        ('bed', 'Bed'),
-        ('calendar', 'Calendar'),
-        ('cooking', 'Cooking'),
-        ('other', 'Other'),
-    ]
-
     ASSIGNMENT_MODE_CHOICES = [
         ('fixed', 'Fixed member'),
         ('alternating', 'Alternate between members'),
@@ -427,7 +409,7 @@ class HouseholdTaskDefinition(AuditableMixin):
 
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)
-    icon = models.CharField(max_length=20, choices=ICON_CHOICES, default='other')
+    icon = models.CharField(max_length=50, validators=[icon_name_validator], default='other')
     starts_on = models.DateField(help_text="Anchor date the recurrence rule is expanded from.")
     recurrence_rule = models.CharField(
         max_length=500,
@@ -470,7 +452,7 @@ class HouseholdTaskInstance(models.Model):
         HouseholdTaskDefinition, on_delete=models.CASCADE, null=True, blank=True, related_name='instances',
     )
     standalone_title = models.CharField(max_length=200, blank=True)
-    standalone_icon = models.CharField(max_length=20, choices=HouseholdTaskDefinition.ICON_CHOICES, blank=True)
+    standalone_icon = models.CharField(max_length=50, validators=[icon_name_validator], blank=True)
     # Copied from definition.system_action at creation time (by generation
     # or by the snooze copy below) rather than looked up live through
     # definition -- a snooze copy has definition=None, so without its own

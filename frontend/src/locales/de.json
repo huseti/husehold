@@ -2,6 +2,7 @@
   "common": {
     "appName": "HUSEHOLD",
     "loading": "Wird geladen...",
+    "menu": "Menü",
     "logout": "Abmelden",
     "editImage": "Bild bearbeiten",
     "systemSettings": "Systemeinstellungen",
@@ -39,6 +40,10 @@
     "tasksPending_other": "{{count}} offene Aufgaben",
     "viewAll": "Alle anzeigen →",
     "weekOverview": "Diese Woche",
+    "dayEmpty": "Nichts geplant",
+    "backToCurrentWeek": "Zur aktuellen Woche",
+    "prevWeek": "Vorherige Woche",
+    "nextWeek": "Nächste Woche",
     "welcome": "Willkommen, {{name}}! Das steht in {{household}} an.",
     "myOpenTasks": "Meine offenen Haushaltsaufgaben",
     "noOpenTasks": "Nichts offen — sehr gut.",
@@ -67,7 +72,8 @@
     },
     "progress": {
       "title": "Fortschritt diese Woche",
-      "overall": "Gesamt"
+      "overall": "Gesamt",
+      "allDone": "Bravo, alles geschafft!"
     },
     "todaysMeals": {
       "title": "Heutige Mahlzeiten",
@@ -86,7 +92,6 @@
     "noLists": "Noch keine Einkaufslisten — leg oben eine an.",
     "emptyList": "Diese Liste ist noch leer.",
     "uncategorized": "Nicht zugeordnet",
-    "listSettings": "Listeneinstellungen",
     "favoriteLabel": "Lieblingsliste (der Kochplan legt Zutaten hier ab)",
     "deleteList": "Diese Liste löschen",
     "confirmDeleteList": "Die Liste \"{{name}}\" und alle Artikel darin löschen?",
@@ -108,7 +113,10 @@
     "reAdd": "Erneut hinzufügen",
     "reAdded": "„{{title}}“ zu „{{list}}“ hinzugefügt.",
     "historyFor": "Verlauf von „{{list}}“ — wähle oben eine andere Liste, um deren Verlauf zu sehen.",
-    "editItem": "Artikel bearbeiten"
+    "editItem": "Artikel bearbeiten",
+    "editList": "Liste bearbeiten",
+    "editFailed": "Liste konnte nicht gespeichert werden.",
+    "deleteFailed": "Liste konnte nicht gelöscht werden."
   },
   "recipes": {
     "title": "Rezepte",
@@ -116,7 +124,7 @@
     "cookTime": "Kochzeit: {{minutes}} Min.",
     "totalMinutes": "{{minutes}} Min.",
     "servings": "Portionen: {{count}}",
-    "newButton": "Neues Rezept",
+    "newButton": "Rezept manuell anlegen",
     "newTitle": "Neues Rezept",
     "editTitle": "Rezept bearbeiten",
     "importButton": "Rezept importieren",
@@ -283,11 +291,10 @@
     "backlog": "Backlog — noch kein Tag",
     "backlogEmpty": "Nichts hier — ziehe eine Aufgabe hierher oder füge eine ohne Tag hinzu.",
     "addSingleTask": "Einzelne Aufgabe hinzufügen",
+    "addManualTask": "Aufgabe manuell hinzufügen",
+    "cookMeal": "{{meal}} kochen",
     "formDay": "Tag",
     "manageRecurringTasks": "Wiederkehrende Aufgaben verwalten",
-    "configSave": "Speichern",
-    "configCancel": "Abbrechen",
-    "configSaveNote": "Änderungen oben werden sofort gespeichert — Speichern und Abbrechen bringen dich beide zurück zum Kalender.",
     "memberColors": "Mitgliederfarben",
     "recurringTasks": "Wiederkehrende Aufgaben",
     "editRecurringTask": "Bearbeiten",
@@ -414,7 +421,8 @@
     "noHistory": "Noch keine Einlösungen protokolliert.",
     "historyEntry": "{{amount}} verwendet am {{date}} von {{name}} -- {{remaining}} übrig",
     "historyEntryNoValue": "Benutzt am {{date}} von {{name}}",
-    "createdInfo": "Hinzugefügt am {{date}} von {{name}}"
+    "createdInfo": "Hinzugefügt am {{date}} von {{name}}",
+    "createFailed": "Gutschein konnte nicht gespeichert werden."
   },
   "packingLists": {
     "title": "Packlisten",
@@ -522,7 +530,6 @@
     "householdName": "Name des Haushalts",
     "timezone": "Zeitzone",
     "timezoneHint": "Wird für \"heute\"/\"überfällig\" und später für Erinnerungszeiten verwendet — nicht zwingend die Zeitzone des Servers.",
-    "saved": "Gespeichert",
     "notifications": "Benachrichtigungen",
     "notificationType": "Art",
     "emailChannel": "E-Mail",
@@ -550,7 +557,8 @@
     "testFailed": "Etwas ist schiefgelaufen.",
     "notificationLanguage": "Sprache der Benachrichtigungen",
     "notificationLanguageHint": "Gilt für E-Mails und Push-Benachrichtigungen, unabhängig von der Sprache der App.",
-    "pushIosHint": "Push kommt auch an, wenn die App geschlossen ist oder du nicht eingeloggt bist. Auf dem iPhone geht das nur, wenn du die Seite zum Home-Bildschirm hinzufügst, sie dort öffnest, dich einloggst und Push hier aktivierst."
+    "pushIosHint": "Push kommt auch an, wenn die App geschlossen ist oder du nicht eingeloggt bist. Auf dem iPhone geht das nur, wenn du die Seite zum Home-Bildschirm hinzufügst, sie dort öffnest, dich einloggst und Push hier aktivierst.",
+    "householdSaveFailed": "Konnte nicht gespeichert werden."
   },
   "recipeConfig": {
     "title": "Rezepte & Einkaufslisten",
@@ -575,7 +583,6 @@
     "nameEn": "Name (Englisch)",
     "abbreviationDe": "Kürzel (DE)",
     "abbreviationEn": "Kürzel (EN)",
-    "icon": "Symbol",
     "categoryIcon": {
       "produce": "Obst & Gemüse",
       "bakery": "Backwaren",
@@ -655,7 +662,6 @@
     "uncookedDays": "Lange nicht gekocht (Tage)",
     "ratingWeight": "Gewicht Bewertung",
     "neglectWeight": "Gewicht „lange nicht“",
-    "saved": "Gespeichert.",
     "failed": "Speichern fehlgeschlagen. Bitte Werte prüfen."
   },
   "mealPlanning": {
@@ -675,5 +681,14 @@
     "review": "Kochplanung ansehen",
     "skip": "Überspringen",
     "continue": "Weiter zur Haushaltsplanung"
+  },
+  "iconPicker": {
+    "title": "Icon auswählen",
+    "more": "Weitere…",
+    "suggestions": "Vorschläge",
+    "searchPlaceholder": "Icon suchen (englische Begriffe, z. B. car, baby, vacuum)",
+    "noMatch": "Kein Icon gefunden.",
+    "refine": "Zeige {{shown}} von {{count}} Icons – Suche verfeinern für mehr.",
+    "change": "Icon ändern"
   }
 }

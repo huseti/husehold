@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CloseGlyph } from './icons/uiIcons';
 
 // One modal for creating, copying, and editing a packing list -- name/dates/
 // participants are mandatory but don't fit a one-line form, so nothing
@@ -74,7 +75,7 @@ export default function PackingListFormModal({
       <div className="bg-white rounded-lg shadow-xl max-w-md mx-auto my-8 p-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-start mb-4">
           <h3 className="text-xl font-semibold">{t(`packingLists.${title}`)}</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-xl leading-none" aria-label={t('recipes.close')}>✕</button>
+          <button onClick={onClose} className="icon-btn text-xl hover:text-gray-700" aria-label={t('recipes.close')}><CloseGlyph /></button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -131,7 +132,7 @@ export default function PackingListFormModal({
             <button
               type="submit"
               disabled={busy || !canSubmit}
-              className="btn-primary text-white px-4 py-2 rounded hover:bg-amber-600 disabled:opacity-50"
+              className="btn-primary text-white px-4 py-2 rounded disabled:opacity-50"
             >
               {submitLabel ? t(`packingLists.${submitLabel}`) : t('recipes.save')}
             </button>

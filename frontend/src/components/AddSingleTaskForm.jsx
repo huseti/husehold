@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { taskInstanceService } from '../services/api';
-import TaskIcon, { TASK_ICON_KEYS } from './icons/taskIcons';
+import TaskIconChooser from './TaskIconChooser';
 import { toISODate } from '../utils/weekDates';
 
 export default function AddSingleTaskForm({ weekDays, members, onClose, onAdded }) {
@@ -26,7 +26,7 @@ export default function AddSingleTaskForm({ weekDays, members, onClose, onAdded 
   };
 
   return (
-    <div className="bg-white rounded-lg shadow p-4 mb-4 border border-blue-200">
+    <div className="bg-white rounded-lg shadow p-4 mb-4 border border-eucalyptus-200">
       <h3 className="font-semibold mb-2">{t('tasks.addSingleTask')}</h3>
       <form onSubmit={handleSubmit} className="space-y-3">
         <div>
@@ -72,21 +72,7 @@ export default function AddSingleTaskForm({ weekDays, members, onClose, onAdded 
 
         <div>
           <label className="block text-xs text-gray-500 mb-1">{t('tasks.formIcon')}</label>
-          <div className="flex gap-1 flex-wrap">
-            {TASK_ICON_KEYS.filter((key) => key !== 'calendar').map((key) => (
-              <button
-                key={key}
-                type="button"
-                title={t(`tasks.icon.${key}`)}
-                onClick={() => setIcon(key)}
-                className={`p-2 rounded border text-lg ${
-                  icon === key ? 'btn-primary text-white border-blue-500' : 'bg-white text-gray-600 border-gray-300'
-                }`}
-              >
-                <TaskIcon icon={key} />
-              </button>
-            ))}
-          </div>
+          <TaskIconChooser value={icon} onChange={setIcon} />
         </div>
 
         <div className="flex gap-2">

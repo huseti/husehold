@@ -2,7 +2,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recha
 
 // Single-series value-over-time bar chart (meals/week, purchases/week,
 // redeemed voucher value/week). Flat single color, no gradients.
-export default function TrendBarChart({ points, color = '#3b82f6', formatLabel, formatValue }) {
+export default function TrendBarChart({ points, color = '#059669', formatLabel, formatValue }) {
   if (points.length === 0) return null;
 
   return (
@@ -21,7 +21,7 @@ export default function TrendBarChart({ points, color = '#3b82f6', formatLabel, 
           labelFormatter={formatLabel}
           formatter={(value) => [formatValue ? formatValue(value) : value, '']}
         />
-        <Bar dataKey="value" fill={color} radius={[4, 4, 0, 0]} />
+        <Bar dataKey="value" fill={color} radius={[4, 4, 0, 0]} maxBarSize={48} />
       </BarChart>
     </ResponsiveContainer>
   );

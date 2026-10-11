@@ -1,6 +1,7 @@
 import { useDroppable } from '@dnd-kit/core';
 import { useTranslation } from 'react-i18next';
 import TaskCard from './TaskCard';
+import CalendarEventList from './CalendarEventList';
 
 export default function TaskDayColumn({
   date, dateISO, instances, members, onComplete, onSkip, onSnooze, onReassign, onReopen, onDelete,
@@ -15,24 +16,12 @@ export default function TaskDayColumn({
   return (
     <div
       ref={setNodeRef}
-      className={`rounded-lg border p-2 min-h-[200px] ${isOver ? 'bg-blue-50 border-blue-300' : 'bg-white border-gray-200'}`}
+      className={`rounded-lg border p-2 min-h-[80px] md:min-h-[200px] ${isOver ? 'bg-eucalyptus-50 border-eucalyptus-300' : 'bg-white border-gray-200'}`}
     >
       <div className="text-sm font-semibold mb-2">
         {weekdayLabel} <span className="text-gray-400 font-normal">{dayLabel}</span>
       </div>
-      {calendarEvents.length > 0 && (
-        <div className="space-y-0.5 mb-2">
-          {calendarEvents.map((event) => (
-            <div
-              key={event.id}
-              className="text-xs text-amber-800 bg-amber-50 rounded px-1.5 py-0.5 truncate border-l-2"
-              style={{ borderColor: event.color_hex || '#d97706' }}
-            >
-              {event.title}
-            </div>
-          ))}
-        </div>
-      )}
+      <CalendarEventList events={calendarEvents} />
       <div className="space-y-2">
         {instances.length === 0 && (
           <p className="text-xs text-gray-400">{t('tasks.noTasks')}</p>

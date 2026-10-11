@@ -11,6 +11,7 @@ import RecipeDetail from '../components/RecipeDetail';
 import AddToShoppingDialog from '../components/AddToShoppingDialog';
 import RecipeImportModal from '../components/RecipeImportModal';
 import GearIcon from '../components/icons/gearIcon';
+import { SearchIcon, FilterIcon } from '../components/icons/searchIcons';
 import { localizedName } from '../utils/localized';
 
 export default function Recipes() {
@@ -149,21 +150,9 @@ export default function Recipes() {
       <Navbar />
 
       <main className="max-w-4xl mx-auto px-4 py-8">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-3xl font-bold">{t('recipes.title')}</h2>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setMode({ type: 'edit', recipe: null })}
-              className="btn-primary text-white px-4 py-2 rounded dark:hover:bg-eucalyptus-600"
-            >
-              + {t('recipes.newButton')}
-            </button>
-            <button
-              onClick={() => setShowImportModal(true)}
-              className="btn-secondary text-gray-700 px-4 py-2 rounded hover:bg-gray-300"
-            >
-              {t('recipes.importButton')}
-            </button>
+        <div className="flex flex-wrap justify-between items-center gap-3 mb-6">
+          <div className="flex items-center gap-1">
+            <h2 className="text-3xl font-bold">{t('recipes.title')}</h2>
             <Link
               to="/recipe-shopping-config"
               className="text-gray-500 hover:text-gray-800 text-xl p-2"
@@ -173,24 +162,41 @@ export default function Recipes() {
               <GearIcon />
             </Link>
           </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button onClick={() => setShowImportModal(true)} className="btn-primary px-4 py-2 rounded">
+              + {t('recipes.importButton')}
+            </button>
+            <button onClick={() => setMode({ type: 'edit', recipe: null })} className="btn-primary px-4 py-2 rounded">
+              + {t('recipes.newButton')}
+            </button>
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-3 mb-6">
-          <input
-            type="search"
-            placeholder={t('recipes.searchPlaceholder')}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="flex-1 min-w-48 px-4 py-2 border border-gray-300 rounded-lg"
-          />
-          <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-lg">
-            <option value="">{t('recipes.allCategories')}</option>
-            {categories.map((c) => <option key={c.id} value={c.id}>{localizedName(c, i18n.language)}</option>)}
-          </select>
-          <select value={labelFilter} onChange={(e) => setLabelFilter(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-lg">
-            <option value="">{t('recipes.allLabels')}</option>
-            {labels.map((l) => <option key={l.id} value={l.id}>{localizedName(l, i18n.language)}</option>)}
-          </select>
+          <div className="relative flex-1 min-w-48">
+            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-lg text-eucalyptus-600 pointer-events-none" />
+            <input
+              type="search"
+              placeholder={t('recipes.searchPlaceholder')}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg"
+            />
+          </div>
+          <div className="relative">
+            <FilterIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-eucalyptus-600 pointer-events-none" />
+            <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="pl-9 pr-3 py-2 border border-gray-300 rounded-lg">
+              <option value="">{t('recipes.allCategories')}</option>
+              {categories.map((c) => <option key={c.id} value={c.id}>{localizedName(c, i18n.language)}</option>)}
+            </select>
+          </div>
+          <div className="relative">
+            <FilterIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-eucalyptus-600 pointer-events-none" />
+            <select value={labelFilter} onChange={(e) => setLabelFilter(e.target.value)} className="pl-9 pr-3 py-2 border border-gray-300 rounded-lg">
+              <option value="">{t('recipes.allLabels')}</option>
+              {labels.map((l) => <option key={l.id} value={l.id}>{localizedName(l, i18n.language)}</option>)}
+            </select>
+          </div>
         </div>
 
         {filtered.length === 0 && (

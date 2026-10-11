@@ -5,6 +5,7 @@ import { packingBucketService, packingBucketItemService, memberService } from '.
 import Navbar from '../components/Navbar';
 import AssigneeCheckboxes from '../components/AssigneeCheckboxes';
 import AssigneeSelect from '../components/AssigneeSelect';
+import { BackArrow, CloseGlyph, EditGlyph } from '../components/icons/uiIcons';
 
 function errorMessage(error) {
   const data = error.response?.data;
@@ -160,7 +161,7 @@ export default function PackingBuckets() {
 
       <main className="max-w-4xl mx-auto px-4 py-8">
         <Link to="/packing-lists" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800 mb-4">
-          ← {t('packingBuckets.backToLists')}
+          <BackArrow /> {t('packingBuckets.backToLists')}
         </Link>
         <h2 className="text-3xl font-bold mb-2">{t('packingBuckets.title')}</h2>
         <p className="text-sm text-gray-500 mb-6">{t('packingBuckets.hint')}</p>
@@ -172,7 +173,7 @@ export default function PackingBuckets() {
             <button
               key={bucket.id}
               onClick={() => setSelectedId(bucket.id)}
-              className={`px-4 py-2 rounded-full text-sm border flex items-center gap-2 ${bucket.id === selectedId ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'}`}
+              className={`px-4 py-2 rounded-full text-sm border flex items-center gap-2 ${bucket.id === selectedId ? 'bg-eucalyptus-300 text-gray-900 border-eucalyptus-300 dark:bg-eucalyptus-700 dark:text-white dark:border-eucalyptus-500' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'}`}
             >
               <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: bucket.color_hex }} />
               {bucket.name}
@@ -239,7 +240,7 @@ export default function PackingBuckets() {
                   placeholder={t('packingLists.quantityPlaceholder')}
                   value={itemQuantity}
                   onChange={(e) => setItemQuantity(e.target.value)}
-                  className="w-20 px-3 py-2 border border-gray-300 rounded-lg"
+                  className="w-24 px-3 py-2 border border-gray-300 rounded-lg"
                 />
                 <button type="submit" className="btn-primary text-white px-4 py-2 rounded-lg hover:btn-primary">
                   {t('packingBuckets.addButton')}
@@ -288,8 +289,8 @@ export default function PackingBuckets() {
                             <span className="text-gray-400 text-sm"> — {item.assigned_to.username}</span>
                           )}
                         </div>
-                        <button onClick={() => startEditItem(item)} className="text-gray-300 hover:text-blue-600 px-1" aria-label={t('packingBuckets.editItem')}>✎</button>
-                        <button onClick={() => handleDeleteItem(item.id)} className="text-gray-300 hover:text-red-600 px-1" aria-label={t('packingBuckets.deleteItem')}>✕</button>
+                        <button onClick={() => startEditItem(item)} className="icon-btn hover:text-eucalyptus-600" aria-label={t('packingBuckets.editItem')}><EditGlyph /></button>
+                        <button onClick={() => handleDeleteItem(item.id)} className="icon-btn hover:text-red-600" aria-label={t('packingBuckets.deleteItem')}><CloseGlyph /></button>
                       </div>
                     )}
                   </li>

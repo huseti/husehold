@@ -586,6 +586,20 @@ class StandaloneTaskTests(TestCase):
         # auto-generated ones (which get Monday-of-the-occurrence's-week).
         self.assertEqual(dj_timezone.localtime(instance.created_at).date(), dj_timezone.localdate())
 
+    def test_icon_accepts_any_phosphor_name_but_not_arbitrary_text(self):
+        def create(icon):
+            return self.client.post('/api/task-instances/', {
+                'standalone_title': 'Vacuum', 'standalone_icon': icon,
+                'scheduled_date': '2026-09-16', 'assigned_to': self.user.id,
+            })
+
+        phosphor = create('ArrowsCounterClockwise')
+        invalid = create('<svg onload=x>')
+
+        self.assertEqual(phosphor.status_code, 201, phosphor.data)
+        self.assertEqual(phosphor.data['icon'], 'ArrowsCounterClockwise')
+        self.assertEqual(invalid.status_code, 400)
+
     def test_create_standalone_task_without_a_day_goes_to_backlog(self):
         response = self.client.post('/api/task-instances/', {
             'standalone_title': 'Fix the shelf',
@@ -1199,6 +1213,24 @@ class CookingPlanEntryTests(CookingFixtureMixin, TestCase):
         self.assertEqual(leftovers.data['source_recipe_title'], 'Pasta')
         self.assertEqual(orphan.status_code, 400)
         self.assertEqual(chained.status_code, 400)  # leftovers of leftovers make no sense
+
+    def test_leftovers_report_who_cooks_the_original_dish(self):
+        entry = self._finalized()
+        entry.task_instance.assigned_to = self.anna
+        entry.task_instance.save()
+        anna_member = HouseholdMember.objects.get(user=self.anna)
+        anna_member.color_hex = '#123456'
+        anna_member.save()
+        leftovers = self.client.post('/api/cooking-plan-entries/', {
+            'date': str(self.monday + timedelta(days=1)), 'meal_category': self.lunch.id,
+            'kind': 'leftovers', 'source_entry': entry.id,
+        }, format='json')
+
+        listed = self.client.get(f'/api/cooking-plan-entries/?start={self.monday}&end={self.monday + timedelta(days=6)}')
+        row = next(r for r in listed.data['results'] if r['id'] == leftovers.data['id'])
+
+        self.assertIsNone(row['assigned_to'])  # leftovers have no cook task of their own
+        self.assertEqual((row['source_assigned_to'], row['source_assigned_to_color']), (self.anna.id, '#123456'))
 
     def test_list_filters_by_range(self):
         self.add_entry(self.pasta, self.monday)

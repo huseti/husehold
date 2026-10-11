@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CloseGlyph } from './icons/uiIcons';
+import IconPickerModal from './IconPickerModal';
 
 // Generic inline editor for the small config-editable lookup tables
 // (labels, meal categories, units, ingredients). Each row saves on change
@@ -11,6 +13,37 @@ function errorMessage(error, t) {
   const data = error.response?.data;
   const first = data && typeof data === 'object' ? Object.values(data).flat()[0] : null;
   return typeof first === 'string' ? first : t('recipeConfig.saveFailed');
+}
+
+// A colored round icon preview that opens the icon picker on click.
+function IconField({ field, value, color, onChange }) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const Icon = field.IconComponent;
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        title={t('iconPicker.change')}
+        aria-label={t('iconPicker.change')}
+        className="w-9 h-9 rounded-full flex items-center justify-center text-white flex-shrink-0 hover:ring-2 hover:ring-eucalyptus-300"
+        style={{ backgroundColor: color || '#9e9e9e' }}
+      >
+        <Icon icon={value} />
+      </button>
+      {open && (
+        <IconPickerModal
+          value={value}
+          suggestions={field.suggestions || []}
+          suggestionLabel={field.suggestionLabel}
+          renderSuggestion={(key) => <Icon icon={key} />}
+          onSelect={onChange}
+          onClose={() => setOpen(false)}
+        />
+      )}
+    </>
+  );
 }
 
 function Row({ item, fields, onUpdate, onDelete }) {
@@ -85,16 +118,15 @@ function Row({ item, fields, onUpdate, onDelete }) {
               </select>
             );
           }
-          if (field.type === 'preview') {
-            const PreviewIcon = field.IconComponent;
+          if (field.type === 'icon') {
             return (
-              <span
+              <IconField
                 key={index}
-                className="w-9 h-9 rounded-full flex items-center justify-center text-white flex-shrink-0"
-                style={{ backgroundColor: draft[field.colorKey] || '#9e9e9e' }}
-              >
-                <PreviewIcon icon={draft[field.key]} />
-              </span>
+                field={field}
+                value={draft[field.key]}
+                color={draft[field.colorKey]}
+                onChange={(value) => { setDraft({ ...draft, [field.key]: value }); save({ [field.key]: value }); }}
+              />
             );
           }
           return (
@@ -109,7 +141,7 @@ function Row({ item, fields, onUpdate, onDelete }) {
             />
           );
         })}
-        <button onClick={remove} className="text-gray-400 hover:text-red-600 px-1" aria-label={t('recipeConfig.delete')}>✕</button>
+        <button onClick={remove} className="icon-btn hover:text-red-600" aria-label={t('recipeConfig.delete')}><CloseGlyph /></button>
       </div>
       {error && <p className="text-sm text-red-600 pb-1">{error}</p>}
     </div>
@@ -182,8 +214,16 @@ export default function LookupEditor({ titleKey, service, fields, newItemDefault
         </div>
 
         <form onSubmit={handleAdd} className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-dashed">
-          {fields.filter((f) => f.type !== 'checkbox' && f.type !== 'preview').map((field, index) => (
-            field.type === 'color' ? (
+          {fields.filter((f) => f.type !== 'checkbox').map((field, index) => (
+            field.type === 'icon' ? (
+              <IconField
+                key={index}
+                field={field}
+                value={newItem[field.key]}
+                color={newItem[field.colorKey]}
+                onChange={(value) => setNewItem({ ...newItem, [field.key]: value })}
+              />
+            ) : field.type === 'color' ? (
               <input
                 key={index}
                 type="color"

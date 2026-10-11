@@ -7,6 +7,7 @@ import PrintIcon from './icons/printIcon';
 import { formatQuantity, scaleQuantity } from '../utils/recipeDisplay';
 import { localizedName, unitLabel } from '../utils/localized';
 import { asClickableUrl } from '../utils/sourceDisplay';
+import { CloseGlyph, ExpandCaret } from './icons/uiIcons';
 
 const SOURCE_TYPE_KEYS = { manual: 'sourceTypeManual', website: 'sourceTypeWebsite', photo: 'sourceTypePhoto', text: 'sourceTypeText', social: 'sourceTypeSocial' };
 
@@ -19,6 +20,7 @@ export default function RecipeDetail({
   const navigate = useNavigate();
   const [servings, setServings] = useState(recipe.servings);
   const [showCookForm, setShowCookForm] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const [cookDate, setCookDate] = useState(todayIso());
   const [cookServings, setCookServings] = useState(recipe.servings);
   const [cookError, setCookError] = useState('');
@@ -76,14 +78,14 @@ export default function RecipeDetail({
           >
             <ExpandIcon />
           </button>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-xl leading-none" aria-label={t('recipes.close')}>✕</button>
+          <button onClick={onClose} className="icon-btn text-xl hover:text-gray-700" aria-label={t('recipes.close')}><CloseGlyph /></button>
         </div>
       </div>
 
       {(recipeCategories.length > 0 || recipeLabels.length > 0) && (
         <div className="flex flex-wrap gap-2">
           {recipeCategories.map((c) => (
-            <span key={`c${c.id}`} className="px-3 py-1 rounded-full text-sm bg-gray-800 text-white">{localizedName(c, i18n.language)}</span>
+            <span key={`c${c.id}`} className="px-3 py-1 rounded-full text-sm bg-eucalyptus-300 text-gray-900 dark:bg-eucalyptus-700 dark:text-white">{localizedName(c, i18n.language)}</span>
           ))}
           {recipeLabels.map((l) => (
             <span key={`l${l.id}`} style={{ backgroundColor: l.color_hex }} className="px-3 py-1 rounded-full text-sm text-white">{localizedName(l, i18n.language)}</span>
@@ -176,7 +178,7 @@ export default function RecipeDetail({
       {recipe.source && (
         <p className="text-sm">
           {asClickableUrl(recipe.source) ? (
-            <a href={asClickableUrl(recipe.source)} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">
+            <a href={asClickableUrl(recipe.source)} target="_blank" rel="noopener noreferrer" className="text-eucalyptus-600 hover:underline break-all">
               {t('recipes.source')}: {recipe.source}
             </a>
           ) : (
@@ -187,7 +189,18 @@ export default function RecipeDetail({
 
       <div className="print:hidden">
         <div className="flex flex-wrap items-center gap-3 mb-2">
-          <h4 className="font-semibold">{t('recipes.cookingHistory')}</h4>
+          {recipe.recent_meal_events.length > 0 ? (
+            <button
+              onClick={() => setShowHistory((v) => !v)}
+              aria-expanded={showHistory}
+              className="flex items-center gap-1 font-semibold text-eucalyptus-700 dark:text-eucalyptus-300"
+            >
+              <ExpandCaret className={`transition-transform ${showHistory ? 'rotate-90' : ''}`} />
+              {t('recipes.cookingHistory')}
+            </button>
+          ) : (
+            <h4 className="font-semibold">{t('recipes.cookingHistory')}</h4>
+          )}
           <span className="text-sm text-gray-600">
             {recipe.last_cooked_date
               ? t('recipes.lastCooked', { date: formatDate(recipe.last_cooked_date), count: recipe.times_cooked })
@@ -226,14 +239,14 @@ export default function RecipeDetail({
           </div>
         )}
 
-        {recipe.recent_meal_events.length > 0 && (
-          <ul className="text-sm text-gray-700 space-y-1">
+        {showHistory && recipe.recent_meal_events.length > 0 && (
+          <ul className="text-sm text-gray-700 space-y-1 max-h-48 overflow-y-auto pr-1">
             {recipe.recent_meal_events.map((event) => (
               <li key={event.id} className="flex items-center gap-2">
                 <span>{formatDate(event.date_cooked)}</span>
                 <span className="text-gray-500">· {t('recipes.servings', { count: event.servings_made })}</span>
                 {event.logged_by_username && <span className="text-gray-400">· {event.logged_by_username}</span>}
-                <button onClick={() => onDeleteMeal(event.id)} className="text-gray-300 hover:text-red-600 px-1" aria-label={t('recipes.removeLogEntry')}>✕</button>
+                <button onClick={() => onDeleteMeal(event.id)} className="icon-btn hover:text-red-600" aria-label={t('recipes.removeLogEntry')}><CloseGlyph /></button>
               </li>
             ))}
           </ul>

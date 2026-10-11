@@ -6,6 +6,7 @@ import { formatQuantity, scaleQuantity } from '../utils/recipeDisplay';
 import { unitLabel } from '../utils/localized';
 import { asClickableUrl } from '../utils/sourceDisplay';
 import PrintIcon from '../components/icons/printIcon';
+import { BackArrow } from '../components/icons/uiIcons';
 
 const SOURCE_TYPE_KEYS = { manual: 'sourceTypeManual', website: 'sourceTypeWebsite', photo: 'sourceTypePhoto', text: 'sourceTypeText', social: 'sourceTypeSocial' };
 const FONT_SCALE_KEY = 'recipeHighlightFontScale';
@@ -87,7 +88,7 @@ export default function RecipeHighlight() {
     return (
       <div className="flex flex-col items-center justify-center h-screen gap-4">
         <p className="text-gray-500">{t('recipes.highlightNotFound')}</p>
-        <button onClick={() => navigate('/recipes')} className="text-blue-600 hover:underline">
+        <button onClick={() => navigate('/recipes')} className="text-eucalyptus-600 hover:underline">
           {t('common.back')}
         </button>
       </div>
@@ -98,7 +99,7 @@ export default function RecipeHighlight() {
     <div className="min-h-screen bg-white printable">
       <div className="sticky top-0 bg-white border-b z-10 px-4 py-3 flex items-center justify-between gap-3 print:hidden">
         <button onClick={() => navigate(-1)} className="text-gray-600 hover:text-gray-900 font-medium flex items-center gap-1">
-          ← {t('common.back')}
+          <BackArrow /> {t('common.back')}
         </button>
         <div className="flex items-center gap-2">
           <button
@@ -184,7 +185,7 @@ export default function RecipeHighlight() {
             {recipe.source && (
               <p>
                 {asClickableUrl(recipe.source) ? (
-                  <a href={asClickableUrl(recipe.source)} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">
+                  <a href={asClickableUrl(recipe.source)} target="_blank" rel="noopener noreferrer" className="text-eucalyptus-600 hover:underline break-all">
                     {t('recipes.source')}: {recipe.source}
                   </a>
                 ) : (

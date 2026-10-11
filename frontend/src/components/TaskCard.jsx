@@ -2,8 +2,10 @@ import { useDraggable } from '@dnd-kit/core';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import TaskIcon from './icons/taskIcons';
-import { getDisplayTitle, canSnoozeInstance, getPlanNowPath, mealName } from '../utils/taskDisplay';
+import MemberAvatar from './MemberAvatar';
+import { getDisplayTitle, canSnoozeInstance, getPlanNowPath } from '../utils/taskDisplay';
 import { getWeekStart, parseISODate, toISODate } from '../utils/weekDates';
+import { UndoGlyph } from './icons/uiIcons';
 
 export default function TaskCard({
   instance, members, onComplete, onSkip, onSnooze, onReassign, onReopen, onDelete,
@@ -19,6 +21,7 @@ export default function TaskCard({
   };
 
   const planNowPath = getPlanNowPath(instance);
+  const assignee = members?.find((m) => m.user.id === instance.assigned_to) || null;
 
   const isDone = instance.status === 'done';
   const isSkipped = instance.status === 'skipped';
@@ -60,9 +63,15 @@ export default function TaskCard({
     >
       <div
         {...(interactive && !isResolved ? { ...listeners, ...attributes } : {})}
-        className={`font-medium flex items-center gap-1.5 ${interactive && !isResolved ? 'cursor-grab' : ''} ${isResolved ? 'text-gray-500' : ''}`}
+        className={`font-medium break-words hyphens-auto ${interactive && !isResolved ? 'cursor-grab' : ''} ${isResolved ? 'text-gray-500' : ''}`}
       >
-        <TaskIcon icon={instance.icon} className={`flex-shrink-0 ${isResolved ? 'text-gray-400' : 'text-gray-500'}`} />
+        {/* Inline text flow, not flex: icon, title and state labels wrap at spaces
+            like a sentence instead of squeezing the title mid-word in narrow columns. */}
+        <TaskIcon
+          icon={instance.icon}
+          className={`inline-block align-[-0.125em] mr-1.5 ${assignee ? '' : 'text-gray-400'}`}
+          style={assignee ? { color: assignee.color_hex } : undefined}
+        />
         <span className={isDone ? 'line-through' : ''}>{getDisplayTitle(instance, t, i18n)}</span>
         {stateLabel && <span className="text-gray-400 ml-1">({stateLabel})</span>}
         {isSnoozedCopy && <span className="text-gray-400 font-normal ml-1">({t('tasks.snoozed')})</span>}
@@ -71,10 +80,11 @@ export default function TaskCard({
       </div>
       {instance.cooking_entry && (
         <div className={`text-gray-500 ${isResolved ? 'text-[11px]' : 'text-xs'}`}>
-          {mealName(instance.cooking_entry, i18n)} · {t('cookingPlan.servingsShort', { count: instance.cooking_entry.servings })}
+          {instance.cooking_entry.recipe_title} · {t('cookingPlan.servingsShort', { count: instance.cooking_entry.servings })}
         </div>
       )}
-      <div className={`text-gray-500 ${isResolved ? 'text-[11px]' : 'text-xs'}`}>
+      <div className={`flex items-center gap-1.5 mt-0.5 text-gray-500 ${isResolved ? 'text-[11px]' : 'text-xs'}`}>
+        <MemberAvatar member={assignee} sizeClass={isResolved ? 'h-4 w-4' : 'h-5 w-5'} />
         {instance.assigned_to_username || t('tasks.unassigned')}
       </div>
       <div className="text-[10px] text-gray-400 mb-1">
@@ -91,7 +101,7 @@ export default function TaskCard({
               className="text-[11px] px-2 py-0.5 rounded btn-secondary text-gray-700 hover:bg-gray-300"
               title={t('tasks.undo')}
             >
-              ↺ {t('tasks.undo')}
+              <UndoGlyph /> {t('tasks.undo')}
             </button>
           )}
           {onDelete && (

@@ -15,7 +15,7 @@ export default function StarRating({ value, onChange, className = 'text-xl' }) {
             key={star}
             type="button"
             onClick={() => onChange(star)}
-            className={`${color} hover:text-amber-400 leading-none px-0.5`}
+            className={`${color} hover:text-amber-400 leading-none inline-flex items-center justify-center p-1`}
           >
             ★
           </button>

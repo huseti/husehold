@@ -3,7 +3,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recha
 // Ranked magnitude list (top recipes, top purchased items) as a horizontal
 // bar chart: each row's bar is scaled to the top item, not to a shared
 // total -- it's a ranking, not a share of a whole. Flat single color.
-export default function RankedList({ items, valueLabel, color = '#3b82f6' }) {
+export default function RankedList({ items, valueLabel, color = '#059669' }) {
   if (items.length === 0) return null;
   const height = Math.max(items.length * 32, 60);
 

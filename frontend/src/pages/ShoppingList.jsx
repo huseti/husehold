@@ -7,8 +7,11 @@ import {
 import Navbar from '../components/Navbar';
 import PurchaseHistory from '../components/PurchaseHistory';
 import GearIcon from '../components/icons/gearIcon';
+import EditIcon from '../components/icons/editIcon';
+import ShoppingListEditModal from '../components/ShoppingListEditModal';
 import CategoryIcon from '../components/icons/categoryIcons';
 import { unitLabel, localizedName } from '../utils/localized';
+import { CloseGlyph, EditGlyph } from '../components/icons/uiIcons';
 
 const emptyItem = { title: '', quantity: '', unit: '' };
 
@@ -24,8 +27,7 @@ export default function ShoppingList() {
 
   const [itemForm, setItemForm] = useState(emptyItem);
   const [newListName, setNewListName] = useState('');
-  const [showSettings, setShowSettings] = useState(false);
-  const [listName, setListName] = useState('');
+  const [editingList, setEditingList] = useState(null);
   const [view, setView] = useState('list');
   const [editingItemId, setEditingItemId] = useState(null);
   const [editForm, setEditForm] = useState(emptyItem);
@@ -70,10 +72,6 @@ export default function ShoppingList() {
       .catch((error) => console.error('Error loading items:', error));
   }, [selectedId]);
 
-  useEffect(() => {
-    setListName(selected?.name ?? '');
-  }, [selected?.name]);
-
   const reloadLists = async () => {
     const res = await shoppingListService.getAll();
     setLists(res.data.results || []);
@@ -97,25 +95,18 @@ export default function ShoppingList() {
     }
   };
 
-  const updateList = async (changes) => {
-    try {
-      await shoppingListService.update(selectedId, changes);
-      await reloadLists();
-    } catch (error) {
-      console.error('Error updating list:', error);
-    }
+  // Errors propagate to the edit modal, which shows them and stays open.
+  const handleSaveList = async (changes) => {
+    await shoppingListService.update(editingList.id, changes);
+    await reloadLists();
+    setEditingList(null);
   };
 
   const handleDeleteList = async () => {
-    if (!window.confirm(t('shoppingList.confirmDeleteList', { name: selected.name }))) return;
-    try {
-      await shoppingListService.delete(selectedId);
-      const remaining = await reloadLists();
-      setShowSettings(false);
-      setSelectedId(remaining[0]?.id ?? null);
-    } catch (error) {
-      console.error('Error deleting list:', error);
-    }
+    await shoppingListService.delete(editingList.id);
+    const remaining = await reloadLists();
+    if (selectedId === editingList.id) setSelectedId(remaining[0]?.id ?? null);
+    setEditingList(null);
   };
 
   // Buying something again from the history: same name, and the quantity/unit
@@ -257,8 +248,8 @@ export default function ShoppingList() {
             {item.title}
             {item.description && <p className="text-sm text-gray-500">{item.description}</p>}
           </div>
-          <button onClick={() => startEditItem(item)} className="text-gray-300 hover:text-blue-600 px-1" aria-label={t('shoppingList.editItem')}>✎</button>
-          <button onClick={() => handleDeleteItem(item.id)} className="text-gray-300 hover:text-red-600 px-1" aria-label={t('shoppingList.deleteItem')}>✕</button>
+          <button onClick={() => startEditItem(item)} className="icon-btn hover:text-eucalyptus-600" aria-label={t('shoppingList.editItem')}><EditGlyph /></button>
+          <button onClick={() => handleDeleteItem(item.id)} className="icon-btn hover:text-red-600" aria-label={t('shoppingList.deleteItem')}><CloseGlyph /></button>
         </div>
       )}
     </li>
@@ -269,7 +260,7 @@ export default function ShoppingList() {
       <Navbar />
 
       <main className="max-w-4xl mx-auto px-4 py-8">
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex items-center gap-1 mb-6">
           <h2 className="text-3xl font-bold">{t('shoppingList.title')}</h2>
           <Link
             to="/recipe-shopping-config"
@@ -286,7 +277,7 @@ export default function ShoppingList() {
             <button
               key={tab}
               onClick={() => setView(tab)}
-              className={`pb-2 -mb-px border-b-2 ${view === tab ? 'border-gray-800 font-semibold' : 'border-transparent text-gray-500 hover:text-gray-800'}`}
+              className={`pb-2 -mb-px border-b-2 ${view === tab ? 'border-eucalyptus-600 font-semibold' : 'border-transparent text-gray-500 hover:text-gray-800'}`}
             >
               {t(tab === 'list' ? 'shoppingList.tabList' : 'shoppingList.tabHistory')}
             </button>
@@ -295,15 +286,24 @@ export default function ShoppingList() {
 
         <div className="flex flex-wrap items-center gap-2 mb-6">
           {lists.map((list) => (
-            <button
+            <span
               key={list.id}
-              onClick={() => { setSelectedId(list.id); setShowSettings(false); }}
-              className={`px-4 py-2 rounded-full text-sm border ${list.id === selectedId ? 'bg-eucalyptus-300 dark:bg-eucalyptus-500 text-gray-900 dark:text-white border-eucalyptus-300 dark:border-eucalyptus-500' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+              className={`flex items-center gap-1 pl-4 pr-1 py-1 rounded-full text-sm border ${list.id === selectedId ? 'bg-eucalyptus-300 dark:bg-eucalyptus-700 text-gray-900 dark:text-white border-eucalyptus-300 dark:border-eucalyptus-500' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
             >
-              {list.is_favorite_for_cooking_plan && <span className="text-amber-400 mr-1">★</span>}
-              {list.name}
-              {list.open_item_count > 0 && <span className="ml-2 opacity-70">{list.open_item_count}</span>}
-            </button>
+              <button onClick={() => setSelectedId(list.id)}>
+                {list.is_favorite_for_cooking_plan && <span className="text-amber-400 mr-1">★</span>}
+                {list.name}
+                {list.open_item_count > 0 && <span className="ml-2 opacity-70">{list.open_item_count}</span>}
+              </button>
+              <button
+                onClick={() => setEditingList(list)}
+                className={`p-1.5 rounded-full ${list.id === selectedId ? 'hover:bg-eucalyptus-400 dark:hover:bg-eucalyptus-600' : 'hover:bg-gray-200 dark:hover:bg-gray-600'}`}
+                title={t('shoppingList.editList')}
+                aria-label={t('shoppingList.editList')}
+              >
+                <EditIcon />
+              </button>
+            </span>
           ))}
           <form onSubmit={handleCreateList} className="flex gap-2">
             <input
@@ -330,35 +330,7 @@ export default function ShoppingList() {
 
           {selected && (
             <>
-              <div className="flex justify-between items-center mb-3">
-                <h3 className="text-xl font-semibold">{selected.name}</h3>
-                <button onClick={() => setShowSettings((v) => !v)} className="text-sm text-blue-600">
-                  {t('shoppingList.listSettings')}
-                </button>
-              </div>
-
-              {showSettings && (
-                <div className="bg-white rounded-lg shadow p-5 mb-6 space-y-4">
-                  <input
-                    type="text"
-                    value={listName}
-                    onChange={(e) => setListName(e.target.value)}
-                    onBlur={() => listName.trim() && listName !== selected.name && updateList({ name: listName })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                  />
-                  <label className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={selected.is_favorite_for_cooking_plan}
-                      onChange={(e) => updateList({ is_favorite_for_cooking_plan: e.target.checked })}
-                    />
-                    {t('shoppingList.favoriteLabel')}
-                  </label>
-                  <button onClick={handleDeleteList} className="text-sm text-red-600 hover:underline">
-                    {t('shoppingList.deleteList')}
-                  </button>
-                </div>
-              )}
+              <h3 className="text-xl font-semibold mb-3">{selected.name}</h3>
 
               <form onSubmit={handleAddItem} className="bg-white rounded-lg shadow p-4 mb-6 flex flex-wrap gap-2">
                 <datalist id="shopping-ingredient-suggestions">
@@ -369,7 +341,7 @@ export default function ShoppingList() {
                   placeholder={t('shoppingList.quantityPlaceholder')}
                   value={itemForm.quantity}
                   onChange={(e) => setItemForm({ ...itemForm, quantity: e.target.value })}
-                  className="w-20 px-3 py-2 border border-gray-300 rounded-lg"
+                  className="w-24 px-3 py-2 border border-gray-300 rounded-lg"
                 />
                 <select
                   value={itemForm.unit}
@@ -427,6 +399,15 @@ export default function ShoppingList() {
           </>
         )}
       </main>
+      {editingList && (
+        <ShoppingListEditModal
+          key={editingList.id}
+          list={editingList}
+          onClose={() => setEditingList(null)}
+          onSave={handleSaveList}
+          onDelete={handleDeleteList}
+        />
+      )}
     </div>
   );
 }

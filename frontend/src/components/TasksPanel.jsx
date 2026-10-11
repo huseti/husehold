@@ -6,7 +6,7 @@ import TaskRow from './TaskRow';
 // week), followed by the rest of the household's overdue tasks -- so the
 // dashboard doesn't need a separate panel just for other members' overdue work.
 export default function TasksPanel({
-  overdueTasks, todayTasks, thisWeekTasks, otherOverdueTasks, onComplete, onSkip, onSnooze, navigate,
+  overdueTasks, todayTasks, thisWeekTasks, otherOverdueTasks, members, onComplete, onSkip, onSnooze, navigate,
 }) {
   const { t } = useTranslation();
   const hasOwnTasks = overdueTasks.length + todayTasks.length + thisWeekTasks.length > 0;
@@ -17,13 +17,13 @@ export default function TasksPanel({
       {hasOwnTasks ? (
         <ul className="space-y-2">
           {overdueTasks.map((task) => (
-            <TaskRow key={task.id} task={task} overdue onComplete={onComplete} onSkip={onSkip} onSnooze={onSnooze} navigate={navigate} />
+            <TaskRow key={task.id} task={task} members={members} overdue onComplete={onComplete} onSkip={onSkip} onSnooze={onSnooze} navigate={navigate} />
           ))}
           {todayTasks.map((task) => (
-            <TaskRow key={task.id} task={task} today onComplete={onComplete} onSkip={onSkip} onSnooze={onSnooze} navigate={navigate} />
+            <TaskRow key={task.id} task={task} members={members} today onComplete={onComplete} onSkip={onSkip} onSnooze={onSnooze} navigate={navigate} />
           ))}
           {thisWeekTasks.map((task) => (
-            <TaskRow key={task.id} task={task} onComplete={onComplete} onSkip={onSkip} onSnooze={onSnooze} navigate={navigate} />
+            <TaskRow key={task.id} task={task} members={members} onComplete={onComplete} onSkip={onSkip} onSnooze={onSnooze} navigate={navigate} />
           ))}
         </ul>
       ) : (
@@ -41,6 +41,7 @@ export default function TasksPanel({
               <TaskRow
                 key={task.id}
                 task={task}
+                members={members}
                 overdue
                 showAssigneeName
                 onComplete={onComplete}

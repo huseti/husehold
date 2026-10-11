@@ -268,7 +268,7 @@ export default function VoucherCard({ voucher, onRedeem, onToggleArchive, onDele
               max={remaining}
               value={sliderValue}
               onChange={(e) => setAmount(Number(e.target.value))}
-              className="flex-1 accent-amber-500"
+              className="flex-1"
               autoFocus
             />
             <button type="submit" className="text-sm btn-primary px-3 py-1.5 rounded">

@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import CookingPlanSettings from '../components/CookingPlanSettings';
 import { cookingPlanConfigService, mealCategoryService } from '../services/api';
+import { BackArrow } from '../components/icons/uiIcons';
 
 // Dedicated config screen for the Cooking Plan (suggestion tuning, which
 // meals the weekly plan shows) -- reached via the gear icon on the Cooking
@@ -31,7 +32,7 @@ export default function CookingPlanConfig() {
 
       <main className="max-w-4xl mx-auto px-4 py-8">
         <Link to="/cooking-plan" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800 mb-4">
-          ← {t('common.back')}
+          <BackArrow /> {t('common.back')}
         </Link>
         <h2 className="text-3xl font-bold mb-6">{t('cookingSettings.title')}</h2>
 

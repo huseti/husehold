@@ -26,6 +26,11 @@ export function getDisplayTitle(instance, t, i18n) {
     const range = `${planWeekStart.toLocaleDateString(locale, opts)}–${planWeekEnd.toLocaleDateString(locale, opts)}`;
     return `${t(PLANNING_TITLE_KEYS[instance.system_action])} (${range})`;
   }
+  // Cooking tasks store the dish as their title; show the meal instead ("Abendessen
+  // kochen") -- callers that have room show the dish separately.
+  if (instance.cooking_entry) {
+    return t('tasks.cookMeal', { meal: mealName(instance.cooking_entry, i18n) });
+  }
   return instance.title;
 }
 

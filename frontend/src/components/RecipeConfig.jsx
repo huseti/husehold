@@ -50,13 +50,12 @@ export default function RecipeConfig() {
         titleKey="recipeConfig.ingredientCategories"
         service={ingredientCategoryService}
         fields={[
-          { key: 'icon', colorKey: 'color_hex', type: 'preview', IconComponent: CategoryIcon },
+          {
+            key: 'icon', colorKey: 'color_hex', type: 'icon', IconComponent: CategoryIcon,
+            suggestions: CATEGORY_ICON_KEYS, suggestionLabel: (k) => t(`recipeConfig.categoryIcon.${k}`),
+          },
           { key: 'color_hex', type: 'color' },
           NAME_DE, NAME_EN,
-          {
-            key: 'icon', labelKey: 'recipeConfig.icon', type: 'select', valueType: 'string', className: 'w-36',
-            options: CATEGORY_ICON_KEYS.map((k) => ({ value: k, label: t(`recipeConfig.categoryIcon.${k}`) })),
-          },
           { key: 'sort_order', labelKey: 'recipeConfig.order', type: 'number', className: 'w-24' },
         ]}
         newItemDefaults={{ name_de: '', name_en: '', sort_order: 0, icon: 'other', color_hex: '#9e9e9e' }}

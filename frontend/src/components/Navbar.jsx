@@ -23,6 +23,17 @@ export default function Navbar() {
   return (
     <nav className="bg-eucalyptus-50 dark:bg-gray-800 shadow-sm border-b border-eucalyptus-200 dark:border-gray-700 print:hidden">
       <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center gap-3">
+        {/* Mobile: burger left, logo centered (equal-width side slots), avatar right */}
+        <div className="flex-1 flex md:hidden items-center">
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="text-eucalyptus-700 dark:text-eucalyptus-300 hover:text-eucalyptus-900 dark:hover:text-eucalyptus-100 p-2 -ml-2"
+            aria-label={t('common.menu')}
+          >
+            {mobileMenuOpen ? <CloseIcon /> : <HamburgerIcon />}
+          </button>
+        </div>
+
         <Link to="/" className="flex-shrink-0">
           <img src={logoIcon} alt={t('common.appName')} className="h-10 w-10" />
         </Link>
@@ -40,18 +51,9 @@ export default function Navbar() {
           <MoreMenu />
         </div>
 
-        {/* Mobile hamburger: visible only on < md */}
-        <div className="flex md:hidden items-center gap-3">
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="text-eucalyptus-700 dark:text-eucalyptus-300 hover:text-eucalyptus-900 dark:hover:text-eucalyptus-100 p-2"
-            aria-label={t('common.menu')}
-          >
-            {mobileMenuOpen ? <CloseIcon /> : <HamburgerIcon />}
-          </button>
+        <div className="flex-1 md:flex-none flex justify-end">
+          <AccountMenu />
         </div>
-
-        <AccountMenu />
       </div>
 
       {/* Mobile drawer: slides in from top */}

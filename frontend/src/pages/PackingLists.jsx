@@ -13,6 +13,7 @@ import GearIcon from '../components/icons/gearIcon';
 import CopyIcon from '../components/icons/copyIcon';
 import EditIcon from '../components/icons/editIcon';
 import { toISODate } from '../utils/weekDates';
+import { CloseGlyph, EditGlyph } from '../components/icons/uiIcons';
 
 function errorMessage(error) {
   const data = error.response?.data;
@@ -20,6 +21,18 @@ function errorMessage(error) {
   if (typeof first === 'string') return first;
   if (error.response) return `${error.response.status} ${error.response.statusText}`;
   return error.message || 'Unknown error';
+}
+
+// Upcoming includes trips still running; past/archived are most recent first.
+function groupLists(lists) {
+  const todayISO = toISODate(new Date());
+  const byStartAsc = (a, b) => a.start_date.localeCompare(b.start_date);
+  const active = lists.filter((l) => !l.is_archived);
+  return {
+    upcoming: active.filter((l) => l.end_date >= todayISO).sort(byStartAsc),
+    past: active.filter((l) => l.end_date < todayISO).sort((a, b) => byStartAsc(b, a)),
+    archived: lists.filter((l) => l.is_archived).sort((a, b) => byStartAsc(b, a)),
+  };
 }
 
 export default function PackingLists() {
@@ -57,6 +70,9 @@ export default function PackingLists() {
         const [listRes, membersRes] = await Promise.all([packingListService.getAll(), memberService.getAll()]);
         const loaded = listRes.data.results || [];
         setLists(loaded);
+        // Open the next/current trip, else the most recent past one, else the latest archived.
+        const { upcoming, past, archived } = groupLists(loaded);
+        setSelectedId((upcoming[0] || past[0] || archived[0])?.id ?? null);
         setMembers(membersRes.data.results || membersRes.data || []);
       } catch (err) {
         console.error('Error loading packing lists:', err);
@@ -215,18 +231,13 @@ export default function PackingLists() {
     return <div className="flex items-center justify-center h-screen">{t('common.loading')}</div>;
   }
 
-  const todayISO = toISODate(new Date());
-  const byStartAsc = (a, b) => a.start_date.localeCompare(b.start_date);
-  const active = lists.filter((l) => !l.is_archived);
-  const upcoming = active.filter((l) => l.end_date >= todayISO).sort(byStartAsc);
-  const past = active.filter((l) => l.end_date < todayISO).sort((a, b) => byStartAsc(b, a));
-  const archived = lists.filter((l) => l.is_archived).sort((a, b) => byStartAsc(b, a));
+  const { upcoming, past, archived } = groupLists(lists);
   const availableBuckets = selected ? buckets.filter((b) => !selected.added_bucket_ids.includes(b.id)) : [];
 
   const renderPill = (list) => (
     <span
       key={list.id}
-      className={`flex items-center gap-1 pl-4 pr-1 py-1 rounded-full text-sm border ${list.id === selectedId ? 'bg-eucalyptus-300 dark:bg-eucalyptus-500 text-gray-900 dark:text-white border-eucalyptus-300 dark:border-eucalyptus-500' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700'} ${list.is_archived ? 'opacity-60' : ''}`}
+      className={`flex items-center gap-1 pl-4 pr-1 py-1 rounded-full text-sm border ${list.id === selectedId ? 'bg-eucalyptus-300 dark:bg-eucalyptus-700 text-gray-900 dark:text-white border-eucalyptus-300 dark:border-eucalyptus-500' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700'} ${list.is_archived ? 'opacity-60' : ''}`}
     >
       <button onClick={() => setSelectedId(list.id)}>
         {list.name}
@@ -255,15 +266,9 @@ export default function PackingLists() {
       <Navbar />
 
       <main className="max-w-4xl mx-auto px-4 py-8">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-3xl font-bold">{t('packingLists.title')}</h2>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setModal({ mode: 'create', list: null })}
-              className="btn-primary text-white px-4 py-2 rounded dark:hover:bg-eucalyptus-600"
-            >
-              + {t('packingLists.newButton')}
-            </button>
+        <div className="flex flex-wrap justify-between items-center gap-3 mb-6">
+          <div className="flex items-center gap-1">
+            <h2 className="text-3xl font-bold">{t('packingLists.title')}</h2>
             <Link
               to="/packing-buckets"
               className="text-gray-500 hover:text-gray-800 text-xl p-2"
@@ -273,6 +278,12 @@ export default function PackingLists() {
               <GearIcon />
             </Link>
           </div>
+          <button
+            onClick={() => setModal({ mode: 'create', list: null })}
+            className="btn-primary px-4 py-2 rounded"
+          >
+            + {t('packingLists.newButton')}
+          </button>
         </div>
 
         {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
@@ -328,7 +339,7 @@ export default function PackingLists() {
                     placeholder={t('packingLists.quantityPlaceholder')}
                     value={itemQuantity}
                     onChange={(e) => setItemQuantity(e.target.value)}
-                    className="w-20 px-3 py-2 border border-gray-300 rounded-lg"
+                    className="w-24 px-3 py-2 border border-gray-300 rounded-lg"
                   />
                   <button type="submit" className="btn-primary text-white px-4 py-2 rounded-lg hover:btn-primary">
                     {t('packingLists.addButton')}
@@ -400,8 +411,8 @@ export default function PackingLists() {
                             <span className="text-gray-400 text-sm"> — {item.assigned_to.username}</span>
                           )}
                         </div>
-                        <button onClick={() => startEditItem(item)} className="text-gray-300 hover:text-blue-600 px-1" aria-label={t('packingLists.editItem')}>✎</button>
-                        <button onClick={() => handleDeleteItem(item.id)} className="text-gray-300 hover:text-red-600 px-1" aria-label={t('packingLists.deleteItem')}>✕</button>
+                        <button onClick={() => startEditItem(item)} className="icon-btn hover:text-eucalyptus-600" aria-label={t('packingLists.editItem')}><EditGlyph /></button>
+                        <button onClick={() => handleDeleteItem(item.id)} className="icon-btn hover:text-red-600" aria-label={t('packingLists.deleteItem')}><CloseGlyph /></button>
                       </div>
                     )}
                   </li>

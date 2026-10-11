@@ -479,6 +479,13 @@ class CookingPlanEntrySerializer(serializers.ModelSerializer):
     assigned_to_color = serializers.CharField(
         source='task_instance.assigned_to.householdmember.color_hex', read_only=True, default=None,
     )
+    # Leftovers have no cook task of their own -- whoever cooks the original dish.
+    source_assigned_to = serializers.IntegerField(
+        source='source_entry.task_instance.assigned_to_id', read_only=True, default=None,
+    )
+    source_assigned_to_color = serializers.CharField(
+        source='source_entry.task_instance.assigned_to.householdmember.color_hex', read_only=True, default=None,
+    )
     is_cooked = serializers.SerializerMethodField()
     # Declared without a default so an omitted value can fall back to the
     # dish's own servings in validate() (the model's default of 2 would
@@ -491,7 +498,8 @@ class CookingPlanEntrySerializer(serializers.ModelSerializer):
             'id', 'date', 'meal_category', 'meal_category_name_de', 'meal_category_name_en',
             'kind', 'recipe', 'title', 'recipe_title', 'source_entry', 'source_recipe_title',
             'servings', 'notes', 'task_instance', 'task_status',
-            'assigned_to', 'assigned_to_username', 'assigned_to_color', 'is_cooked',
+            'assigned_to', 'assigned_to_username', 'assigned_to_color',
+            'source_assigned_to', 'source_assigned_to_color', 'is_cooked',
         )
         # Leftovers copy their dish from source_entry, so recipe is optional
         # on input; the task link is managed by finalize/the task actions.
