@@ -5,6 +5,7 @@ import { localizedName } from '../utils/localized';
 import { mealName } from '../utils/taskDisplay';
 import StarRating from './StarRating';
 import { CloseGlyph } from './icons/uiIcons';
+import { pillStyle } from '../utils/colorContrast';
 
 const BUCKETS = ['craving', 'top_rated', 'long_ago', 'random', 'rest'];
 
@@ -69,11 +70,11 @@ export default function RecipePicker({
                 : t('cookingPlan.lastCookedAgo', { count: daysAgo(item.last_cooked_date) })}
           </span>
           {labels.filter((l) => item.labels.includes(l.id)).map((l) => (
-            <span key={l.id} style={{ backgroundColor: l.color_hex }} className="px-2 rounded-full text-white">{localizedName(l, i18n.language)}</span>
+            <span key={l.id} style={pillStyle(l.color_hex)} className="px-2 rounded-full">{localizedName(l, i18n.language)}</span>
           ))}
         </div>
       </div>
-      <button onClick={() => onPickRecipe(item)} className="btn-primary text-white px-3 py-1 rounded text-sm dark:hover:bg-eucalyptus-600">
+      <button onClick={() => onPickRecipe(item)} className="btn btn-sm btn-primary text-white dark:hover:bg-eucalyptus-600">
         + {t('cookingPlan.add')}
       </button>
     </li>
@@ -83,8 +84,8 @@ export default function RecipePicker({
   const bucketIcon = { craving: '🤤', top_rated: '⭐', long_ago: '🕐', random: '❓', rest: '🍝' };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 overflow-y-auto p-4" onClick={onClose}>
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl mx-auto my-8 p-6" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-backdrop fixed inset-0 z-50 bg-black/40 overflow-y-auto p-4" onClick={onClose}>
+      <div className="modal-panel bg-white rounded-xl shadow-xl max-w-2xl mx-auto my-8 p-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-start mb-4">
           <h3 className="text-xl font-semibold">{t('cookingPlan.pickerTitle', { meal: localizedName(meal, i18n.language), day: dayLabel })}</h3>
           <button onClick={onClose} className="icon-btn text-xl hover:text-gray-700" aria-label={t('recipes.close')}><CloseGlyph /></button>
@@ -120,7 +121,7 @@ export default function RecipePicker({
               placeholder={t('cookingPlan.freeDishPlaceholder')}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg"
             />
-            <button type="submit" disabled={!freeTitle.trim()} className="btn-primary text-white px-4 py-2 rounded dark:hover:bg-eucalyptus-600 disabled:opacity-50">
+            <button type="submit" disabled={!freeTitle.trim()} className="btn btn-md btn-primary text-white dark:hover:bg-eucalyptus-600 disabled:opacity-50">
               + {t('cookingPlan.add')}
             </button>
           </form>
@@ -135,7 +136,7 @@ export default function RecipePicker({
                     <span className="font-medium">{entry.recipe_title}</span>
                     <span className="text-sm text-gray-500"> · {new Date(`${entry.date}T00:00:00`).toLocaleDateString(i18n.language, { weekday: 'short', day: 'numeric', month: 'short' })}, {mealName(entry, i18n)}</span>
                   </span>
-                  <button onClick={() => onPickLeftovers(entry)} className="btn-primary text-white px-3 py-1 rounded text-sm dark:hover:bg-eucalyptus-600">
+                  <button onClick={() => onPickLeftovers(entry)} className="btn btn-sm btn-primary text-white dark:hover:bg-eucalyptus-600">
                     + {t('cookingPlan.add')}
                   </button>
                 </li>

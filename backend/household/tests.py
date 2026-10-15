@@ -960,7 +960,7 @@ class MealEventTests(TestCase):
 
         self.assertEqual(data['last_cooked_date'], '2026-03-10')
         self.assertEqual(data['times_cooked'], 3)
-        self.assertEqual([e['date_cooked'] for e in data['recent_meal_events']],
+        self.assertEqual([e['date_cooked'] for e in data['meal_history']],
                          ['2026-03-10', '2026-02-01', '2026-01-05'])
         untouched = self.client.get(f'/api/recipes/{self.other_recipe.id}/').data
         self.assertIsNone(untouched['last_cooked_date'])
@@ -2596,6 +2596,25 @@ class AnalyticsTests(TestCase):
         self.assertEqual(stats['top_recipes'][0], {'recipe_id': pasta.id, 'title': 'Pasta', 'count': 2})
         self.assertEqual(sum(point['count'] for point in stats['trend']), 3)
         self.assertEqual(stats['granularity'], 'week')
+
+    def test_meal_stats_top_labels_count_each_cooked_meal_per_label(self):
+        quick = Label.objects.create(name_de='Testschnell', name_en='Testquick', color_hex='#ff9900')
+        healthy = Label.objects.create(name_de='Testgesund', color_hex='#00aa00')
+        pasta = Recipe.objects.create(title='Pasta', servings=2, created_by=self.tim)
+        pasta.labels.set([quick, healthy])
+        salad = Recipe.objects.create(title='Salad', servings=2, created_by=self.tim)
+        salad.labels.set([healthy])
+        plain = Recipe.objects.create(title='Plain', servings=2, created_by=self.tim)  # no label: not counted
+        for recipe in (pasta, pasta, salad, plain):
+            MealEvent.objects.create(recipe=recipe, date_cooked=self.today - timedelta(days=1))
+        MealEvent.objects.create(recipe=salad, date_cooked=self.today - timedelta(days=60))  # outside the range
+
+        stats = analytics_service.meal_stats(self.today - timedelta(days=30), self.today)
+
+        self.assertEqual(stats['top_labels'], [
+            {'label_id': healthy.id, 'name_de': 'Testgesund', 'name_en': '', 'color_hex': '#00aa00', 'count': 3},
+            {'label_id': quick.id, 'name_de': 'Testschnell', 'name_en': 'Testquick', 'color_hex': '#ff9900', 'count': 2},
+        ])
 
     def test_meal_stats_switches_to_monthly_buckets_over_a_long_range(self):
         recipe = Recipe.objects.create(title='Pasta', servings=2, created_by=self.tim)

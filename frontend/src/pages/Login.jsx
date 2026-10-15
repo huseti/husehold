@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { authService } from '../services/api';
 import logoFull from '../assets/logo-full.png';
+import { clearApiCache } from '../services/apiCache';
 
 export default function Login({ setIsAuthenticated }) {
   const { t } = useTranslation();
@@ -19,6 +20,7 @@ export default function Login({ setIsAuthenticated }) {
 
     try {
       const response = await authService.login(username, password);
+      clearApiCache();
       localStorage.setItem('access_token', response.data.access);
       localStorage.setItem('refresh_token', response.data.refresh);
       setIsAuthenticated(true);
@@ -33,12 +35,12 @@ export default function Login({ setIsAuthenticated }) {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full bg-white rounded-lg shadow-md p-8">
+      <div className="max-w-md w-full bg-white rounded-xl shadow-md p-8">
         <img src={logoFull} alt={t('common.appName')} className="mx-auto w-64 mb-4" />
         <p className="text-center text-gray-600 mb-8">{t('login.subtitle')}</p>
 
         {error && (
-          <div className="mb-4 p-3 btn-danger border border-red-400 text-red-700 rounded">
+          <div className="mb-4 p-3 btn-danger border border-red-400 text-red-700 rounded-lg">
             {error}
           </div>
         )}

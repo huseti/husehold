@@ -14,6 +14,10 @@ import TodaysMealsPanel from '../components/TodaysMealsPanel';
 import CookRatingPrompt from '../components/CookRatingPrompt';
 import { getWeekStart, toISODate, addDays } from '../utils/weekDates';
 import { isExpiringSoon } from '../utils/voucherDisplay';
+import { useRevalidate } from '../services/apiCache';
+import PageSkeleton from '../components/PageSkeleton';
+import TitleIcon from '../components/TitleIcon';
+import { WaveIcon } from '../components/icons/sectionIcons';
 
 const OVERDUE_LOOKBACK_DAYS = 30;
 
@@ -81,6 +85,7 @@ export default function Dashboard() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+  useRevalidate(loadData);
 
   useEffect(() => {
     if (weekOffset === 0) {
@@ -123,7 +128,7 @@ export default function Dashboard() {
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center h-screen">{t('common.loading')}</div>;
+    return <PageSkeleton width="max-w-7xl" />;
   }
 
   const incompleteShopping = shopping.filter(item => !item.is_completed);
@@ -163,6 +168,7 @@ export default function Dashboard() {
           meals, progress, week, KPIs) without changing the desktop layout. */}
       <main className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8 grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
         <h1 className="order-first md:col-span-2 text-xl md:text-2xl font-bold">
+          <TitleIcon className="align-[-0.15em] mr-2"><WaveIcon /></TitleIcon>
           {t('dashboard.welcome', { name: currentUser?.first_name || currentUser?.username })}{' '}
           {/* Own line on mobile, same line from md up */}
           <span className="block md:inline">{t('dashboard.welcomeUpcoming', { household: householdName })}</span>

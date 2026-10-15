@@ -8,11 +8,16 @@ import TaskDefinitionForm from '../components/TaskDefinitionForm';
 import AddSingleTaskForm from '../components/AddSingleTaskForm';
 import CookRatingPrompt from '../components/CookRatingPrompt';
 import CookingStepModal from '../components/CookingStepModal';
-import UndoToast from '../components/UndoToast';
 import { getDisplayTitle } from '../utils/taskDisplay';
 import GearIcon from '../components/icons/gearIcon';
-import { getWeekStart, toISODate, addDays, parseISODate } from '../utils/weekDates';
+import { getWeekStart, toISODate, addDays, parseISODate, formatDateRange } from '../utils/weekDates';
 import { BackArrow, NextArrow, PrevArrow } from '../components/icons/uiIcons';
+import { useRevalidate } from '../services/apiCache';
+import PageSkeleton from '../components/PageSkeleton';
+import { useUndo } from '../components/UndoProvider';
+import TitleIcon from '../components/TitleIcon';
+import { TasksMenuIcon } from '../components/icons/navIcons';
+import { ConfigIcon } from '../components/icons/sectionIcons';
 
 export default function Tasks() {
   const { t, i18n } = useTranslation();
@@ -38,9 +43,7 @@ export default function Tasks() {
   const [ratingPromptEntry, setRatingPromptEntry] = useState(null);
   // Step 1 of every household planning: the cooking plan for the same week.
   const [showCookingStep, setShowCookingStep] = useState(false);
-  // Confirmation + undo after moving a task to another day (see handleMove).
-  const [moveToast, setMoveToast] = useState(null);
-  const closeMoveToast = useCallback(() => setMoveToast(null), []);
+  const { showUndo, deleteWithUndo } = useUndo();
 
   useEffect(() => {
     const planWeek = searchParams.get('planWeek');
@@ -96,8 +99,8 @@ export default function Tasks() {
     }
   };
 
+  // No loading screen when paging weeks: the old week stays until the new one is in.
   useEffect(() => {
-    setLoading(true);
     loadWeek();
   }, [loadWeek]);
 
@@ -105,6 +108,10 @@ export default function Tasks() {
     loadMembers();
     loadDefinitions();
   }, []);
+  useRevalidate(() => {
+    loadWeek();
+    loadMembers();
+  });
 
   useEffect(() => {
     calendarEventService.getRange(toISODate(weekDays[0]), toISODate(weekDays[6]))
@@ -179,13 +186,7 @@ export default function Tasks() {
         title,
         day: parseISODate(targetISO).toLocaleDateString(i18n.resolvedLanguage, { weekday: 'long' }),
       });
-    setMoveToast({ message, instanceId: instance.id, fromISO });
-  };
-
-  const handleUndoMove = async () => {
-    const { instanceId, fromISO } = moveToast;
-    setMoveToast(null);
-    await moveTask(instanceId, fromISO);
+    showUndo({ message, onUndo: () => moveTask(instance.id, fromISO) });
   };
 
   const handleDragEnd = (event) => {
@@ -225,13 +226,21 @@ export default function Tasks() {
     loadWeek();
   };
 
-  const handleDeleteInstance = async (id) => {
-    await taskInstanceService.delete(id);
-    loadWeek();
+  const handleDeleteInstance = (id) => {
+    const instance = instances.find((i) => i.id === id);
+    deleteWithUndo({
+      message: t('common.deleted', { title: instance ? getDisplayTitle(instance, t, i18n) : '' }),
+      hide: () => setInstances((prev) => prev.filter((i) => i.id !== id)),
+      restore: loadWeek,
+      commit: async () => {
+        await taskInstanceService.delete(id);
+        loadWeek();
+      },
+    });
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center h-screen">{t('common.loading')}</div>;
+    return <PageSkeleton width="max-w-7xl" />;
   }
 
   return (
@@ -250,7 +259,8 @@ export default function Tasks() {
 
         <div className="flex items-center justify-between mb-6 flex-wrap gap-2">
           <div className="flex items-center gap-1">
-            <h2 className="text-3xl font-bold">
+            <h2 className="flex items-center gap-2 text-2xl sm:text-3xl font-bold">
+              <TitleIcon>{mode === 'config' ? <ConfigIcon /> : <TasksMenuIcon />}</TitleIcon>
               {mode === 'planning' ? t('weeklyPlanning.title') : mode === 'config' ? t('tasks.configTitle') : t('tasks.title')}
             </h2>
             {mode === 'calendar' && (
@@ -267,12 +277,12 @@ export default function Tasks() {
 
           {mode === 'calendar' && (
             <div className="flex flex-wrap items-center gap-2">
-              <button onClick={() => setWeekStart(addDays(weekStart, -7))} className="px-3 py-1 rounded btn-secondary hover:bg-gray-300"><PrevArrow /></button>
-              <span className="text-sm text-gray-600">{toISODate(weekStart)} – {toISODate(weekEnd)}</span>
-              <button onClick={() => setWeekStart(addDays(weekStart, 7))} className="px-3 py-1 rounded btn-secondary hover:bg-gray-300"><NextArrow /></button>
+              <button onClick={() => setWeekStart(addDays(weekStart, -7))} className="btn btn-sm btn-secondary hover:bg-gray-300"><PrevArrow /></button>
+              <span className="text-sm text-gray-600">{formatDateRange(weekStart, weekEnd, i18n.language)}</span>
+              <button onClick={() => setWeekStart(addDays(weekStart, 7))} className="btn btn-sm btn-secondary hover:bg-gray-300"><NextArrow /></button>
               <button
                 onClick={() => setShowAddSingle((v) => !v)}
-                className="px-3 py-1 rounded btn-secondary hover:bg-gray-300"
+                className="btn btn-md btn-secondary hover:bg-gray-300"
               >
                 + {t('tasks.addManualTask')}
               </button>
@@ -280,7 +290,7 @@ export default function Tasks() {
                 onClick={handleStartPlanning}
                 disabled={!canPlanThisWeek}
                 title={canPlanThisWeek ? undefined : t('weeklyPlanning.onlyThisOrNextWeek')}
-                className={`px-3 py-1 rounded text-white ${canPlanThisWeek ? 'btn-primary dark:hover:bg-eucalyptus-600' : 'bg-gray-300 cursor-not-allowed'}`}
+                className={`btn btn-md ${canPlanThisWeek ? 'btn-primary dark:hover:bg-eucalyptus-600' : 'bg-gray-300 text-gray-600 cursor-not-allowed'}`}
               >
                 {t('weeklyPlanning.startNow')}
               </button>
@@ -289,17 +299,17 @@ export default function Tasks() {
 
           {mode === 'planning' && (
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-sm text-gray-600">{toISODate(weekStart)} – {toISODate(weekEnd)}</span>
+              <span className="text-sm text-gray-600">{formatDateRange(weekStart, weekEnd, i18n.language)}</span>
               <button
                 onClick={() => setShowAddSingle((v) => !v)}
-                className="px-3 py-1 rounded btn-secondary hover:bg-gray-300"
+                className="btn btn-md btn-secondary hover:bg-gray-300"
               >
                 + {t('tasks.addManualTask')}
               </button>
-              <button onClick={handleFinishPlanning} className="px-3 py-1 rounded btn-primary text-white dark:hover:bg-eucalyptus-600">
+              <button onClick={handleFinishPlanning} className="btn btn-md btn-primary text-white dark:hover:bg-eucalyptus-600">
                 {t('weeklyPlanning.finish')}
               </button>
-              <button onClick={handleCancelPlanning} className="px-3 py-1 rounded btn-secondary hover:bg-gray-300">
+              <button onClick={handleCancelPlanning} className="btn btn-md btn-secondary hover:bg-gray-300">
                 {t('weeklyPlanning.cancel')}
               </button>
             </div>
@@ -341,7 +351,6 @@ export default function Tasks() {
         )}
       </main>
       <CookRatingPrompt entry={ratingPromptEntry} onClose={() => setRatingPromptEntry(null)} />
-      <UndoToast toast={moveToast} onUndo={handleUndoMove} onClose={closeMoveToast} />
       {mode === 'planning' && showCookingStep && (
         <CookingStepModal
           weekStart={weekStart}

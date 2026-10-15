@@ -76,11 +76,11 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Card components: consistent border, shadow, padding, rounded corners */
 .card {
-  @apply bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 shadow-sm;
+  @apply bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 shadow-sm;
 }
 
 .card-lg {
-  @apply bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow;
+  @apply bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6 shadow;
 }
 
 /* Sizing/padding stays per button: a global height or padding here overrides
@@ -92,6 +92,17 @@ button, [role="button"], .button {
 /* Small glyph-only actions (✎, ✕): round 36px tap target, glyph centered */
 .icon-btn {
   @apply inline-flex items-center justify-center w-9 h-9 flex-shrink-0 rounded-full leading-none text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700;
+}
+
+/* Button sizes -- two steps for the whole app. In @layer components (unlike
+   the color classes below), so a utility on the button (hidden, w-full,
+   md:text-xs, ...) still wins over them. */
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg font-medium leading-tight disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-sm { @apply px-3 py-1.5 text-sm; }   /* ~32px: inline/row actions */
+  .btn-md { @apply px-4 py-2 text-base; }   /* ~40px: page and dialog actions */
 }
 
 /* Primary button: Eukalyptus */
@@ -185,4 +196,86 @@ a {
     left: 0;
     width: 100%;
   }
+}
+
+/* Phones: there's no top bar, so keep clear of the iOS status bar / notch, and
+   leave room for the fixed bottom tab bar (BottomNav, ~4.25rem + the home
+   indicator) so the end of each page isn't hidden behind it. */
+@media (max-width: 767px) {
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+  }
+}
+
+/* Dialogs (.modal-backdrop + .modal-panel on the two wrapper divs): on phones a
+   sheet that slides up from the bottom edge, where the thumb is, with a grab
+   bar; from sm up the centered dialog, faded in. Plain CSS after the utilities,
+   so it wins over the dialogs' own p-4/my-8/rounded-lg. Screen only: printing a
+   recipe from its dialog keeps the print: layout. */
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+@keyframes dialog-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media screen {
+  .modal-backdrop { animation: backdrop-in 0.15s ease-out; }
+  .modal-panel { animation: dialog-in 0.18s ease-out; }
+}
+
+@media screen and (max-width: 639px) {
+  .modal-backdrop {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: stretch;
+    padding: 0;
+    overflow: hidden;
+  }
+  .modal-panel {
+    width: 100%;
+    max-width: none;
+    max-height: 92dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    margin: 0;
+    border-radius: 1rem 1rem 0 0;
+    padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));
+    animation: sheet-up 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .modal-panel::before {
+    content: '';
+    display: block;
+    width: 2.5rem;
+    height: 4px;
+    border-radius: 9999px;
+    background: theme('colors.gray.300');
+    margin: -0.75rem auto 1rem;
+  }
+}
+
+/* The bottom bar's "More" sheet */
+.sheet-up { animation: sheet-up 0.25s cubic-bezier(0.2, 0.8, 0.2, 1); }
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-backdrop, .modal-panel, .sheet-up { animation: none; }
+}
+
+/* Content that unfolds (task card actions, past days, "More" sheet) fades in
+   instead of popping. */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(-2px); }
+  to { opacity: 1; transform: none; }
+}
+.fade-in { animation: fade-in 0.15s ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .fade-in { animation: none; }
 }

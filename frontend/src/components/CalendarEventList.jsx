@@ -8,7 +8,7 @@ export default function CalendarEventList({ events, className = 'mb-2' }) {
         <div
           key={event.id}
           title={event.title}
-          className="text-xs text-amber-800 bg-amber-50 rounded px-1.5 py-0.5 truncate border-l-4"
+          className="text-xs text-amber-800 bg-amber-50 rounded-lg px-1.5 py-0.5 truncate border-l-4"
           style={{ borderColor: event.color_hex || '#d97706' }}
         >
           {event.title}

@@ -48,7 +48,7 @@ export default function CookingEntryCard({ entry, meals, allMeals, weekDays, onU
   };
 
   const handleDelete = () => {
-    if (window.confirm(t('cookingPlan.confirmDelete', { title: entry.recipe_title }))) onDelete(entry.id);
+    onDelete(entry.id); // undo snackbar instead of a confirm
   };
 
   const openLeftovers = () => {
@@ -73,7 +73,7 @@ export default function CookingEntryCard({ entry, meals, allMeals, weekDays, onU
 
   return (
     <div
-      className="border-l-4 rounded shadow-sm bg-gray-50 p-2 text-sm"
+      className="border-l-4 rounded-lg shadow-sm bg-gray-50 p-2 text-sm"
       style={{ borderLeftColor: isLeftovers ? (entry.source_assigned_to_color || '#d1d5db') : (entry.assigned_to_color || '#9ca3af'), opacity: entry.is_cooked ? 0.65 : 1 }}
     >
       {/* Stacked (title / status + servings / actions) so it fits a narrow day column. */}
@@ -88,14 +88,14 @@ export default function CookingEntryCard({ entry, meals, allMeals, weekDays, onU
           <button
             disabled={locked || entry.servings <= 1}
             onClick={() => changeServings(entry.servings - 1)}
-            className="inline-flex items-center justify-center w-6 h-6 rounded border border-gray-300 hover:bg-gray-100 disabled:opacity-30"
+            className="inline-flex items-center justify-center w-6 h-6 rounded-lg border border-gray-300 hover:bg-gray-100 disabled:opacity-30"
             aria-label="-"
           >−</button>
           <span className="whitespace-nowrap">{t('cookingPlan.servingsShort', { count: entry.servings })}</span>
           <button
             disabled={locked}
             onClick={() => changeServings(entry.servings + 1)}
-            className="inline-flex items-center justify-center w-6 h-6 rounded border border-gray-300 hover:bg-gray-100 disabled:opacity-30"
+            className="inline-flex items-center justify-center w-6 h-6 rounded-lg border border-gray-300 hover:bg-gray-100 disabled:opacity-30"
             aria-label="+"
           >+</button>
         </span>
@@ -119,14 +119,14 @@ export default function CookingEntryCard({ entry, meals, allMeals, weekDays, onU
               value={form.title}
               maxLength={200}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
-              className="border rounded px-2 py-1 w-full"
+              className="border rounded-lg px-2 py-1 w-full"
             />
           )}
-          <select value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} className="border rounded px-2 py-1 w-full">
+          <select value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} className="border rounded-lg px-2 py-1 w-full">
             {weekDays.map((d) => <option key={d} value={d}>{dayLabel(d)}</option>)}
             {!weekDays.includes(entry.date) && <option value={entry.date}>{dayLabel(entry.date)}</option>}
           </select>
-          <select value={form.meal_category} onChange={(e) => setForm({ ...form, meal_category: e.target.value })} className="border rounded px-2 py-1 w-full">
+          <select value={form.meal_category} onChange={(e) => setForm({ ...form, meal_category: e.target.value })} className="border rounded-lg px-2 py-1 w-full">
             {meals.map((m) => <option key={m.id} value={m.id}>{localizedName(m, i18n.language)}</option>)}
           </select>
           <input
@@ -135,10 +135,10 @@ export default function CookingEntryCard({ entry, meals, allMeals, weekDays, onU
             value={form.notes}
             maxLength={200}
             onChange={(e) => setForm({ ...form, notes: e.target.value })}
-            className="border rounded px-2 py-1 w-full"
+            className="border rounded-lg px-2 py-1 w-full"
           />
-          <button onClick={save} className="btn-primary text-white px-2 py-1 rounded dark:hover:bg-eucalyptus-600">{t('recipes.save')}</button>
-          <button onClick={() => setEditing(false)} className="btn-secondary text-gray-700 px-2 py-1 rounded hover:bg-gray-300">{t('recipes.cancel')}</button>
+          <button onClick={save} className="btn-primary text-white px-2 py-1 rounded-lg dark:hover:bg-eucalyptus-600">{t('recipes.save')}</button>
+          <button onClick={() => setEditing(false)} className="btn-secondary text-gray-700 px-2 py-1 rounded-lg hover:bg-gray-300">{t('recipes.cancel')}</button>
         </div>
       )}
 
@@ -149,14 +149,14 @@ export default function CookingEntryCard({ entry, meals, allMeals, weekDays, onU
           ) : (
             <>
               <span className="text-xs text-gray-500">{t('cookingPlan.leftoversWhen')}</span>
-              <select value={leftoverSlot} onChange={(e) => setLeftoverSlot(e.target.value)} className="border rounded px-2 py-1 w-full">
+              <select value={leftoverSlot} onChange={(e) => setLeftoverSlot(e.target.value)} className="border rounded-lg px-2 py-1 w-full">
                 {availableSlots.map((slot) => (
                   <option key={slotValue(slot)} value={slotValue(slot)}>
                     {dayLabel(slot.date)} · {localizedName(slot.meal, i18n.language)}
                   </option>
                 ))}
               </select>
-              <button onClick={submitLeftovers} className="btn-primary text-white px-2 py-1 rounded dark:hover:bg-eucalyptus-600">{t('cookingPlan.add')}</button>
+              <button onClick={submitLeftovers} className="btn-primary text-white px-2 py-1 rounded-lg dark:hover:bg-eucalyptus-600">{t('cookingPlan.add')}</button>
             </>
           )}
         </div>

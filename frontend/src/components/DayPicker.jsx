@@ -8,7 +8,7 @@ export default function DayPicker({ weekDays, selectedISO, onPick, showBacklog =
   const { t, i18n } = useTranslation();
   const todayISO = toISODate(new Date());
 
-  const chipBase = 'h-7 min-w-[1.75rem] px-1 md:h-6 md:min-w-[1.5rem] rounded text-xs md:text-[11px] font-medium inline-flex items-center justify-center';
+  const chipBase = 'h-7 min-w-[1.75rem] px-1.5 py-0.5 md:h-6 md:min-w-[1.5rem] rounded text-xs md:text-xs font-medium inline-flex items-center justify-center';
   const idle = 'btn-secondary text-gray-700';
   const active = 'bg-eucalyptus-700 text-white dark:bg-eucalyptus-600';
 

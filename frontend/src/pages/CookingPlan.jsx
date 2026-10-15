@@ -14,8 +14,13 @@ import AddToShoppingDialog from '../components/AddToShoppingDialog';
 import GearIcon from '../components/icons/gearIcon';
 import { localizedName } from '../utils/localized';
 import { slotKey } from '../utils/mealSlots';
-import { getWeekStart, toISODate, addDays, parseISODate } from '../utils/weekDates';
-import { NextArrow, PrevArrow } from '../components/icons/uiIcons';
+import { getWeekStart, toISODate, addDays, parseISODate, formatDateRange } from '../utils/weekDates';
+import { NextArrow, PrevArrow, ExpandCaret } from '../components/icons/uiIcons';
+import { useRevalidate } from '../services/apiCache';
+import PageSkeleton from '../components/PageSkeleton';
+import { useUndo } from '../components/UndoProvider';
+import TitleIcon from '../components/TitleIcon';
+import { CookingMenuIcon } from '../components/icons/navIcons';
 
 // The weekly meal plan. Two ways in besides the navbar:
 //  - the recurring "weekly meal planning" task's "Plan now" (planWeek + planInstance):
@@ -58,9 +63,13 @@ export default function CookingPlan() {
   const [calendarEvents, setCalendarEvents] = useState([]);
   const [config, setConfig] = useState(null);
   const [meals, setMeals] = useState([]);
+  // Phones/tablets: days already over start folded to one line, so today is near
+  // the top. Tapping the header opens one; the 7-column layout (lg) shows all.
+  const [openPastDays, setOpenPastDays] = useState(() => new Set());
   const [labels, setLabels] = useState([]);
   const [recipes, setRecipes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { deleteWithUndo } = useUndo();
   const [picker, setPicker] = useState(null); // { date, meal }
   const [shoppingDishes, setShoppingDishes] = useState(null);
   const [notice, setNotice] = useState(null); // { text, showHouseholdLink, error }
@@ -102,6 +111,10 @@ export default function CookingPlan() {
   useEffect(() => {
     loadEntries();
   }, [loadEntries]);
+  useRevalidate(() => {
+    loadEntries();
+    loadRecipes().catch(() => {});
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -131,7 +144,7 @@ export default function CookingPlan() {
     : [];
 
   const dayLabel = (iso) => parseISODate(iso).toLocaleDateString(i18n.language, { weekday: 'long', day: 'numeric', month: 'short' });
-  const rangeLabel = `${parseISODate(rangeStart).toLocaleDateString(i18n.language, { day: 'numeric', month: 'short' })} – ${parseISODate(rangeEnd).toLocaleDateString(i18n.language, { day: 'numeric', month: 'short' })}`;
+  const rangeLabel = formatDateRange(parseISODate(rangeStart), parseISODate(rangeEnd), i18n.language);
 
   const goBackToHousehold = () => {
     const instance = householdReturn.instanceId ? `&planInstance=${householdReturn.instanceId}` : '';
@@ -157,9 +170,17 @@ export default function CookingPlan() {
     return error;
   };
 
-  const handleDelete = async (id) => {
-    await attempt(() => cookingPlanEntryService.delete(id), 'Error deleting entry:');
-    await loadEntries();
+  const handleDelete = (id) => {
+    const entry = entries.find((e) => e.id === id);
+    deleteWithUndo({
+      message: t('common.deleted', { title: entry?.recipe_title || entry?.title || '' }),
+      hide: () => setEntries((prev) => prev.filter((e) => e.id !== id)),
+      restore: loadEntries,
+      commit: async () => {
+        await attempt(() => cookingPlanEntryService.delete(id), 'Error deleting entry:');
+        await loadEntries();
+      },
+    });
   };
 
   const handleAddLeftovers = async (source, date, mealCategory) => {
@@ -223,7 +244,7 @@ export default function CookingPlan() {
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center h-screen">{t('common.loading')}</div>;
+    return <PageSkeleton width="max-w-7xl" />;
   }
 
   return (
@@ -233,7 +254,7 @@ export default function CookingPlan() {
       <main className="max-w-7xl mx-auto px-4 py-8">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
           <div className="flex items-center gap-1">
-            <h2 className="text-3xl font-bold">{t('cookingPlan.title')}</h2>
+            <h2 className="flex items-center gap-2 text-2xl sm:text-3xl font-bold"><TitleIcon><CookingMenuIcon /></TitleIcon>{t('cookingPlan.title')}</h2>
             <Link
               to="/cooking-plan-config"
               className="text-gray-500 hover:text-gray-800 text-xl p-2"
@@ -247,15 +268,15 @@ export default function CookingPlan() {
             <button
               onClick={() => setWeekStart(thisWeekStart)}
               disabled={toISODate(weekStart) === toISODate(thisWeekStart)}
-              className="px-3 py-1 rounded btn-secondary hover:bg-gray-300 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="btn btn-sm btn-secondary hover:bg-gray-300 disabled:opacity-40 disabled:cursor-not-allowed"
             ><PrevArrow /></button>
             <span className="text-sm text-gray-600">{rangeLabel}</span>
             <button
               onClick={() => setWeekStart(nextWeekStart)}
               disabled={toISODate(weekStart) === toISODate(nextWeekStart)}
-              className="px-3 py-1 rounded btn-secondary hover:bg-gray-300 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="btn btn-sm btn-secondary hover:bg-gray-300 disabled:opacity-40 disabled:cursor-not-allowed"
             ><NextArrow /></button>
-            <button onClick={handleFinish} className="btn-primary text-white px-4 py-2 rounded dark:hover:bg-eucalyptus-600">
+            <button onClick={handleFinish} className="btn btn-md btn-primary text-white dark:hover:bg-eucalyptus-600">
               {draftCount > 0 ? t('cookingPlan.finishWithCount', { count: draftCount }) : t('cookingPlan.finish')}
             </button>
           </div>
@@ -264,7 +285,7 @@ export default function CookingPlan() {
         {householdReturn && (
           <div className="bg-purple-50 text-purple-800 rounded-lg px-4 py-3 mb-4 text-sm flex flex-wrap items-center gap-3">
             <span className="flex-1">{t('cookingPlan.householdStepBanner', { range: rangeLabel })}</span>
-            <button onClick={goBackToHousehold} className="bg-white text-purple-800 border border-purple-300 px-3 py-1 rounded hover:btn-secondary">
+            <button onClick={goBackToHousehold} className="bg-white text-purple-800 border border-purple-300 px-3 py-1 rounded-lg hover:btn-secondary">
               {t('cookingPlan.skipToHousehold')}
             </button>
           </div>
@@ -290,46 +311,82 @@ export default function CookingPlan() {
         <div className="grid grid-cols-1 lg:grid-cols-7 gap-3">
           {weekDays.map((iso) => {
             const date = parseISODate(iso);
-            const isToday = iso === toISODate(new Date());
+            const todayISO = toISODate(new Date());
+            const isToday = iso === todayISO;
+            const dayEntries = entries.filter((e) => e.date === iso);
+            const collapsed = iso < todayISO && !openPastDays.has(iso);
+            const toggleDay = () => setOpenPastDays((prev) => {
+              const next = new Set(prev);
+              if (next.has(iso)) next.delete(iso); else next.add(iso);
+              return next;
+            });
+            const heading = (
+              <>
+                {date.toLocaleDateString(i18n.language, { weekday: 'short' })}{' '}
+                <span className="text-gray-400 font-normal">{date.toLocaleDateString(i18n.language, { day: 'numeric', month: 'short' })}</span>
+              </>
+            );
             return (
               <section
                 key={iso}
-                className={`rounded-lg border bg-white p-2 min-w-0 ${isToday ? 'border-eucalyptus-400 ring-2 ring-eucalyptus-400' : 'border-gray-200'}`}
+                className={`rounded-xl border bg-white p-2 min-w-0 ${isToday ? 'border-eucalyptus-400 ring-2 ring-eucalyptus-400' : 'border-gray-200'}`}
               >
-                <h3 className="text-sm font-semibold mb-2 text-gray-900">
-                  {date.toLocaleDateString(i18n.language, { weekday: 'short' })}{' '}
-                  <span className="text-gray-400 font-normal">{date.toLocaleDateString(i18n.language, { day: 'numeric', month: 'short' })}</span>
-                </h3>
-                <CalendarEventList events={eventsOnDay(calendarEvents, iso)} className="mb-3" />
-                <div className="space-y-3">
-                  {shownMeals.map((meal) => {
-                    const cell = entries.filter((e) => e.date === iso && e.meal_category === meal.id);
-                    return (
-                      <div key={meal.id}>
-                        <div className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">{localizedName(meal, i18n.language)}</div>
-                        <div className="space-y-2">
-                          {cell.map((entry) => (
-                            <CookingEntryCard
-                              key={entry.id}
-                              entry={entry}
-                              meals={shownMeals}
-                              allMeals={meals}
-                              weekDays={weekDays}
-                              onUpdate={handleUpdate}
-                              onDelete={handleDelete}
-                              onAddLeftovers={handleAddLeftovers}
-                            />
-                          ))}
-                          <button
-                            onClick={() => setPicker({ date: iso, meal })}
-                            className="w-full text-left text-sm text-eucalyptus-600 rounded border border-dashed border-gray-300 px-2 py-1 hover:bg-eucalyptus-50 hover:border-eucalyptus-300"
-                          >
-                            + {t('cookingPlan.addDish')}
-                          </button>
+                {iso < todayISO ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={toggleDay}
+                      aria-expanded={!collapsed}
+                      className={`lg:hidden w-full flex items-center gap-1.5 text-left text-sm font-semibold text-gray-900 ${collapsed ? '' : 'mb-2'}`}
+                    >
+                      <ExpandCaret className={`text-gray-400 transition-transform ${collapsed ? '' : 'rotate-90'}`} />
+                      <span>{heading}</span>
+                      {collapsed && (
+                        <span className="text-xs text-gray-400 font-normal truncate">
+                          · {dayEntries.length > 0 ? t('cookingPlan.dishCount', { count: dayEntries.length }) : t('cookingPlan.nothingPlanned')}
+                        </span>
+                      )}
+                    </button>
+                    <h3 className="hidden lg:block text-sm font-semibold mb-2 text-gray-900">{heading}</h3>
+                  </>
+                ) : (
+                  <h3 className="text-sm font-semibold mb-2 text-gray-900">{heading}</h3>
+                )}
+                <div className={collapsed ? 'hidden lg:block' : 'fade-in'}>
+                  <CalendarEventList events={eventsOnDay(calendarEvents, iso)} className="mb-3" />
+                  {/* Phones: one row per meal (label left, dishes right); lg: label above. */}
+                  <div className="space-y-2 lg:space-y-3">
+                    {shownMeals.map((meal) => {
+                      const cell = dayEntries.filter((e) => e.meal_category === meal.id);
+                      return (
+                        <div key={meal.id} className="flex items-start gap-2 lg:block">
+                          <div className="w-24 flex-shrink-0 pt-1.5 lg:w-auto lg:pt-0 text-xs uppercase tracking-wide text-gray-400 lg:mb-1 break-words hyphens-auto">
+                            {localizedName(meal, i18n.language)}
+                          </div>
+                          <div className="flex-1 min-w-0 space-y-2">
+                            {cell.map((entry) => (
+                              <CookingEntryCard
+                                key={entry.id}
+                                entry={entry}
+                                meals={shownMeals}
+                                allMeals={meals}
+                                weekDays={weekDays}
+                                onUpdate={handleUpdate}
+                                onDelete={handleDelete}
+                                onAddLeftovers={handleAddLeftovers}
+                              />
+                            ))}
+                            <button
+                              onClick={() => setPicker({ date: iso, meal })}
+                              className="w-full text-left text-sm text-eucalyptus-600 rounded-lg border border-dashed border-gray-300 px-2 py-1.5 lg:py-1 hover:bg-eucalyptus-50 hover:border-eucalyptus-300"
+                            >
+                              + {t('cookingPlan.addDish')}
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
               </section>
             );

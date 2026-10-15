@@ -19,8 +19,8 @@ export default function CookRatingPrompt({ entry, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-lg shadow-xl p-6 max-w-sm w-full text-center" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-backdrop fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="modal-panel bg-white rounded-xl shadow-xl p-6 max-w-sm w-full text-center" onClick={(e) => e.stopPropagation()}>
         <p className="text-sm text-gray-500 mb-1">{t('cookingPlan.cookedLogged')}</p>
         <h3 className="text-lg font-semibold mb-4">{t('cookingPlan.howWasIt', { title: entry.recipe_title })}</h3>
         <StarRating value={null} onChange={handleRate} className="text-4xl" />

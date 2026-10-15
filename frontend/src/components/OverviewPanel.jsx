@@ -29,7 +29,7 @@ export default function OverviewPanel({
         <Link
           key={tile.to}
           to={tile.to}
-          className="block bg-white dark:bg-gray-800 rounded-lg shadow p-3 sm:p-4 hover:shadow-md transition-shadow"
+          className="block bg-white dark:bg-gray-800 rounded-xl shadow p-3 sm:p-4 hover:shadow-md transition-shadow"
         >
           <div className="flex items-start justify-between mb-2">
             <tile.Icon weight="fill" size="1em" aria-hidden="true" className="text-2xl text-eucalyptus-600 dark:text-eucalyptus-400" />
@@ -38,8 +38,8 @@ export default function OverviewPanel({
             </span>
           </div>
           <div className="flex flex-wrap items-baseline gap-x-2">
-            <span className="text-3xl font-bold text-eucalyptus-700 dark:text-eucalyptus-300">{tile.count}</span>
-            <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{tile.label}</span>
+            <span className="text-3xl font-bold tabular-nums text-eucalyptus-700 dark:text-eucalyptus-300">{tile.count}</span>
+            <span className="text-sm font-semibold text-eucalyptus-800 dark:text-eucalyptus-200">{tile.label}</span>
           </div>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{tile.desc}</p>
         </Link>

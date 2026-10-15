@@ -17,7 +17,7 @@ export default function UndoToast({ toast, onUndo, onClose, durationMs = 5000 })
   return (
     <div
       role="status"
-      className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-md flex items-center gap-3 rounded-lg bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900 shadow-lg px-4 py-3 text-sm"
+      className="fixed bottom-[calc(5.25rem+env(safe-area-inset-bottom))] md:bottom-4 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-md flex items-center gap-3 rounded-xl bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900 shadow-lg px-4 py-3 text-sm"
     >
       <span className="flex-1 min-w-0 truncate">{toast.message}</span>
       {onUndo && (

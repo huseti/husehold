@@ -12,19 +12,22 @@ export default function TaskDayColumn({
 
   const weekdayLabel = date.toLocaleDateString(i18n.resolvedLanguage, { weekday: 'short' });
   const dayLabel = date.toLocaleDateString(i18n.resolvedLanguage, { day: 'numeric', month: 'short' });
+  const isEmpty = instances.length === 0;
 
   return (
     <div
       ref={setNodeRef}
-      className={`rounded-lg border p-2 min-h-[80px] md:min-h-[200px] ${isOver ? 'bg-eucalyptus-50 border-eucalyptus-300' : 'bg-white border-gray-200'}`}
+      className={`rounded-xl border p-2 md:min-h-[200px] ${isOver ? 'bg-eucalyptus-50 border-eucalyptus-300' : 'bg-white border-gray-200'}`}
     >
-      <div className="text-sm font-semibold mb-2">
+      {/* Phones: an empty day collapses to its header line ("Mo 12. Okt. · Keine Aufgaben") */}
+      <div className={`text-sm font-semibold ${isEmpty && calendarEvents.length === 0 ? 'md:mb-2' : 'mb-2'}`}>
         {weekdayLabel} <span className="text-gray-400 font-normal">{dayLabel}</span>
+        {isEmpty && <span className="md:hidden text-xs text-gray-400 font-normal"> · {t('tasks.noTasks')}</span>}
       </div>
-      <CalendarEventList events={calendarEvents} />
+      <CalendarEventList events={calendarEvents} className={isEmpty ? 'md:mb-2' : 'mb-2'} />
       <div className="space-y-2">
-        {instances.length === 0 && (
-          <p className="text-xs text-gray-400">{t('tasks.noTasks')}</p>
+        {isEmpty && (
+          <p className="hidden md:block text-xs text-gray-400">{t('tasks.noTasks')}</p>
         )}
         {instances.map((instance) => (
           <TaskCard

@@ -16,6 +16,7 @@ import PackingBuckets from './pages/PackingBuckets';
 import Analytics from './pages/Analytics';
 import RecipeShoppingConfig from './pages/RecipeShoppingConfig';
 import Settings from './pages/Settings';
+import { UndoProvider } from './components/UndoProvider';
 
 function App() {
   const { t } = useTranslation();
@@ -44,6 +45,7 @@ function App() {
 
   return (
     <BrowserRouter>
+      <UndoProvider>
       <Routes>
         <Route path="/login" element={<Login setIsAuthenticated={setIsAuthenticated} />} />
         {isAuthenticated ? (
@@ -66,6 +68,7 @@ function App() {
           <Route path="*" element={<Login setIsAuthenticated={setIsAuthenticated} />} />
         )}
       </Routes>
+      </UndoProvider>
     </BrowserRouter>
   );
 }

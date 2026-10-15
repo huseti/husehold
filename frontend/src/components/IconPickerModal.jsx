@@ -39,8 +39,8 @@ export default function IconPickerModal({
   }`;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 overflow-y-auto p-4" onClick={onClose}>
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl mx-auto my-8 p-6" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-backdrop fixed inset-0 z-50 bg-black/40 overflow-y-auto p-4" onClick={onClose}>
+      <div className="modal-panel bg-white rounded-xl shadow-xl max-w-2xl mx-auto my-8 p-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-start mb-4">
           <h3 className="text-xl font-semibold">{t('iconPicker.title')}</h3>
           <button onClick={onClose} className="icon-btn text-xl hover:text-gray-700" aria-label={t('recipes.close')}><CloseGlyph /></button>

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { installApiCache, clearApiCache } from './apiCache';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
@@ -8,6 +9,7 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
+installApiCache(api);
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('access_token');
@@ -18,6 +20,7 @@ api.interceptors.request.use((config) => {
 });
 
 const endSession = () => {
+  clearApiCache();
   localStorage.removeItem('access_token');
   localStorage.removeItem('refresh_token');
   window.location.href = '/login';

@@ -14,6 +14,10 @@ import CopyIcon from '../components/icons/copyIcon';
 import EditIcon from '../components/icons/editIcon';
 import { toISODate } from '../utils/weekDates';
 import { CloseGlyph, EditGlyph } from '../components/icons/uiIcons';
+import { useRevalidate } from '../services/apiCache';
+import PageSkeleton from '../components/PageSkeleton';
+import TitleIcon from '../components/TitleIcon';
+import PackingListIcon from '../components/icons/packingListIcons';
 
 function errorMessage(error) {
   const data = error.response?.data;
@@ -96,6 +100,7 @@ export default function PackingLists() {
     setLists(loaded);
     return loaded;
   };
+  useRevalidate(() => reloadLists().catch(() => {}));
 
   // Runs makeRequest({}) first; if the backend answers 409 with
   // non_participants, stashes a retry (makeRequest with confirm_non_participants
@@ -228,7 +233,7 @@ export default function PackingLists() {
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center h-screen">{t('common.loading')}</div>;
+    return <PageSkeleton width="max-w-4xl" />;
   }
 
   const { upcoming, past, archived } = groupLists(lists);
@@ -268,7 +273,7 @@ export default function PackingLists() {
       <main className="max-w-4xl mx-auto px-4 py-8">
         <div className="flex flex-wrap justify-between items-center gap-3 mb-6">
           <div className="flex items-center gap-1">
-            <h2 className="text-3xl font-bold">{t('packingLists.title')}</h2>
+            <h2 className="flex items-center gap-2 text-2xl sm:text-3xl font-bold"><TitleIcon><PackingListIcon /></TitleIcon>{t('packingLists.title')}</h2>
             <Link
               to="/packing-buckets"
               className="text-gray-500 hover:text-gray-800 text-xl p-2"
@@ -280,7 +285,7 @@ export default function PackingLists() {
           </div>
           <button
             onClick={() => setModal({ mode: 'create', list: null })}
-            className="btn-primary px-4 py-2 rounded"
+            className="btn btn-md btn-primary"
           >
             + {t('packingLists.newButton')}
           </button>
@@ -322,7 +327,7 @@ export default function PackingLists() {
           <>
             <h3 className="text-xl font-semibold mb-3">{selected.name}</h3>
 
-            <div className="bg-white rounded-lg shadow p-4 mb-6 space-y-3">
+            <div className="bg-white rounded-xl shadow p-4 mb-6 space-y-3">
               <form onSubmit={handleAddItem} className="space-y-2">
                 <div className="flex gap-2">
                   <input
@@ -341,7 +346,7 @@ export default function PackingLists() {
                     onChange={(e) => setItemQuantity(e.target.value)}
                     className="w-24 px-3 py-2 border border-gray-300 rounded-lg"
                   />
-                  <button type="submit" className="btn-primary text-white px-4 py-2 rounded-lg hover:btn-primary">
+                  <button type="submit" className="btn btn-md btn-primary text-white hover:btn-primary">
                     {t('packingLists.addButton')}
                   </button>
                 </div>
@@ -365,7 +370,7 @@ export default function PackingLists() {
               )}
             </div>
 
-            <div className="bg-white rounded-lg shadow">
+            <div className="bg-white rounded-xl shadow">
               {selected.items.length === 0 && <p className="p-4 text-gray-500">{t('packingLists.emptyList')}</p>}
               <ul className="divide-y">
                 {selected.items.map((item) => (
@@ -388,10 +393,10 @@ export default function PackingLists() {
                             onChange={(e) => setEditItemQuantity(e.target.value)}
                             className="w-20 px-3 py-1.5 border border-gray-300 rounded-lg"
                           />
-                          <button onClick={saveEditItem} className="btn-primary text-white px-3 py-1.5 rounded dark:hover:bg-eucalyptus-600 text-sm">
+                          <button onClick={saveEditItem} className="btn btn-sm btn-primary text-white dark:hover:bg-eucalyptus-600">
                             {t('recipes.save')}
                           </button>
-                          <button onClick={() => setEditingItemId(null)} className="btn-secondary text-gray-700 px-3 py-1.5 rounded hover:bg-gray-300 text-sm">
+                          <button onClick={() => setEditingItemId(null)} className="btn btn-sm btn-secondary text-gray-700 hover:bg-gray-300">
                             {t('recipes.cancel')}
                           </button>
                         </div>

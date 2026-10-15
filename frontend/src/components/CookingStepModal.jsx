@@ -31,17 +31,17 @@ export default function CookingStepModal({ weekStart, onOpenCookingPlan, onSkip 
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full">
+    <div className="modal-backdrop fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+      <div className="modal-panel bg-white rounded-xl shadow-xl p-6 max-w-md w-full">
         <p className="text-xs uppercase tracking-wide text-purple-600 mb-1">{t('cookingStep.step')}</p>
         <h3 className="text-xl font-semibold mb-3">{t('cookingStep.title')}</h3>
         <p className="text-sm text-gray-600 mb-2">{t('cookingStep.explanation')}</p>
         <p className={`text-sm font-medium mb-5 ${done ? 'text-green-700' : 'text-gray-800'}`}>{status}</p>
         <div className="flex flex-wrap gap-3">
-          <button onClick={onOpenCookingPlan} className="btn-primary text-white px-4 py-2 rounded dark:hover:bg-eucalyptus-600">
+          <button onClick={onOpenCookingPlan} className="btn btn-md btn-primary text-white dark:hover:bg-eucalyptus-600">
             {done ? t('cookingStep.review') : t('cookingStep.open')}
           </button>
-          <button onClick={onSkip} className="btn-secondary text-gray-700 px-4 py-2 rounded hover:bg-gray-300">
+          <button onClick={onSkip} className="btn btn-md btn-secondary text-gray-700 hover:bg-gray-300">
             {done ? t('cookingStep.continue') : t('cookingStep.skip')}
           </button>
         </div>

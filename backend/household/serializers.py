@@ -220,7 +220,7 @@ class RecipeSerializer(serializers.ModelSerializer):
     my_rating = serializers.SerializerMethodField()
     last_cooked_date = serializers.SerializerMethodField()
     times_cooked = serializers.SerializerMethodField()
-    recent_meal_events = serializers.SerializerMethodField()
+    meal_history = serializers.SerializerMethodField()
 
     class Meta:
         model = Recipe
@@ -228,7 +228,7 @@ class RecipeSerializer(serializers.ModelSerializer):
             'id', 'title', 'description', 'instructions', 'prep_time', 'cook_time', 'servings',
             'source', 'source_type', 'notes', 'categories', 'labels', 'ingredients',
             'ratings', 'average_rating', 'my_rating',
-            'last_cooked_date', 'times_cooked', 'recent_meal_events',
+            'last_cooked_date', 'times_cooked', 'meal_history',
             'created_by', 'created_by_username', 'created_at', 'updated_at',
         )
         read_only_fields = ('created_by',)
@@ -254,8 +254,10 @@ class RecipeSerializer(serializers.ModelSerializer):
     def get_times_cooked(self, obj):
         return len(obj.meal_events.all())
 
-    def get_recent_meal_events(self, obj):
-        return MealEventSerializer(obj.meal_events.all()[:10], many=True, context=self.context).data
+    # The full log, newest first (the recipe view groups it by period) -- a
+    # handful of rows per recipe for a two-person household.
+    def get_meal_history(self, obj):
+        return MealEventSerializer(obj.meal_events.all(), many=True, context=self.context).data
 
     def _replace_ingredients(self, recipe, lines):
         user = self.context['request'].user

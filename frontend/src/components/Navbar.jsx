@@ -1,80 +1,61 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import logoIcon from '../assets/logo-icon.png';
 import AccountMenu from './AccountMenu';
 import MoreMenu from './MoreMenu';
-import HamburgerIcon from './icons/hamburgerIcon';
-import CloseIcon from './icons/closeIcon';
-import TaskIcon from './icons/taskIcons';
-import { TasksMenuIcon, RecipesMenuIcon } from './icons/navIcons';
+import BottomNav from './BottomNav';
+import LogoTile from './LogoTile';
+import {
+  ShoppingMenuIcon, TasksMenuIcon, CookingMenuIcon, RecipesMenuIcon,
+} from './icons/navIcons';
 
 export default function Navbar() {
   const { t } = useTranslation();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { pathname } = useLocation();
 
   const navLinks = [
-    { to: '/shopping', label: t('nav.shopping'), icon: <TaskIcon icon="shopping" /> },
-    { to: '/tasks', label: t('nav.tasks'), icon: <TasksMenuIcon /> },
-    { to: '/cooking-plan', label: t('nav.cookingPlan'), icon: <TaskIcon icon="cooking" /> },
-    { to: '/recipes', label: t('nav.recipes'), icon: <RecipesMenuIcon /> },
+    { to: '/shopping', label: t('nav.shopping'), Icon: ShoppingMenuIcon },
+    { to: '/tasks', label: t('nav.tasks'), Icon: TasksMenuIcon },
+    { to: '/cooking-plan', label: t('nav.cookingPlan'), Icon: CookingMenuIcon },
+    { to: '/recipes', label: t('nav.recipes'), Icon: RecipesMenuIcon },
   ];
 
   return (
-    <nav className="bg-eucalyptus-50 dark:bg-gray-800 shadow-sm border-b border-eucalyptus-200 dark:border-gray-700 print:hidden">
-      <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center gap-3">
-        {/* Mobile: burger left, logo centered (equal-width side slots), avatar right */}
-        <div className="flex-1 flex md:hidden items-center">
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="text-eucalyptus-700 dark:text-eucalyptus-300 hover:text-eucalyptus-900 dark:hover:text-eucalyptus-100 p-2 -ml-2"
-            aria-label={t('common.menu')}
-          >
-            {mobileMenuOpen ? <CloseIcon /> : <HamburgerIcon />}
-          </button>
-        </div>
+    <>
+      {/* Laptop/tablet only -- phones navigate with the bottom bar (BottomNav).
+          Dark eucalyptus so navigation stands apart from the light content;
+          sticky and slightly see-through with a blur, like iOS bars. */}
+      <nav className="hidden md:block sticky top-0 z-30 bg-eucalyptus-800/95 dark:bg-eucalyptus-950/95 backdrop-blur-md shadow-md print:hidden">
+        <div className="max-w-7xl mx-auto px-4 py-3.5 flex justify-between items-center gap-3">
+          <Link to="/" className="flex-shrink-0" aria-label={t('nav.dashboard')}>
+            <LogoTile />
+          </Link>
 
-        <Link to="/" className="flex-shrink-0">
-          <img src={logoIcon} alt={t('common.appName')} className="h-10 w-10" />
-        </Link>
-
-        {/* Desktop nav: visible only on md+ */}
-        <div className="hidden md:flex items-center gap-3 min-w-0">
-          <div className="space-x-4 flex items-center overflow-x-auto">
-            {navLinks.map((link) => (
-              <Link key={link.to} to={link.to} className="flex items-center gap-1.5 text-eucalyptus-700 dark:text-eucalyptus-300 hover:text-eucalyptus-900 dark:hover:text-eucalyptus-100 hover:font-semibold whitespace-nowrap transition-colors">
-                <span className="text-lg">{link.icon}</span>
-                {link.label}
-              </Link>
-            ))}
-          </div>
-          <MoreMenu />
-        </div>
-
-        <div className="flex-1 md:flex-none flex justify-end">
-          <AccountMenu />
-        </div>
-      </div>
-
-      {/* Mobile drawer: slides in from top */}
-      {mobileMenuOpen && (
-        <div className="md:hidden bg-eucalyptus-50 dark:bg-gray-800 border-t border-eucalyptus-200 dark:border-gray-700 px-4 py-3 space-y-2">
-          {navLinks.map((link) => (
-            <Link
-              key={link.to}
-              to={link.to}
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-2 py-2 text-eucalyptus-700 dark:text-eucalyptus-300 hover:text-eucalyptus-900 dark:hover:text-eucalyptus-100 hover:font-semibold transition-colors"
-            >
-              <span className="text-lg">{link.icon}</span>
-              {link.label}
-            </Link>
-          ))}
-          <div className="border-t border-eucalyptus-200 dark:border-gray-700 pt-2 mt-2">
+          <div className="flex items-center gap-1 min-w-0">
+            {navLinks.map((link) => {
+              const active = pathname.startsWith(link.to);
+              return (
+                <Link
+                  key={link.to}
+                  to={link.to}
+                  aria-current={active ? 'page' : undefined}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors no-underline ${
+                    active
+                      ? 'bg-white/15 text-white font-semibold hover:text-white'
+                      : 'text-eucalyptus-100 hover:bg-white/10 hover:text-white'
+                  }`}
+                >
+                  <span className="text-lg"><link.Icon active={active} /></span>
+                  {link.label}
+                </Link>
+              );
+            })}
             <MoreMenu />
           </div>
+
+          <AccountMenu />
         </div>
-      )}
-    </nav>
+      </nav>
+      <BottomNav />
+    </>
   );
 }

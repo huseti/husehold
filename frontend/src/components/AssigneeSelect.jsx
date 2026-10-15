@@ -12,7 +12,7 @@ export default function AssigneeSelect({ members, value, onChange }) {
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="px-2 py-1 border border-gray-300 rounded text-sm"
+        className="px-2 py-1 border border-gray-300 rounded-lg text-sm"
       >
         <option value="">{t('packingLists.unassigned')}</option>
         {members.map((member) => (

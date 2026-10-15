@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { parseIngredientLine } from '../utils/recipeDisplay';
 import { localizedName, unitLabel } from '../utils/localized';
 import { CloseGlyph } from './icons/uiIcons';
+import { pillStyle } from '../utils/colorContrast';
 
 const emptyLine = () => ({ quantity: '', unit: '', name: '', note: '' });
 
@@ -183,8 +184,8 @@ export default function RecipeForm({ recipe, draft, units, categories, labels, i
                   key={l.id}
                   type="button"
                   onClick={() => toggleId('labels', l.id)}
-                  style={on ? { backgroundColor: l.color_hex, borderColor: l.color_hex } : { borderColor: l.color_hex, color: l.color_hex }}
-                  className={`px-3 py-1 rounded-full text-sm border ${on ? 'text-white' : 'bg-white'}`}
+                  style={on ? { ...pillStyle(l.color_hex), borderColor: l.color_hex } : { borderColor: l.color_hex }}
+                  className={`px-3 py-1 rounded-full text-sm border ${on ? '' : 'bg-white text-gray-700'}`}
                 >
                   {localizedName(l, i18n.language)}
                 </button>
@@ -272,10 +273,10 @@ export default function RecipeForm({ recipe, draft, units, categories, labels, i
       {error && <p className="text-sm text-red-600">{error}</p>}
 
       <div className="flex gap-3">
-        <button type="submit" disabled={saving} className="btn-primary text-white px-4 py-2 rounded dark:hover:bg-eucalyptus-600 disabled:opacity-50">
+        <button type="submit" disabled={saving} className="btn btn-md btn-primary text-white dark:hover:bg-eucalyptus-600 disabled:opacity-50">
           {t('recipes.save')}
         </button>
-        <button type="button" onClick={onCancel} className="btn-secondary text-gray-700 px-4 py-2 rounded hover:bg-gray-300">
+        <button type="button" onClick={onCancel} className="btn btn-md btn-secondary text-gray-700 hover:bg-gray-300">
           {t('recipes.cancel')}
         </button>
       </div>

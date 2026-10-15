@@ -1,20 +1,17 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { memberService } from '../services/api';
 import AvatarPreviewModal from './AvatarPreviewModal';
+import { useMyMember } from '../hooks/useMyMember';
+import { logout } from '../utils/session';
 
 export default function AccountMenu() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const [member, setMember] = useState(null);
+  const [member, setMember] = useMyMember();
   const [open, setOpen] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const menuRef = useRef(null);
-
-  useEffect(() => {
-    memberService.getMe().then((res) => setMember(res.data)).catch(() => {});
-  }, []);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -24,11 +21,7 @@ export default function AccountMenu() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    navigate('/login');
-  };
+  const handleLogout = () => logout(navigate);
 
   const handleEditImageClick = () => {
     setShowPreview(true);
@@ -41,7 +34,7 @@ export default function AccountMenu() {
     <div className="relative flex-shrink-0" ref={menuRef}>
       <button
         onClick={() => setOpen((v) => !v)}
-        className="!h-10 !w-10 !p-0 rounded-full overflow-hidden border-2 border-eucalyptus-300 dark:border-eucalyptus-500 flex items-center justify-center text-white font-semibold"
+        className="!h-10 !w-10 !p-0 rounded-full overflow-hidden border-2 border-white/70 flex items-center justify-center text-white font-semibold"
         style={{ backgroundColor: member?.color_hex || '#9ca3af' }}
         title={member?.user?.username}
       >
@@ -53,7 +46,7 @@ export default function AccountMenu() {
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-20">
+        <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-20">
           <button
             onClick={handleEditImageClick}
             className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"

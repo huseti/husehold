@@ -18,7 +18,7 @@ export default function TaskIconChooser({ value, onChange }) {
       type="button"
       title={title}
       onClick={() => onChange(key)}
-      className={`p-2 rounded border text-lg ${
+      className={`p-2 rounded-lg border text-lg ${
         value === key ? 'btn-primary text-white border-eucalyptus-500' : 'bg-white text-gray-600 border-gray-300'
       }`}
     >
@@ -33,7 +33,7 @@ export default function TaskIconChooser({ value, onChange }) {
       <button
         type="button"
         onClick={() => setPickerOpen(true)}
-        className="px-3 rounded border border-dashed border-gray-300 text-sm text-eucalyptus-600 hover:bg-eucalyptus-50"
+        className="px-3 rounded-lg border border-dashed border-gray-300 text-sm text-eucalyptus-600 hover:bg-eucalyptus-50"
       >
         {t('iconPicker.more')}
       </button>

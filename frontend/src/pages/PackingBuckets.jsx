@@ -6,6 +6,9 @@ import Navbar from '../components/Navbar';
 import AssigneeCheckboxes from '../components/AssigneeCheckboxes';
 import AssigneeSelect from '../components/AssigneeSelect';
 import { BackArrow, CloseGlyph, EditGlyph } from '../components/icons/uiIcons';
+import PageSkeleton from '../components/PageSkeleton';
+import TitleIcon from '../components/TitleIcon';
+import { ConfigIcon } from '../components/icons/sectionIcons';
 
 function errorMessage(error) {
   const data = error.response?.data;
@@ -152,7 +155,7 @@ export default function PackingBuckets() {
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center h-screen">{t('common.loading')}</div>;
+    return <PageSkeleton width="max-w-4xl" />;
   }
 
   return (
@@ -163,7 +166,7 @@ export default function PackingBuckets() {
         <Link to="/packing-lists" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800 mb-4">
           <BackArrow /> {t('packingBuckets.backToLists')}
         </Link>
-        <h2 className="text-3xl font-bold mb-2">{t('packingBuckets.title')}</h2>
+        <h2 className="flex items-center gap-2 text-2xl sm:text-3xl font-bold mb-2"><TitleIcon><ConfigIcon /></TitleIcon>{t('packingBuckets.title')}</h2>
         <p className="text-sm text-gray-500 mb-6">{t('packingBuckets.hint')}</p>
 
         {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
@@ -184,7 +187,7 @@ export default function PackingBuckets() {
               type="color"
               value={newBucketColor}
               onChange={(e) => setNewBucketColor(e.target.value)}
-              className="w-9 h-9 p-0 border border-gray-300 rounded cursor-pointer"
+              className="w-9 h-9 p-0 border border-gray-300 rounded-lg cursor-pointer"
             />
             <input
               type="text"
@@ -202,14 +205,14 @@ export default function PackingBuckets() {
 
         {selected && (
           <>
-            <div className="bg-white rounded-lg shadow p-5 mb-6 space-y-4">
+            <div className="bg-white rounded-xl shadow p-5 mb-6 space-y-4">
               <div className="flex gap-3 items-center">
                 <input
                   type="color"
                   value={bucketColor}
                   onChange={(e) => setBucketColor(e.target.value)}
                   onBlur={() => bucketColor !== selected.color_hex && updateSelectedBucket({ color_hex: bucketColor })}
-                  className="w-9 h-9 p-0 border border-gray-300 rounded cursor-pointer"
+                  className="w-9 h-9 p-0 border border-gray-300 rounded-lg cursor-pointer"
                 />
                 <input
                   type="text"
@@ -224,7 +227,7 @@ export default function PackingBuckets() {
               </button>
             </div>
 
-            <form onSubmit={handleAddItem} className="bg-white rounded-lg shadow p-4 mb-6 space-y-2">
+            <form onSubmit={handleAddItem} className="bg-white rounded-xl shadow p-4 mb-6 space-y-2">
               <div className="flex gap-2">
                 <input
                   type="text"
@@ -242,14 +245,14 @@ export default function PackingBuckets() {
                   onChange={(e) => setItemQuantity(e.target.value)}
                   className="w-24 px-3 py-2 border border-gray-300 rounded-lg"
                 />
-                <button type="submit" className="btn-primary text-white px-4 py-2 rounded-lg hover:btn-primary">
+                <button type="submit" className="btn btn-md btn-primary text-white hover:btn-primary">
                   {t('packingBuckets.addButton')}
                 </button>
               </div>
               <AssigneeCheckboxes members={members} selectedIds={itemAssigneeIds} onChange={setItemAssigneeIds} />
             </form>
 
-            <div className="bg-white rounded-lg shadow">
+            <div className="bg-white rounded-xl shadow">
               {selected.items.length === 0 && <p className="p-4 text-gray-500">{t('packingBuckets.emptyBucket')}</p>}
               <ul className="divide-y">
                 {selected.items.map((item) => (
@@ -272,10 +275,10 @@ export default function PackingBuckets() {
                             onChange={(e) => setEditItemQuantity(e.target.value)}
                             className="w-20 px-3 py-1.5 border border-gray-300 rounded-lg"
                           />
-                          <button onClick={saveEditItem} className="btn-primary text-white px-3 py-1.5 rounded dark:hover:bg-eucalyptus-600 text-sm">
+                          <button onClick={saveEditItem} className="btn btn-sm btn-primary text-white dark:hover:bg-eucalyptus-600">
                             {t('recipes.save')}
                           </button>
-                          <button onClick={() => setEditingItemId(null)} className="btn-secondary text-gray-700 px-3 py-1.5 rounded hover:bg-gray-300 text-sm">
+                          <button onClick={() => setEditingItemId(null)} className="btn btn-sm btn-secondary text-gray-700 hover:bg-gray-300">
                             {t('recipes.cancel')}
                           </button>
                         </div>

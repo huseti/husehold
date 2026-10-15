@@ -21,7 +21,7 @@ export default function RecipeConfig() {
   const categoryOptions = ingredientCategories.map((c) => ({ value: c.id, label: localizedName(c, i18n.language) }));
 
   return (
-    <div className="bg-white rounded-lg shadow p-6 mb-8">
+    <div className="bg-white rounded-xl shadow p-6 mb-8">
       <p className="text-sm text-gray-500 mb-3">{t('recipeConfig.hint')}</p>
 
       <LookupEditor

@@ -20,13 +20,15 @@ const PAGES = [
 ];
 // Dialogs/menus reached by clicks. Only clicks that open UI -- never ones that save data.
 const SCENARIOS = [
-  { name: 'nav-menu', route: '/', click: [{ role: 'button', name: /^(Menü|Weitere)/ }] },
-  { name: 'account-menu', route: '/', click: [{ css: 'header button:has(img), nav button:has(img)' }] },
-  { name: 'recipe-new', route: '/recipes', click: [{ role: 'button', name: /Rezept manuell anlegen/ }] },
+  // Laptop: navbar "Weitere" dropdown; phone: the bottom bar's "Mehr" tab (avatar + label).
+  { name: 'nav-menu', route: '/', click: [{ role: 'button', name: /(^Weitere|Mehr$)/ }] },
+  { name: 'account-menu', route: '/', click: [{ css: 'nav button:has(img), nav button:has-text("Mehr")' }] },
+  { name: 'avatar-preview', route: '/', click: [{ css: 'nav button:has(img), nav button:has-text("Mehr")' }, { role: 'button', name: /Bild bearbeiten/ }] },
+  { name: 'recipe-new', route: '/recipes', click: [{ role: 'button', name: /(Rezept m|M)anuell anlegen/ }] },
   { name: 'voucher-new', route: '/vouchers', click: [{ role: 'button', name: /Gutschein hinzufügen/ }] },
   { name: 'shopping-list-edit', route: '/shopping', click: [{ role: 'button', name: /Liste bearbeiten/ }] },
   { name: 'dashboard-next-week', route: '/', click: [{ role: 'button', name: /Nächste Woche/ }] },
-  { name: 'recipe-import', route: '/recipes', click: [{ role: 'button', name: /Rezept importieren/ }] },
+  { name: 'recipe-import', route: '/recipes', click: [{ role: 'button', name: /^\+ (Rezept importieren|Importieren)$/ }] },
   { name: 'recipe-detail', route: '/recipes', click: [{ css: 'main button:has(h3), main button:has(h4)' }] },
   { name: 'packing-new', route: '/packing-lists', click: [{ role: 'button', name: /Neue Packliste/ }] },
   { name: 'tasks-add-single', route: '/tasks', click: [{ role: 'button', name: /einzelne|Einzelaufgabe|hinzufügen/i }] },

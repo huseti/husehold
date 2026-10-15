@@ -18,8 +18,8 @@ export default function NonParticipantConfirmDialog({ missing, onAccept, onCance
   });
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={onCancel}>
-      <div className="bg-white rounded-lg shadow-xl max-w-sm w-full p-6" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-backdrop fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={onCancel}>
+      <div className="modal-panel bg-white rounded-xl shadow-xl max-w-sm w-full p-6" onClick={(e) => e.stopPropagation()}>
         <h3 className="text-lg font-semibold mb-3">{t('packingLists.nonParticipantTitle')}</h3>
         <ul className="space-y-3 mb-4">
           {missing.map((person) => (
@@ -35,11 +35,11 @@ export default function NonParticipantConfirmDialog({ missing, onAccept, onCance
         <div className="flex gap-3">
           <button
             onClick={() => onAccept([...checked])}
-            className="btn-primary text-white px-4 py-2 rounded dark:hover:bg-eucalyptus-600"
+            className="btn btn-md btn-primary text-white dark:hover:bg-eucalyptus-600"
           >
             {t('packingLists.nonParticipantAccept')}
           </button>
-          <button onClick={onCancel} className="btn-secondary text-gray-700 px-4 py-2 rounded hover:bg-gray-300">
+          <button onClick={onCancel} className="btn btn-md btn-secondary text-gray-700 hover:bg-gray-300">
             {t('recipes.cancel')}
           </button>
         </div>

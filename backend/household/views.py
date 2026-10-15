@@ -417,7 +417,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = Recipe.objects.prefetch_related(
-            'ingredients__ingredient', 'ingredients__unit', 'ratings__rated_by', 'labels', 'categories', 'meal_events',
+            'ingredients__ingredient', 'ingredients__unit', 'ratings__rated_by', 'labels', 'categories', 'meal_events__logged_by',
         ).select_related('created_by')
         params = self.request.query_params
         q = params.get('q')

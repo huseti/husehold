@@ -67,7 +67,7 @@ export default function WeeklyPlanningConfig({ definitions, members, onSaved, ki
   };
 
   return (
-    <div className="bg-white rounded-lg shadow p-4 mb-6">
+    <div className="bg-white rounded-xl shadow p-4 mb-6">
       <h3 className="font-semibold mb-1">{t(`${config.textKey}.title`)}</h3>
       <p className="text-xs text-gray-500 mb-3">{t(`${config.textKey}.description`)}</p>
 
@@ -92,7 +92,7 @@ export default function WeeklyPlanningConfig({ definitions, members, onSaved, ki
           <select
             value={weekday}
             onChange={(e) => setWeekday(e.target.value)}
-            className="border rounded px-2 py-1 text-sm"
+            className="border rounded-lg px-2 py-1 text-sm"
           >
             {WEEKDAYS.map((day) => (
               <option key={day} value={day}>
@@ -107,7 +107,7 @@ export default function WeeklyPlanningConfig({ definitions, members, onSaved, ki
             type="time"
             value={time}
             onChange={(e) => setTime(e.target.value)}
-            className="border rounded px-2 py-1 text-sm"
+            className="border rounded-lg px-2 py-1 text-sm"
           />
         </div>
         <div>
@@ -115,7 +115,7 @@ export default function WeeklyPlanningConfig({ definitions, members, onSaved, ki
           <select
             value={assignmentMode}
             onChange={(e) => setAssignmentMode(e.target.value)}
-            className="border rounded px-2 py-1 text-sm"
+            className="border rounded-lg px-2 py-1 text-sm"
           >
             {ASSIGNMENT_MODES.map((mode) => (
               <option key={mode} value={mode}>{t(`tasks.assignmentMode.${mode}`)}</option>
@@ -128,7 +128,7 @@ export default function WeeklyPlanningConfig({ definitions, members, onSaved, ki
             <select
               value={defaultAssignee}
               onChange={(e) => setDefaultAssignee(e.target.value)}
-              className="border rounded px-2 py-1 text-sm"
+              className="border rounded-lg px-2 py-1 text-sm"
             >
               <option value="">{t('tasks.unassigned')}</option>
               {members.map((m) => (
@@ -137,7 +137,7 @@ export default function WeeklyPlanningConfig({ definitions, members, onSaved, ki
             </select>
           </div>
         )}
-        <button type="submit" className="btn-primary text-white px-3 py-1 rounded text-sm hover:btn-primary">
+        <button type="submit" className="btn btn-sm btn-primary text-white hover:btn-primary">
           {t('weeklyPlanning.save')}
         </button>
       </form>

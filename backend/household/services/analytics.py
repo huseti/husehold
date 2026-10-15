@@ -98,6 +98,18 @@ def meal_stats(start, end, top_n=10):
     )
     top_recipes = [{'recipe_id': r['recipe_id'], 'title': r['recipe__title'], 'count': r['count']} for r in top]
 
+    # Each cooked meal counts once for every label its recipe carries.
+    label_rows = (
+        queryset.filter(recipe__labels__isnull=False)
+        .values('recipe__labels', 'recipe__labels__name_de', 'recipe__labels__name_en', 'recipe__labels__color_hex')
+        .annotate(count=Count('id'))
+        .order_by('-count', 'recipe__labels__name_de')[:top_n]
+    )
+    top_labels = [{
+        'label_id': r['recipe__labels'], 'name_de': r['recipe__labels__name_de'],
+        'name_en': r['recipe__labels__name_en'], 'color_hex': r['recipe__labels__color_hex'], 'count': r['count'],
+    } for r in label_rows]
+
     granularity = _granularity(start, end)
     counts = {}
     for date_cooked in queryset.values_list('date_cooked', flat=True):
@@ -105,7 +117,7 @@ def meal_stats(start, end, top_n=10):
         counts[key] = counts.get(key, 0) + 1
     trend = [{'bucket': key, 'count': count} for key, count in sorted(counts.items())]
 
-    return {'top_recipes': top_recipes, 'trend': trend, 'granularity': granularity}
+    return {'top_recipes': top_recipes, 'top_labels': top_labels, 'trend': trend, 'granularity': granularity}
 
 
 def purchase_stats(start, end, top_n=10):

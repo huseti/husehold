@@ -11,8 +11,9 @@ const LINKS = [
   { to: '/analytics', labelKey: 'nav.analytics', icon: <AnalyticsMenuIcon /> },
 ];
 
-// Same open/click-outside-to-close pattern as AccountMenu -- groups the
-// lower-traffic pages so the main nav row doesn't grow with every new domain.
+// Laptop navbar's "More" dropdown (phones use BottomNav's sheet). Same
+// open/click-outside-to-close pattern as AccountMenu -- groups the lower-traffic
+// pages so the main nav row doesn't grow with every new domain.
 export default function MoreMenu() {
   const { t } = useTranslation();
   const location = useLocation();
@@ -33,13 +34,14 @@ export default function MoreMenu() {
     <div className="relative flex-shrink-0" ref={menuRef}>
       <button
         onClick={() => setOpen((v) => !v)}
-        className={`flex items-center gap-1 ${isActive ? 'text-eucalyptus-900 dark:text-eucalyptus-100 font-medium' : 'text-eucalyptus-700 dark:text-eucalyptus-300 hover:text-eucalyptus-900 dark:hover:text-eucalyptus-100'}`}
+        aria-expanded={open}
+        className={`flex items-center gap-1 px-3 py-1.5 rounded-lg ${isActive || open ? 'bg-white/15 text-white font-semibold' : 'text-eucalyptus-100 hover:bg-white/10 hover:text-white'}`}
       >
         {t('nav.more')} <span className="text-xs">▾</span>
       </button>
 
       {open && (
-        <div className="absolute left-0 mt-2 w-44 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-20">
+        <div className="absolute left-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-20">
           {LINKS.map((l) => (
             <Link
               key={l.to}

@@ -6,7 +6,7 @@ export default function MemberAvatar({ member, sizeClass = 'h-6 w-6', title }) {
   const name = member ? (member.user.first_name || member.user.username) : null;
   return (
     <span
-      className={`${sizeClass} rounded-full overflow-hidden inline-flex items-center justify-center text-[10px] font-semibold flex-shrink-0 align-middle ${member ? 'text-white' : 'bg-gray-200 text-gray-400 dark:bg-gray-600 dark:text-gray-300'}`}
+      className={`${sizeClass} rounded-full overflow-hidden inline-flex items-center justify-center text-xs font-semibold flex-shrink-0 align-middle ${member ? 'text-white' : 'bg-gray-200 text-gray-400 dark:bg-gray-600 dark:text-gray-300'}`}
       style={member ? { backgroundColor: member.color_hex } : undefined}
       title={title ?? name ?? undefined}
     >

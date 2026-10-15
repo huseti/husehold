@@ -8,10 +8,26 @@ import { formatQuantity, scaleQuantity } from '../utils/recipeDisplay';
 import { localizedName, unitLabel } from '../utils/localized';
 import { asClickableUrl } from '../utils/sourceDisplay';
 import { CloseGlyph, ExpandCaret } from './icons/uiIcons';
+import { pillStyle } from '../utils/colorContrast';
 
 const SOURCE_TYPE_KEYS = { manual: 'sourceTypeManual', website: 'sourceTypeWebsite', photo: 'sourceTypePhoto', text: 'sourceTypeText', social: 'sourceTypeSocial' };
 
 const todayIso = () => new Date().toLocaleDateString('sv-SE');
+
+// Newest first, split into last month / older than a month / older than a year.
+// Empty periods are left out.
+function groupHistory(events) {
+  const today = new Date();
+  const iso = (d) => d.toLocaleDateString('sv-SE');
+  const monthAgo = new Date(today); monthAgo.setMonth(monthAgo.getMonth() - 1);
+  const yearAgo = new Date(today); yearAgo.setFullYear(yearAgo.getFullYear() - 1);
+  const groups = [
+    { key: 'lastMonth', events: events.filter((e) => e.date_cooked > iso(monthAgo)) },
+    { key: 'olderThanMonth', events: events.filter((e) => e.date_cooked <= iso(monthAgo) && e.date_cooked > iso(yearAgo)) },
+    { key: 'olderThanYear', events: events.filter((e) => e.date_cooked <= iso(yearAgo)) },
+  ];
+  return groups.filter((g) => g.events.length > 0);
+}
 
 export default function RecipeDetail({
   recipe, labels, categories, units, onAddToShopping, onRate, onClearRating, onLogCooked, onDeleteMeal, onEdit, onDelete, onClose,
@@ -21,6 +37,16 @@ export default function RecipeDetail({
   const [servings, setServings] = useState(recipe.servings);
   const [showCookForm, setShowCookForm] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  // Cooking history in three non-overlapping periods, each folded on its own;
+  // the newest non-empty one starts open (normally "last month").
+  const history = recipe.meal_history;
+  const historyGroups = groupHistory(history);
+  const [openGroups, setOpenGroups] = useState(() => new Set(historyGroups.slice(0, 1).map((g) => g.key)));
+  const toggleGroup = (key) => setOpenGroups((prev) => {
+    const next = new Set(prev);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    return next;
+  });
   const [cookDate, setCookDate] = useState(todayIso());
   const [cookServings, setCookServings] = useState(recipe.servings);
   const [cookError, setCookError] = useState('');
@@ -88,7 +114,7 @@ export default function RecipeDetail({
             <span key={`c${c.id}`} className="px-3 py-1 rounded-full text-sm bg-eucalyptus-300 text-gray-900 dark:bg-eucalyptus-700 dark:text-white">{localizedName(c, i18n.language)}</span>
           ))}
           {recipeLabels.map((l) => (
-            <span key={`l${l.id}`} style={{ backgroundColor: l.color_hex }} className="px-3 py-1 rounded-full text-sm text-white">{localizedName(l, i18n.language)}</span>
+            <span key={`l${l.id}`} style={pillStyle(l.color_hex)} className="px-3 py-1 rounded-full text-sm">{localizedName(l, i18n.language)}</span>
           ))}
         </div>
       )}
@@ -137,9 +163,9 @@ export default function RecipeDetail({
         <div className="flex items-center gap-3 mb-2">
           <h4 className="font-semibold">{t('recipes.ingredientsLabel')}</h4>
           <span className="flex items-center gap-2 text-sm text-gray-600">
-            <button onClick={() => setServings((s) => Math.max(1, s - 1))} className="w-7 h-7 rounded border border-gray-300 hover:bg-gray-100" aria-label="-">−</button>
+            <button onClick={() => setServings((s) => Math.max(1, s - 1))} className="w-7 h-7 rounded-lg border border-gray-300 hover:bg-gray-100" aria-label="-">−</button>
             <span>{t('recipes.servings', { count: servings })}</span>
-            <button onClick={() => setServings((s) => s + 1)} className="w-7 h-7 rounded border border-gray-300 hover:bg-gray-100" aria-label="+">+</button>
+            <button onClick={() => setServings((s) => s + 1)} className="w-7 h-7 rounded-lg border border-gray-300 hover:bg-gray-100" aria-label="+">+</button>
           </span>
         </div>
         {recipe.ingredients.length === 0 ? (
@@ -189,7 +215,7 @@ export default function RecipeDetail({
 
       <div className="print:hidden">
         <div className="flex flex-wrap items-center gap-3 mb-2">
-          {recipe.recent_meal_events.length > 0 ? (
+          {history.length > 0 ? (
             <button
               onClick={() => setShowHistory((v) => !v)}
               aria-expanded={showHistory}
@@ -207,7 +233,7 @@ export default function RecipeDetail({
               : t('recipes.neverCooked')}
           </span>
           {!showCookForm && (
-            <button onClick={openCookForm} className="btn-primary text-white px-3 py-1 rounded text-sm dark:hover:bg-eucalyptus-600">
+            <button onClick={openCookForm} className="btn btn-sm btn-primary text-white dark:hover:bg-eucalyptus-600">
               {t('recipes.cookedButton')}
             </button>
           )}
@@ -225,8 +251,8 @@ export default function RecipeDetail({
               <input type="number" min="1" value={cookServings} onChange={(e) => setCookServings(e.target.value)}
                 className="block w-24 mt-1 px-3 py-1.5 border border-gray-300 rounded-lg" required />
             </label>
-            <button type="submit" className="btn-primary text-white px-3 py-1.5 rounded dark:hover:bg-eucalyptus-600">{t('recipes.save')}</button>
-            <button type="button" onClick={() => setShowCookForm(false)} className="btn-secondary text-gray-700 px-3 py-1.5 rounded hover:bg-gray-300">{t('recipes.cancel')}</button>
+            <button type="submit" className="btn btn-sm btn-primary text-white dark:hover:bg-eucalyptus-600">{t('recipes.save')}</button>
+            <button type="button" onClick={() => setShowCookForm(false)} className="btn btn-sm btn-secondary text-gray-700 hover:bg-gray-300">{t('recipes.cancel')}</button>
             {cookError && <p className="w-full text-sm text-red-600">{cookError}</p>}
           </form>
         )}
@@ -239,17 +265,35 @@ export default function RecipeDetail({
           </div>
         )}
 
-        {showHistory && recipe.recent_meal_events.length > 0 && (
-          <ul className="text-sm text-gray-700 space-y-1 max-h-48 overflow-y-auto pr-1">
-            {recipe.recent_meal_events.map((event) => (
-              <li key={event.id} className="flex items-center gap-2">
-                <span>{formatDate(event.date_cooked)}</span>
-                <span className="text-gray-500">· {t('recipes.servings', { count: event.servings_made })}</span>
-                {event.logged_by_username && <span className="text-gray-400">· {event.logged_by_username}</span>}
-                <button onClick={() => onDeleteMeal(event.id)} className="icon-btn hover:text-red-600" aria-label={t('recipes.removeLogEntry')}><CloseGlyph /></button>
-              </li>
+        {showHistory && history.length > 0 && (
+          <div className="fade-in space-y-1 mb-2">
+            {historyGroups.map((group) => (
+              <div key={group.key} className="rounded-lg bg-gray-50">
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(group.key)}
+                  aria-expanded={openGroups.has(group.key)}
+                  className="w-full flex items-center gap-1.5 px-2 py-1.5 text-sm font-medium text-gray-700"
+                >
+                  <ExpandCaret className={`text-gray-400 transition-transform ${openGroups.has(group.key) ? 'rotate-90' : ''}`} />
+                  {t(`recipes.historyGroup.${group.key}`)}
+                  <span className="ml-auto text-gray-500 font-normal tabular-nums">{t('recipes.timesCookedShort', { count: group.events.length })}</span>
+                </button>
+                {openGroups.has(group.key) && (
+                  <ul className="fade-in text-sm text-gray-700 space-y-1 max-h-48 overflow-y-auto px-2 pb-2 pl-7">
+                    {group.events.map((event) => (
+                      <li key={event.id} className="flex items-center gap-2">
+                        <span className="tabular-nums">{formatDate(event.date_cooked)}</span>
+                        <span className="text-gray-500">· {t('recipes.servings', { count: event.servings_made })}</span>
+                        {event.logged_by_username && <span className="text-gray-400">· {event.logged_by_username}</span>}
+                        <button onClick={() => onDeleteMeal(event.id)} className="icon-btn ml-auto hover:text-red-600" aria-label={t('recipes.removeLogEntry')}><CloseGlyph /></button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             ))}
-          </ul>
+          </div>
         )}
       </div>
 
@@ -262,13 +306,13 @@ export default function RecipeDetail({
       </p>
 
       <div className="flex gap-3 pt-2 border-t print:hidden">
-        <button onClick={onEdit} className="btn-primary text-white px-4 py-2 rounded hover:btn-primary">{t('recipes.edit')}</button>
+        <button onClick={onEdit} className="btn btn-md btn-primary text-white hover:btn-primary">{t('recipes.edit')}</button>
         {recipe.ingredients.length > 0 && (
-          <button onClick={() => onAddToShopping(servings)} className="btn-secondary text-gray-700 px-4 py-2 rounded hover:bg-gray-300">
+          <button onClick={() => onAddToShopping(servings)} className="btn btn-md btn-secondary text-gray-700 hover:bg-gray-300">
             {t('recipes.addToShopping')}
           </button>
         )}
-        <button onClick={onDelete} className="btn-secondary text-red-600 px-4 py-2 rounded hover:bg-gray-300">{t('recipes.delete')}</button>
+        <button onClick={onDelete} className="btn btn-md btn-secondary text-red-600 hover:bg-gray-300">{t('recipes.delete')}</button>
       </div>
     </div>
   );

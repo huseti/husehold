@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
@@ -5,8 +6,13 @@ import TaskIcon from './icons/taskIcons';
 import MemberAvatar from './MemberAvatar';
 import { getDisplayTitle, canSnoozeInstance, getPlanNowPath } from '../utils/taskDisplay';
 import { getWeekStart, parseISODate, toISODate } from '../utils/weekDates';
-import { UndoGlyph } from './icons/uiIcons';
+import { UndoGlyph, MoreGlyph, CheckGlyph, SnoozeGlyph } from './icons/uiIcons';
+import SwipeActions from './SwipeActions';
 import DayPicker from './DayPicker';
+
+// Spelled out in full so Tailwind's class scanner sees them. inline-flex is for
+// .icon-btn, plain CSS declared after the utilities, so it needs the ! variants.
+const MD_ONLY = { block: 'hidden md:block', 'inline-block': 'hidden md:inline-block', 'inline-flex': '!hidden md:!inline-flex' };
 
 export default function TaskCard({
   instance, members, onComplete, onSkip, onSnooze, onReassign, onReopen, onDelete,
@@ -15,12 +21,16 @@ export default function TaskCard({
 }) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  // Phones: a card shows only "Done" (+ "Plan now") and a ⋯ toggle; the rest
+  // (skip, next week, reassign, delete, day chips) folds out on tap. From md
+  // up everything stays visible. In planning mode (attentionHighlight) the
+  // assignee and day chips are the point of the exercise, so they stay open.
+  const [expanded, setExpanded] = useState(false);
+  const showPlanning = expanded || attentionHighlight;
+  const mobileHidden = (visible, display = 'block') => (visible ? 'fade-in' : MD_ONLY[display]);
 
-  const handleDelete = () => {
-    if (window.confirm(t('tasks.confirmDeleteInstance', { title: getDisplayTitle(instance, t, i18n) }))) {
-      onDelete(instance.id);
-    }
-  };
+  // No "are you sure?": the page removes it with an undo snackbar.
+  const handleDelete = () => onDelete(instance.id);
 
   const planNowPath = getPlanNowPath(instance);
   const assignee = members?.find((m) => m.user.id === instance.assigned_to) || null;
@@ -57,11 +67,19 @@ export default function TaskCard({
 
   const stateLabel = isDone ? t('tasks.done') : isSkipped ? t('tasks.skipped') : isSnoozedFrozen ? t('tasks.snoozed') : null;
 
+  const canSwipe = interactive && !isResolved && !isDragging;
   return (
+    <SwipeActions
+      className="rounded-lg"
+      right={canSwipe ? { label: t('tasks.complete'), icon: <CheckGlyph />, className: 'bg-eucalyptus-500 text-white', onAction: () => onComplete(instance.id) } : undefined}
+      left={canSwipe && onSnooze && canSnoozeInstance(instance)
+        ? { label: t('tasks.snooze'), icon: <SnoozeGlyph />, className: 'bg-amber-400 text-gray-900', onAction: () => onSnooze(instance.id) }
+        : undefined}
+    >
     <div
       ref={setNodeRef}
       style={{ ...style, borderLeftColor: color, opacity: isDragging ? 0.5 : isResolved ? 0.6 : 1 }}
-      className={`border-l-4 rounded shadow-sm bg-gray-50 ${isResolved ? 'p-1.5 text-xs' : 'p-2 text-sm'} ${needsAttention ? 'ring-2 ring-red-400' : ''}`}
+      className={`border-l-4 rounded-lg shadow-sm bg-gray-50 ${isResolved ? 'p-1.5 text-xs' : 'p-2 text-sm'} ${needsAttention ? 'ring-2 ring-red-400' : ''}`}
     >
       <div
         {...(interactive && !isResolved ? { ...listeners, ...attributes } : {})}
@@ -81,15 +99,15 @@ export default function TaskCard({
         {needsAttention && <span className="text-xs text-red-500 ml-1" title={t('weeklyPlanning.needsAttention')}>⚠</span>}
       </div>
       {instance.cooking_entry && (
-        <div className={`text-gray-500 ${isResolved ? 'text-[11px]' : 'text-xs'}`}>
+        <div className={`text-gray-500 ${isResolved ? 'text-xs' : 'text-xs'}`}>
           {instance.cooking_entry.recipe_title} · {t('cookingPlan.servingsShort', { count: instance.cooking_entry.servings })}
         </div>
       )}
-      <div className={`flex items-center gap-1.5 mt-0.5 text-gray-500 ${isResolved ? 'text-[11px]' : 'text-xs'}`}>
+      <div className={`flex items-center gap-1.5 mt-0.5 text-gray-500 ${isResolved ? 'text-xs' : 'text-xs'}`}>
         <MemberAvatar member={assignee} sizeClass={isResolved ? 'h-4 w-4' : 'h-5 w-5'} />
         {instance.assigned_to_username || t('tasks.unassigned')}
       </div>
-      <div className="text-[10px] text-gray-400 mb-1">
+      <div className={`text-xs text-gray-400 mb-1 ${mobileHidden(expanded)}`}>
         {instance.created_by_username
           ? t('tasks.instanceCreatedBy', { date: new Date(instance.created_at).toLocaleDateString(), name: instance.created_by_username })
           : t('tasks.instanceCreatedOn', { date: new Date(instance.created_at).toLocaleDateString() })}
@@ -100,7 +118,7 @@ export default function TaskCard({
           {onReopen && (
             <button
               onClick={() => onReopen(instance.id)}
-              className="text-[11px] px-2 py-0.5 rounded btn-secondary text-gray-700 hover:bg-gray-300"
+              className="text-xs px-2 py-0.5 rounded-lg btn-secondary text-gray-700 hover:bg-gray-300"
               title={t('tasks.undo')}
             >
               <UndoGlyph /> {t('tasks.undo')}
@@ -115,25 +133,25 @@ export default function TaskCard({
       )}
 
       {interactive && !isResolved && (
-        <div className="flex items-center gap-1 flex-wrap mt-1">
+        <div className="flex items-center gap-1.5 md:gap-1 flex-wrap mt-1.5 md:mt-1">
           {planNowPath && (
             <button
               onClick={() => navigate(planNowPath)}
-              className="text-xs px-2 py-0.5 rounded btn-secondary text-purple-700 hover:btn-secondary"
+              className="btn btn-sm md:text-xs md:px-2 md:py-0.5 btn-secondary text-purple-700 hover:btn-secondary"
             >
               {t('weeklyPlanning.planNow')}
             </button>
           )}
           <button
             onClick={() => onComplete(instance.id)}
-            className="text-xs px-2 py-0.5 rounded btn-primary text-green-700 hover:bg-green-200"
+            className="btn btn-sm md:text-xs md:px-2 md:py-0.5 btn-primary text-green-700 hover:bg-green-200"
           >
             {t('tasks.complete')}
           </button>
           {onSkip && (
             <button
               onClick={() => onSkip(instance.id)}
-              className="text-xs px-2 py-0.5 rounded btn-secondary text-orange-700 hover:bg-orange-200"
+              className={`btn btn-sm md:text-xs md:px-2 md:py-0.5 btn-secondary text-orange-700 hover:bg-orange-200 ${mobileHidden(expanded, 'inline-block')}`}
             >
               {t('tasks.skip')}
             </button>
@@ -141,7 +159,7 @@ export default function TaskCard({
           {onSnooze && canSnoozeInstance(instance) && (
             <button
               onClick={() => onSnooze(instance.id)}
-              className="text-xs px-2 py-0.5 rounded btn-secondary text-yellow-700 hover:bg-yellow-200"
+              className={`btn btn-sm md:text-xs md:px-2 md:py-0.5 btn-secondary text-yellow-700 hover:bg-yellow-200 ${mobileHidden(expanded, 'inline-block')}`}
             >
               {t('tasks.snooze')}
             </button>
@@ -150,7 +168,7 @@ export default function TaskCard({
             <select
               value={instance.assigned_to || ''}
               onChange={(e) => onReassign(instance.id, e.target.value || null)}
-              className="text-xs border rounded px-1 py-0.5"
+              className={`text-sm md:text-xs border rounded-lg px-1 py-0.5 ${mobileHidden(showPlanning, 'inline-block')}`}
             >
               <option value="">{t('tasks.unassigned')}</option>
               {members.map((m) => (
@@ -159,10 +177,25 @@ export default function TaskCard({
             </select>
           )}
           {onDelete && (
-            <button onClick={handleDelete} title={t('tasks.deleteInstance')} className="text-red-500 hover:text-red-700 ml-auto">
+            <button
+              onClick={handleDelete}
+              title={t('tasks.deleteInstance')}
+              aria-label={t('tasks.deleteInstance')}
+              className={`icon-btn !text-red-500 hover:!text-red-700 md:!w-auto md:!h-auto md:ml-auto ${mobileHidden(expanded, 'inline-flex')}`}
+            >
               <TaskIcon icon="trash" />
             </button>
           )}
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            aria-expanded={expanded}
+            aria-label={expanded ? t('tasks.lessActions') : t('tasks.moreActions')}
+            title={expanded ? t('tasks.lessActions') : t('tasks.moreActions')}
+            className={`icon-btn ml-auto md:!hidden text-xl ${expanded ? 'bg-gray-200 dark:bg-gray-700' : ''}`}
+          >
+            <MoreGlyph />
+          </button>
         </div>
       )}
 
@@ -172,9 +205,10 @@ export default function TaskCard({
           selectedISO={instance.is_in_backlog ? null : instance.scheduled_date}
           onPick={(iso) => onMove(instance, iso)}
           showBacklog={!instance.is_in_backlog}
-          className={dayPickerMobileOnly ? 'md:hidden' : ''}
+          className={`${showPlanning ? '' : 'hidden'} ${dayPickerMobileOnly ? 'md:hidden' : 'md:flex'}`}
         />
       )}
     </div>
+    </SwipeActions>
   );
 }

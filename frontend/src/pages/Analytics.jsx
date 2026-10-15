@@ -7,6 +7,10 @@ import TrendLineChart from '../components/charts/TrendLineChart';
 import RankedList from '../components/charts/RankedList';
 import PieChart from '../components/charts/PieChart';
 import { analyticsService } from '../services/api';
+import { localizedName } from '../utils/localized';
+import PageSkeleton from '../components/PageSkeleton';
+import TitleIcon from '../components/TitleIcon';
+import { AnalyticsMenuIcon } from '../components/icons/navIcons';
 
 // eucalyptus-600, one color for every single-series chart
 const CHART_COLOR = '#059669';
@@ -55,7 +59,7 @@ export default function Analytics() {
   const formatBucket = (bucket) => new Date(`${bucket}T00:00:00`).toLocaleDateString(i18n.language, { day: '2-digit', month: 'short' });
 
   if (loading && !data) {
-    return <div className="flex items-center justify-center h-screen">{t('common.loading')}</div>;
+    return <PageSkeleton width="max-w-4xl" />;
   }
 
   const voucherCurrencies = data ? [...new Set(data.vouchers.trend.flatMap((pt) => pt.totals.map((tt) => tt.currency)))] : [];
@@ -66,7 +70,7 @@ export default function Analytics() {
 
       <main className="max-w-4xl mx-auto px-4 py-8 space-y-8">
         <div className="flex justify-between items-center">
-          <h2 className="text-3xl font-bold">{t('analytics.title')}</h2>
+          <h2 className="flex items-center gap-2 text-2xl sm:text-3xl font-bold"><TitleIcon><AnalyticsMenuIcon /></TitleIcon>{t('analytics.title')}</h2>
           <select value={period} onChange={(e) => setPeriod(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-lg text-sm">
             {PERIODS.map((p) => <option key={p.key} value={p.key}>{t(`shoppingList.period.${p.key}`)}</option>)}
           </select>
@@ -76,7 +80,7 @@ export default function Analytics() {
 
         {data && (
           <>
-            <section className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <section className="bg-white dark:bg-gray-800 rounded-xl shadow p-6">
               <h3 className="text-xl font-semibold mb-1">{t('analytics.tasks.title')}</h3>
               <p className="text-sm text-gray-500 mb-4">
                 {t('analytics.tasks.overall', {
@@ -113,7 +117,7 @@ export default function Analytics() {
               </div>
             </section>
 
-            <section className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <section className="bg-white dark:bg-gray-800 rounded-xl shadow p-6">
               <h3 className="text-xl font-semibold mb-4">{t('analytics.meals.title')}</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
@@ -127,6 +131,16 @@ export default function Analytics() {
                   ) : <p className="text-gray-400 text-sm">{t('analytics.noData')}</p>}
                 </div>
                 <div>
+                  <p className="text-sm font-medium text-gray-600 mb-2">{t('analytics.meals.topLabels')}</p>
+                  {data.meals.top_labels?.length > 0 ? (
+                    <RankedList
+                      items={data.meals.top_labels.map((l) => ({ label: localizedName(l, i18n.language), value: l.count, color: l.color_hex }))}
+                      valueLabel={(v) => t('analytics.meals.timesCooked', { count: v })}
+                      color={CHART_COLOR}
+                    />
+                  ) : <p className="text-gray-400 text-sm">{t('analytics.noData')}</p>}
+                </div>
+                <div className="md:col-span-2">
                   <p className="text-sm font-medium text-gray-600 mb-2">{t('analytics.meals.trend')}</p>
                   {data.meals.trend.length > 0 ? (
                     <TrendBarChart points={data.meals.trend.map((p) => ({ bucket: p.bucket, value: p.count }))} color={CHART_COLOR} formatLabel={formatBucket} formatValue={(v) => t('analytics.meals.timesCooked', { count: v })} />
@@ -135,7 +149,7 @@ export default function Analytics() {
               </div>
             </section>
 
-            <section className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <section className="bg-white dark:bg-gray-800 rounded-xl shadow p-6">
               <h3 className="text-xl font-semibold mb-4">{t('analytics.purchases.title')}</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
@@ -157,7 +171,7 @@ export default function Analytics() {
               </div>
             </section>
 
-            <section className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <section className="bg-white dark:bg-gray-800 rounded-xl shadow p-6">
               <h3 className="text-xl font-semibold mb-4">{t('analytics.vouchers.title')}</h3>
               <div className="mb-6">
                 <p className="text-sm font-medium text-gray-600 mb-2">{t('analytics.vouchers.activeTotal')}</p>

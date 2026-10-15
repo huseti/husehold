@@ -72,8 +72,8 @@ export default function RecipeImportModal({ onClose, onExtracted }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 overflow-y-auto p-4" onClick={onClose}>
-      <div className="bg-white rounded-lg shadow-xl max-w-xl mx-auto my-8 p-6" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-backdrop fixed inset-0 z-50 bg-black/40 overflow-y-auto p-4" onClick={onClose}>
+      <div className="modal-panel bg-white rounded-xl shadow-xl max-w-xl mx-auto my-8 p-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-start mb-4">
           <h3 className="text-xl font-semibold">{t('recipes.importTitle')}</h3>
           <button onClick={onClose} className="icon-btn text-xl hover:text-gray-700" aria-label={t('recipes.close')}><CloseGlyph /></button>
@@ -108,7 +108,7 @@ export default function RecipeImportModal({ onClose, onExtracted }) {
               <div className="flex flex-wrap gap-2">
                 {images.map((img) => (
                   <div key={img.id} className="relative">
-                    <img src={`data:${img.media_type};base64,${img.data}`} alt="" className="w-20 h-20 object-cover rounded border" />
+                    <img src={`data:${img.media_type};base64,${img.data}`} alt="" className="w-20 h-20 object-cover rounded-lg border" />
                     <button
                       type="button"
                       onClick={() => removeImage(img.id)}
@@ -171,11 +171,11 @@ export default function RecipeImportModal({ onClose, onExtracted }) {
             type="button"
             onClick={submit}
             disabled={busy}
-            className="btn-primary text-white px-4 py-2 rounded dark:hover:bg-eucalyptus-600 disabled:opacity-50"
+            className="btn btn-md btn-primary text-white dark:hover:bg-eucalyptus-600 disabled:opacity-50"
           >
             {busy ? t('recipes.importExtracting') : t('recipes.importExtractButton')}
           </button>
-          <button type="button" onClick={onClose} className="btn-secondary text-gray-700 px-4 py-2 rounded hover:bg-gray-300">
+          <button type="button" onClick={onClose} className="btn btn-md btn-secondary text-gray-700 hover:bg-gray-300">
             {t('recipes.cancel')}
           </button>
         </div>

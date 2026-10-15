@@ -13,6 +13,13 @@ import RecipeImportModal from '../components/RecipeImportModal';
 import GearIcon from '../components/icons/gearIcon';
 import { SearchIcon, FilterIcon } from '../components/icons/searchIcons';
 import { localizedName } from '../utils/localized';
+import { pillStyle } from '../utils/colorContrast';
+import { useRevalidate } from '../services/apiCache';
+import PageSkeleton from '../components/PageSkeleton';
+import { useUndo } from '../components/UndoProvider';
+import EmptyState from '../components/EmptyState';
+import { RecipesMenuIcon } from '../components/icons/navIcons';
+import TitleIcon from '../components/TitleIcon';
 
 export default function Recipes() {
   const { t, i18n } = useTranslation();
@@ -22,6 +29,7 @@ export default function Recipes() {
   const [categories, setCategories] = useState([]);
   const [ingredientNames, setIngredientNames] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { deleteWithUndo } = useUndo();
 
   const [search, setSearch] = useState('');
   const [labelFilter, setLabelFilter] = useState('');
@@ -35,6 +43,7 @@ export default function Recipes() {
   useEffect(() => {
     loadAll();
   }, []);
+  useRevalidate(() => loadRecipes().catch(() => {}));
 
   const loadRecipes = async () => {
     const response = await recipeService.getAll();
@@ -130,19 +139,22 @@ export default function Recipes() {
     setMode({ type: 'edit', recipe: null, draft });
   };
 
-  const handleDelete = async () => {
-    if (!window.confirm(t('recipes.confirmDelete', { title: viewing.title }))) return;
-    try {
-      await recipeService.delete(viewing.id);
-      setMode(null);
-      loadRecipes();
-    } catch (error) {
-      console.error('Error deleting recipe:', error);
-    }
+  const handleDelete = () => {
+    const { id, title } = viewing;
+    setMode(null);
+    deleteWithUndo({
+      message: t('common.deleted', { title }),
+      hide: () => setRecipes((prev) => prev.filter((r) => r.id !== id)),
+      restore: () => loadRecipes().catch(() => {}),
+      commit: async () => {
+        await recipeService.delete(id);
+        loadRecipes();
+      },
+    });
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center h-screen">{t('common.loading')}</div>;
+    return <PageSkeleton width="max-w-4xl" />;
   }
 
   return (
@@ -152,7 +164,7 @@ export default function Recipes() {
       <main className="max-w-4xl mx-auto px-4 py-8">
         <div className="flex flex-wrap justify-between items-center gap-3 mb-6">
           <div className="flex items-center gap-1">
-            <h2 className="text-3xl font-bold">{t('recipes.title')}</h2>
+            <h2 className="flex items-center gap-2 text-2xl sm:text-3xl font-bold"><TitleIcon><RecipesMenuIcon /></TitleIcon>{t('recipes.title')}</h2>
             <Link
               to="/recipe-shopping-config"
               className="text-gray-500 hover:text-gray-800 text-xl p-2"
@@ -162,18 +174,19 @@ export default function Recipes() {
               <GearIcon />
             </Link>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <button onClick={() => setShowImportModal(true)} className="btn-primary px-4 py-2 rounded">
-              + {t('recipes.importButton')}
+          {/* Phones: both buttons share one row with short labels */}
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <button onClick={() => setShowImportModal(true)} className="btn btn-md btn-primary flex-1 sm:flex-none px-3 sm:px-4">
+              + <span className="sm:hidden">{t('recipes.importShort')}</span><span className="hidden sm:inline">{t('recipes.importButton')}</span>
             </button>
-            <button onClick={() => setMode({ type: 'edit', recipe: null })} className="btn-primary px-4 py-2 rounded">
-              + {t('recipes.newButton')}
+            <button onClick={() => setMode({ type: 'edit', recipe: null })} className="btn btn-md btn-primary flex-1 sm:flex-none px-3 sm:px-4">
+              + <span className="sm:hidden">{t('recipes.newShort')}</span><span className="hidden sm:inline">{t('recipes.newButton')}</span>
             </button>
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-3 mb-6">
-          <div className="relative flex-1 min-w-48">
+        <div className="flex flex-wrap gap-2 sm:gap-3 mb-6">
+          <div className="relative w-full sm:w-auto sm:flex-1 sm:min-w-48">
             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-lg text-eucalyptus-600 pointer-events-none" />
             <input
               type="search"
@@ -183,16 +196,16 @@ export default function Recipes() {
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg"
             />
           </div>
-          <div className="relative">
+          <div className="relative flex-1 sm:flex-none min-w-0">
             <FilterIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-eucalyptus-600 pointer-events-none" />
-            <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="pl-9 pr-3 py-2 border border-gray-300 rounded-lg">
+            <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg">
               <option value="">{t('recipes.allCategories')}</option>
               {categories.map((c) => <option key={c.id} value={c.id}>{localizedName(c, i18n.language)}</option>)}
             </select>
           </div>
-          <div className="relative">
+          <div className="relative flex-1 sm:flex-none min-w-0">
             <FilterIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-eucalyptus-600 pointer-events-none" />
-            <select value={labelFilter} onChange={(e) => setLabelFilter(e.target.value)} className="pl-9 pr-3 py-2 border border-gray-300 rounded-lg">
+            <select value={labelFilter} onChange={(e) => setLabelFilter(e.target.value)} className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg">
               <option value="">{t('recipes.allLabels')}</option>
               {labels.map((l) => <option key={l.id} value={l.id}>{localizedName(l, i18n.language)}</option>)}
             </select>
@@ -200,7 +213,19 @@ export default function Recipes() {
         </div>
 
         {filtered.length === 0 && (
-          <p className="text-gray-500">{recipes.length === 0 ? t('recipes.empty') : t('recipes.noMatches')}</p>
+          recipes.length === 0 ? (
+            <EmptyState
+              icon={<RecipesMenuIcon />}
+              text={t('recipes.empty')}
+              action={{ label: `+ ${t('recipes.importButton')}`, onClick: () => setShowImportModal(true) }}
+            />
+          ) : (
+            <EmptyState
+              icon={<SearchIcon />}
+              text={t('recipes.noMatches')}
+              action={{ label: t('recipes.resetFilters'), onClick: () => { setSearch(''); setCategoryFilter(''); setLabelFilter(''); } }}
+            />
+          )
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -208,7 +233,7 @@ export default function Recipes() {
             <button
               key={recipe.id}
               onClick={() => setMode({ type: 'view', id: recipe.id })}
-              className="text-left bg-white rounded-lg shadow p-5 hover:shadow-md transition-shadow"
+              className="text-left bg-white rounded-xl shadow p-4 sm:p-5 hover:shadow-md transition-shadow"
             >
               <h3 className="text-lg font-semibold mb-1">{recipe.title}</h3>
               <div className="flex items-center gap-2 mb-2 text-sm text-gray-500">
@@ -221,7 +246,7 @@ export default function Recipes() {
               </div>
               <div className="flex flex-wrap gap-1">
                 {labels.filter((l) => recipe.labels.includes(l.id)).map((l) => (
-                  <span key={l.id} style={{ backgroundColor: l.color_hex }} className="px-2 py-0.5 rounded-full text-xs text-white">{localizedName(l, i18n.language)}</span>
+                  <span key={l.id} style={pillStyle(l.color_hex)} className="px-2 py-0.5 rounded-full text-xs">{localizedName(l, i18n.language)}</span>
                 ))}
               </div>
             </button>
@@ -238,8 +263,8 @@ export default function Recipes() {
       )}
 
       {mode && (
-        <div className="fixed inset-0 z-40 bg-black/40 overflow-y-auto p-4 print:static print:overflow-visible print:bg-white print:p-0" onClick={() => setMode(null)}>
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl mx-auto my-8 p-6 print:shadow-none print:m-0 print:max-w-none print:p-0" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-backdrop fixed inset-0 z-40 bg-black/40 overflow-y-auto p-4 print:static print:overflow-visible print:bg-white print:p-0" onClick={() => setMode(null)}>
+          <div className="modal-panel bg-white rounded-xl shadow-xl max-w-2xl mx-auto my-8 p-6 print:shadow-none print:m-0 print:max-w-none print:p-0" onClick={(e) => e.stopPropagation()}>
             {mode.type === 'edit' ? (
               <RecipeForm
                 recipe={mode.recipe}

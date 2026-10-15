@@ -98,7 +98,7 @@ export default function PurchaseHistory({ units, listId, listName, onReAdd }) {
       {top.length > 0 && (
         <section className="mb-8">
           <h3 className="text-xl font-semibold mb-3">{t('shoppingList.historyTop')}</h3>
-          <div className="bg-white rounded-lg shadow divide-y">
+          <div className="bg-white rounded-xl shadow divide-y">
             {top.map((entry) => (
               <div key={entry.title.toLowerCase()} className="p-3 flex flex-wrap items-center gap-x-4 gap-y-1">
                 <span className="flex-1 min-w-32 font-medium">{entry.title}</span>
@@ -118,7 +118,7 @@ export default function PurchaseHistory({ units, listId, listName, onReAdd }) {
           <h3 className="text-xl font-semibold mb-3">{t('shoppingList.historyRecent')}</h3>
           <div className="space-y-4">
             {byDay.map((day) => (
-              <div key={day.date} className="bg-white rounded-lg shadow">
+              <div key={day.date} className="bg-white rounded-xl shadow">
                 <p className="px-4 py-2 text-sm font-medium text-gray-500 border-b">{formatDate(day.date)}</p>
                 <ul className="divide-y">
                   {day.records.map((record) => (

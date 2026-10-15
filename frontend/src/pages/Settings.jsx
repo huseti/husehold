@@ -7,6 +7,8 @@ import {
   memberService, googleCalendarService, serviceStatusService,
 } from '../services/api';
 import { urlBase64ToUint8Array, isPushSupported } from '../utils/push';
+import TitleIcon from '../components/TitleIcon';
+import { SettingsMenuIcon } from '../components/icons/navIcons';
 
 const NOTIFICATION_TYPES = [
   'task_due_today', 'task_overdue', 'household_planning_due', 'meal_planning_due', 'cooking_today',
@@ -261,9 +263,9 @@ export default function Settings() {
       <Navbar />
 
       <main className="max-w-4xl mx-auto px-4 py-8">
-        <h2 className="text-3xl font-bold mb-8">{t('settings.title')}</h2>
+        <h2 className="flex items-center gap-2 text-2xl sm:text-3xl font-bold mb-8"><TitleIcon><SettingsMenuIcon /></TitleIcon>{t('settings.title')}</h2>
 
-        <div className="bg-white rounded-lg shadow p-6 mb-8">
+        <div className="bg-white rounded-xl shadow p-6 mb-8">
           <h3 className="text-lg font-semibold mb-4">{t('settings.household')}</h3>
           <div className="space-y-4">
             <div>
@@ -274,7 +276,7 @@ export default function Settings() {
                 onChange={(e) => setHouseholdName(e.target.value)}
                 onBlur={commitHouseholdName}
                 onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-                className="border rounded px-3 py-2 text-sm w-64 max-w-full"
+                className="border rounded-lg px-3 py-2 text-sm w-64 max-w-full"
               />
             </div>
             <div>
@@ -282,7 +284,7 @@ export default function Settings() {
               <select
                 value={timezoneValue}
                 onChange={(e) => { setTimezoneValue(e.target.value); saveHouseholdSetting({ timezone: e.target.value }); }}
-                className="border rounded px-3 py-2 text-sm w-64 max-w-full"
+                className="border rounded-lg px-3 py-2 text-sm w-64 max-w-full"
               >
                 {timezoneOptions.map((tz) => (
                   <option key={tz} value={tz}>{tz}</option>
@@ -294,7 +296,7 @@ export default function Settings() {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-8">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-6 mb-8">
           <h3 className="text-lg font-semibold mb-4">{t('settings.language')}</h3>
           <div className="flex flex-wrap gap-2">
             {LANGUAGES.map(({ code, labelKey }) => (
@@ -302,7 +304,7 @@ export default function Settings() {
                 key={code}
                 onClick={() => handleLanguageChange(code)}
                 aria-pressed={i18n.resolvedLanguage === code}
-                className={`px-4 py-2 rounded ${i18n.resolvedLanguage === code ? 'btn-primary' : 'btn-secondary'}`}
+                className={`px-4 py-2 rounded-lg ${i18n.resolvedLanguage === code ? 'btn-primary' : 'btn-secondary'}`}
               >
                 {t(labelKey)}
               </button>
@@ -310,7 +312,7 @@ export default function Settings() {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-8">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-6 mb-8">
           <h3 className="text-lg font-semibold mb-4">Dark Mode</h3>
           <div className="flex flex-wrap gap-2">
             {[
@@ -322,7 +324,7 @@ export default function Settings() {
                 key={value}
                 onClick={() => handleThemeChange(value)}
                 aria-pressed={theme === value}
-                className={`px-4 py-2 rounded ${theme === value ? 'btn-primary' : 'btn-secondary'}`}
+                className={`px-4 py-2 rounded-lg ${theme === value ? 'btn-primary' : 'btn-secondary'}`}
               >
                 {label}
               </button>
@@ -330,7 +332,7 @@ export default function Settings() {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-8">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-6 mb-8">
           <h3 className="text-lg font-semibold mb-4">{t('settings.notifications')}</h3>
 
           {member && (
@@ -339,7 +341,7 @@ export default function Settings() {
               <select
                 value={member.notification_language}
                 onChange={(e) => handleNotificationLanguageChange(e.target.value)}
-                className="border rounded px-3 py-2 text-sm"
+                className="border rounded-lg px-3 py-2 text-sm"
               >
                 {LANGUAGES.map(({ code, labelKey }) => (
                   <option key={code} value={code}>{t(labelKey)}</option>
@@ -394,7 +396,7 @@ export default function Settings() {
                 <button
                   onClick={handleEnablePush}
                   disabled={pushBusy}
-                  className="btn-primary text-white px-4 py-2 rounded hover:btn-primary disabled:opacity-50"
+                  className="btn btn-md btn-primary text-white hover:btn-primary disabled:opacity-50"
                 >
                   {pushBusy ? t('settings.pushEnabling') : t('settings.enablePushOnDevice')}
                 </button>
@@ -409,14 +411,14 @@ export default function Settings() {
             <button
               onClick={handleSendTestEmail}
               disabled={testEmailBusy}
-              className="btn-secondary text-gray-700 px-4 py-2 rounded hover:bg-gray-300 disabled:opacity-50 text-sm"
+              className="btn btn-md btn-secondary text-gray-700 hover:bg-gray-300 disabled:opacity-50 text-sm"
             >
               {testEmailBusy ? t('settings.testSending') : t('settings.sendTestEmail')}
             </button>
             <button
               onClick={handleSendTestPush}
               disabled={testPushBusy}
-              className="btn-secondary text-gray-700 px-4 py-2 rounded hover:bg-gray-300 disabled:opacity-50 text-sm"
+              className="btn btn-md btn-secondary text-gray-700 hover:bg-gray-300 disabled:opacity-50 text-sm"
             >
               {testPushBusy ? t('settings.testSending') : t('settings.sendTestPush')}
             </button>
@@ -433,7 +435,7 @@ export default function Settings() {
           )}
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6 mb-8">
+        <div className="bg-white rounded-xl shadow p-6 mb-8">
           <h3 className="text-lg font-semibold mb-4">{t('settings.googleCalendar')}</h3>
           <p className="text-sm text-gray-500 mb-4">{t('settings.googleCalendarHint')}</p>
 
@@ -453,7 +455,7 @@ export default function Settings() {
                       value={googleCalendar.calendar_id}
                       disabled={googleCalendarBusy}
                       onChange={(e) => handleChangeGoogleCalendarId(e.target.value)}
-                      className="border rounded px-3 py-2 text-sm w-full max-w-sm"
+                      className="border rounded-lg px-3 py-2 text-sm w-full max-w-sm"
                     >
                       {googleCalendarList.map((cal) => (
                         <option key={cal.id} value={cal.id}>{cal.summary}{cal.primary ? ` (${t('settings.googleCalendarPrimary')})` : ''}</option>
@@ -479,7 +481,7 @@ export default function Settings() {
                   <button
                     onClick={handleSyncNow}
                     disabled={googleCalendarBusy}
-                    className="text-sm btn-secondary text-gray-700 px-3 py-1.5 rounded hover:bg-gray-300 disabled:opacity-50"
+                    className="btn btn-sm btn-secondary text-gray-700 hover:bg-gray-300 disabled:opacity-50"
                   >
                     {t('settings.googleCalendarSyncNow')}
                   </button>
@@ -503,7 +505,7 @@ export default function Settings() {
               <button
                 onClick={handleConnectGoogleCalendar}
                 disabled={googleCalendarBusy}
-                className="btn-primary text-white px-4 py-2 rounded hover:btn-primary disabled:opacity-50"
+                className="btn btn-md btn-primary text-white hover:btn-primary disabled:opacity-50"
               >
                 {googleCalendarBusy ? t('settings.googleCalendarConnecting') : t('settings.googleCalendarConnectButton')}
               </button>
@@ -511,7 +513,7 @@ export default function Settings() {
           )}
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6 mb-8">
+        <div className="bg-white rounded-xl shadow p-6 mb-8">
           <h3 className="text-lg font-semibold mb-4">{t('settings.serviceStatus')}</h3>
           <p className="text-sm text-gray-500 mb-4">{t('settings.serviceStatusHint')}</p>
           {serviceStatus && (

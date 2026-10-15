@@ -104,7 +104,7 @@ export default function RecipeHighlight() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => window.print()}
-            className="w-9 h-9 rounded border border-gray-300 hover:bg-gray-100 flex items-center justify-center"
+            className="w-9 h-9 rounded-lg border border-gray-300 hover:bg-gray-100 flex items-center justify-center"
             aria-label={t('recipes.exportPdf')}
             title={t('recipes.exportPdf')}
           >
@@ -113,7 +113,7 @@ export default function RecipeHighlight() {
           <button
             onClick={() => adjustFont(-1)}
             disabled={fontScale === 0}
-            className="w-9 h-9 rounded border border-gray-300 disabled:opacity-40 hover:bg-gray-100 text-sm font-semibold"
+            className="w-9 h-9 rounded-lg border border-gray-300 disabled:opacity-40 hover:bg-gray-100 text-sm font-semibold"
             aria-label={t('recipes.highlightFontSmaller')}
             title={t('recipes.highlightFontSmaller')}
           >
@@ -122,7 +122,7 @@ export default function RecipeHighlight() {
           <button
             onClick={() => adjustFont(1)}
             disabled={fontScale === MAX_SCALE}
-            className="w-9 h-9 rounded border border-gray-300 disabled:opacity-40 hover:bg-gray-100 text-sm font-semibold"
+            className="w-9 h-9 rounded-lg border border-gray-300 disabled:opacity-40 hover:bg-gray-100 text-sm font-semibold"
             aria-label={t('recipes.highlightFontLarger')}
             title={t('recipes.highlightFontLarger')}
           >
@@ -137,9 +137,9 @@ export default function RecipeHighlight() {
         <div className="flex flex-wrap items-center gap-3 mb-4">
           <span className={`${BODY_SIZES[fontScale]} font-semibold`}>{t('recipes.ingredientsLabel')}</span>
           <span className="flex items-center gap-2">
-            <button onClick={() => setServings((s) => Math.max(1, s - 1))} className="w-8 h-8 rounded border border-gray-300 hover:bg-gray-100" aria-label="-">−</button>
+            <button onClick={() => setServings((s) => Math.max(1, s - 1))} className="w-8 h-8 rounded-lg border border-gray-300 hover:bg-gray-100" aria-label="-">−</button>
             <span className={BODY_SIZES[Math.max(0, fontScale - 1)]}>{t('recipes.servings', { count: servings })}</span>
-            <button onClick={() => setServings((s) => s + 1)} className="w-8 h-8 rounded border border-gray-300 hover:bg-gray-100" aria-label="+">+</button>
+            <button onClick={() => setServings((s) => s + 1)} className="w-8 h-8 rounded-lg border border-gray-300 hover:bg-gray-100" aria-label="+">+</button>
           </span>
         </div>
 

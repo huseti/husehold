@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import {
@@ -11,9 +11,20 @@ import EditIcon from '../components/icons/editIcon';
 import ShoppingListEditModal from '../components/ShoppingListEditModal';
 import CategoryIcon from '../components/icons/categoryIcons';
 import { unitLabel, localizedName } from '../utils/localized';
-import { CloseGlyph, EditGlyph } from '../components/icons/uiIcons';
+import { CloseGlyph, EditGlyph, CheckGlyph, TrashGlyph } from '../components/icons/uiIcons';
+import { useRevalidate } from '../services/apiCache';
+import PageSkeleton from '../components/PageSkeleton';
+import { useUndo } from '../components/UndoProvider';
+import SwipeActions from '../components/SwipeActions';
+import EmptyState from '../components/EmptyState';
+import TaskIcon from '../components/icons/taskIcons';
+import TitleIcon from '../components/TitleIcon';
+import { ShoppingMenuIcon } from '../components/icons/navIcons';
 
 const emptyItem = { title: '', quantity: '', unit: '' };
+
+// Ticked items sink to the bottom of their group, so what's left to grab stays on top.
+const openFirst = (items) => [...items].sort((a, b) => Number(a.is_completed) - Number(b.is_completed));
 
 export default function ShoppingList() {
   const { t, i18n } = useTranslation();
@@ -27,12 +38,17 @@ export default function ShoppingList() {
 
   const [itemForm, setItemForm] = useState(emptyItem);
   const [newListName, setNewListName] = useState('');
+  const [showNewList, setShowNewList] = useState(false);
+  const itemNameRef = useRef(null);
   const [editingList, setEditingList] = useState(null);
   const [view, setView] = useState('list');
   const [editingItemId, setEditingItemId] = useState(null);
   const [editForm, setEditForm] = useState(emptyItem);
 
   const selected = lists.find((l) => l.id === selectedId) || null;
+  const selectedIdRef = useRef(selectedId);
+  selectedIdRef.current = selectedId;
+  const { deleteWithUndo } = useUndo();
 
   useEffect(() => {
     const init = async () => {
@@ -83,11 +99,15 @@ export default function ShoppingList() {
     setItems(itemRes.data.results || []);
   };
 
+  // Background refresh brought news (e.g. the other person ticked something off).
+  useRevalidate(() => (selectedId === null ? reloadLists() : reloadItems()).catch(() => {}));
+
   const handleCreateList = async (e) => {
     e.preventDefault();
     try {
       const res = await shoppingListService.create({ name: newListName });
       setNewListName('');
+      setShowNewList(false);
       await reloadLists();
       setSelectedId(res.data.id);
     } catch (error) {
@@ -128,6 +148,8 @@ export default function ShoppingList() {
         unit: itemForm.unit === '' ? null : Number(itemForm.unit),
       });
       setItemForm(emptyItem);
+      // Keep the cursor in the name field: items usually get added in a row.
+      itemNameRef.current?.focus();
       reloadItems();
     } catch (error) {
       console.error('Error adding item:', error);
@@ -135,6 +157,8 @@ export default function ShoppingList() {
   };
 
   const handleToggle = async (id) => {
+    // Tick immediately -- in the shop the tap must feel instant, the reload follows.
+    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, is_completed: !i.is_completed } : i)));
     try {
       await shoppingService.toggle(id);
       reloadItems();
@@ -143,13 +167,21 @@ export default function ShoppingList() {
     }
   };
 
-  const handleDeleteItem = async (id) => {
-    try {
-      await shoppingService.delete(id);
-      reloadItems();
-    } catch (error) {
-      console.error('Error deleting item:', error);
-    }
+  const handleDeleteItem = (id) => {
+    const item = items.find((i) => i.id === id);
+    if (editingItemId === id) setEditingItemId(null);
+    deleteWithUndo({
+      message: t('common.deleted', { title: item?.title ?? '' }),
+      hide: () => setItems((prev) => prev.filter((i) => i.id !== id)),
+      // Nothing was written yet, so this comes straight from the API cache.
+      restore: () => shoppingService.getAll(selectedIdRef.current)
+        .then((res) => setItems(res.data.results || []))
+        .catch(() => {}),
+      commit: async () => {
+        await shoppingService.delete(id);
+        await reloadLists();
+      },
+    });
   };
 
   const startEditItem = (item) => {
@@ -181,7 +213,7 @@ export default function ShoppingList() {
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center h-screen">{t('common.loading')}</div>;
+    return <PageSkeleton width="max-w-4xl" />;
   }
 
   const hasCompleted = items.some((i) => i.is_completed);
@@ -193,18 +225,18 @@ export default function ShoppingList() {
   const groupedItems = ingredientCategories
     .map((cat) => ({
       id: cat.id, name: localizedName(cat, i18n.language), icon: cat.icon, color: cat.color_hex,
-      items: items.filter((item) => item.category === cat.id),
+      items: openFirst(items.filter((item) => item.category === cat.id)),
     }))
     .filter((group) => group.items.length > 0);
-  const uncategorizedItems = items.filter((item) => item.category === null);
+  const uncategorizedItems = openFirst(items.filter((item) => item.category === null));
   const itemGroups = uncategorizedItems.length > 0
     ? [...groupedItems, { id: 'uncategorized', name: t('shoppingList.uncategorized'), icon: 'other', color: '#9e9e9e', items: uncategorizedItems }]
     : groupedItems;
 
   const renderItem = (item) => (
-    <li key={item.id} className="p-4">
+    <li key={item.id}>
       {editingItemId === item.id ? (
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 px-4 py-3">
           <input
             type="number" step="any" min="0"
             value={editForm.quantity}
@@ -226,31 +258,49 @@ export default function ShoppingList() {
             className="flex-1 min-w-32 px-3 py-1.5 border border-gray-300 rounded-lg"
             required
           />
-          <button onClick={saveEditItem} className="btn-primary text-white px-3 py-1.5 rounded dark:hover:bg-eucalyptus-600 text-sm">
+          <button onClick={saveEditItem} className="btn btn-sm btn-primary text-white dark:hover:bg-eucalyptus-600">
             {t('recipes.save')}
           </button>
-          <button onClick={() => setEditingItemId(null)} className="btn-secondary text-gray-700 px-3 py-1.5 rounded hover:bg-gray-300 text-sm">
+          <button onClick={() => setEditingItemId(null)} className="btn btn-sm btn-secondary text-gray-700 hover:bg-gray-300">
             {t('recipes.cancel')}
+          </button>
+          <button onClick={() => handleDeleteItem(item.id)} className="btn btn-sm btn-danger ml-auto">
+            {t('shoppingList.deleteItem')}
           </button>
         </div>
       ) : (
+        <SwipeActions
+          right={{
+            label: item.is_completed ? t('tasks.undo') : t('tasks.complete'),
+            icon: <CheckGlyph />,
+            className: 'bg-eucalyptus-500 text-white',
+            onAction: () => handleToggle(item.id),
+          }}
+          left={{ label: t('recipes.delete'), icon: <TrashGlyph />, className: 'bg-red-500 text-white', onAction: () => handleDeleteItem(item.id) }}
+          contentClassName="bg-white dark:bg-gray-800 px-4 py-1.5"
+        >
         <div className="flex items-center">
-          <input
-            type="checkbox"
-            checked={item.is_completed}
-            onChange={() => handleToggle(item.id)}
-            className="mr-4"
-          />
-          <div className={`flex-1 ${item.is_completed ? 'line-through text-gray-400' : ''}`}>
-            {item.quantity !== null && (
-              <span className="font-medium">{Number(item.quantity)} {unitLabel(units.find((u) => u.id === item.unit), i18n.language)} </span>
-            )}
-            {item.title}
-            {item.description && <p className="text-sm text-gray-500">{item.description}</p>}
-          </div>
+          {/* The whole row (not just the tiny box) ticks the item off. Phones show
+              only the edit pencil -- deleting lives in the edit row. */}
+          <label className="flex-1 flex items-center gap-4 py-1.5 min-h-[2.75rem] cursor-pointer">
+            <input
+              type="checkbox"
+              checked={item.is_completed}
+              onChange={() => handleToggle(item.id)}
+              className="h-5 w-5 flex-shrink-0"
+            />
+            <span className={`flex-1 ${item.is_completed ? 'line-through text-gray-400' : ''}`}>
+              {item.quantity !== null && (
+                <span className="font-medium tabular-nums">{Number(item.quantity)} {unitLabel(units.find((u) => u.id === item.unit), i18n.language)} </span>
+              )}
+              {item.title}
+              {item.description && <span className="block text-sm text-gray-500">{item.description}</span>}
+            </span>
+          </label>
           <button onClick={() => startEditItem(item)} className="icon-btn hover:text-eucalyptus-600" aria-label={t('shoppingList.editItem')}><EditGlyph /></button>
-          <button onClick={() => handleDeleteItem(item.id)} className="icon-btn hover:text-red-600" aria-label={t('shoppingList.deleteItem')}><CloseGlyph /></button>
+          <button onClick={() => handleDeleteItem(item.id)} className="icon-btn hover:text-red-600 !hidden md:!inline-flex" aria-label={t('shoppingList.deleteItem')}><CloseGlyph /></button>
         </div>
+        </SwipeActions>
       )}
     </li>
   );
@@ -261,7 +311,7 @@ export default function ShoppingList() {
 
       <main className="max-w-4xl mx-auto px-4 py-8">
         <div className="flex items-center gap-1 mb-6">
-          <h2 className="text-3xl font-bold">{t('shoppingList.title')}</h2>
+          <h2 className="flex items-center gap-2 text-2xl sm:text-3xl font-bold"><TitleIcon><ShoppingMenuIcon /></TitleIcon>{t('shoppingList.title')}</h2>
           <Link
             to="/recipe-shopping-config"
             className="text-gray-500 hover:text-gray-800 text-xl p-2"
@@ -291,7 +341,7 @@ export default function ShoppingList() {
               className={`flex items-center gap-1 pl-4 pr-1 py-1 rounded-full text-sm border ${list.id === selectedId ? 'bg-eucalyptus-300 dark:bg-eucalyptus-700 text-gray-900 dark:text-white border-eucalyptus-300 dark:border-eucalyptus-500' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
             >
               <button onClick={() => setSelectedId(list.id)}>
-                {list.is_favorite_for_cooking_plan && <span className="text-amber-400 mr-1">★</span>}
+                {list.is_favorite_for_cooking_plan && <span className="text-amber-700 dark:text-amber-300 mr-1">★</span>}
                 {list.name}
                 {list.open_item_count > 0 && <span className="ml-2 opacity-70">{list.open_item_count}</span>}
               </button>
@@ -305,17 +355,30 @@ export default function ShoppingList() {
               </button>
             </span>
           ))}
-          <form onSubmit={handleCreateList} className="flex gap-2">
-            <input
-              type="text"
-              value={newListName}
-              onChange={(e) => setNewListName(e.target.value)}
-              placeholder={t('shoppingList.newListPlaceholder')}
-              className="px-3 py-2 border border-gray-300 rounded-full text-sm w-40"
-              required
-            />
-            <button type="submit" className="btn-primary text-white px-3 py-2 rounded-full text-sm dark:hover:bg-eucalyptus-600">+</button>
-          </form>
+          {showNewList ? (
+            <form onSubmit={handleCreateList} className="flex gap-2">
+              <input
+                type="text"
+                value={newListName}
+                onChange={(e) => setNewListName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Escape') setShowNewList(false); }}
+                onBlur={() => { if (!newListName.trim()) setShowNewList(false); }}
+                placeholder={t('shoppingList.newListPlaceholder')}
+                className="px-3 py-1.5 border border-gray-300 rounded-full text-sm w-40"
+                autoFocus
+                required
+              />
+              <button type="submit" className="btn-primary px-3 py-1.5 rounded-full text-sm dark:hover:bg-eucalyptus-600">{t('shoppingList.createList')}</button>
+            </form>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowNewList(true)}
+              className="px-3 py-1.5 rounded-full text-sm border border-dashed border-gray-300 text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+            >
+              + {t('shoppingList.newList')}
+            </button>
+          )}
         </div>
 
         {view === 'history' ? (
@@ -330,9 +393,10 @@ export default function ShoppingList() {
 
           {selected && (
             <>
-              <h3 className="text-xl font-semibold mb-3">{selected.name}</h3>
-
-              <form onSubmit={handleAddItem} className="bg-white rounded-lg shadow p-4 mb-6 flex flex-wrap gap-2">
+              {/* Sticky: stays reachable while scrolling a long list in the shop.
+                  (Below the laptop's sticky navbar; phones have no top bar. Top rather than
+                  bottom: a bottom-fixed field fights the iOS keyboard.) */}
+              <form onSubmit={handleAddItem} className="sticky top-[env(safe-area-inset-top)] md:top-[4.25rem] z-10 bg-white rounded-xl shadow p-2 sm:p-4 mb-4 sm:mb-6 flex gap-2">
                 <datalist id="shopping-ingredient-suggestions">
                   {ingredientNames.map((name) => <option key={name} value={name} />)}
                 </datalist>
@@ -341,37 +405,48 @@ export default function ShoppingList() {
                   placeholder={t('shoppingList.quantityPlaceholder')}
                   value={itemForm.quantity}
                   onChange={(e) => setItemForm({ ...itemForm, quantity: e.target.value })}
-                  className="w-24 px-3 py-2 border border-gray-300 rounded-lg"
+                  className="w-[4.5rem] sm:w-24 px-2 sm:px-3 py-2 border border-gray-300 rounded-lg"
                 />
                 <select
                   value={itemForm.unit}
                   onChange={(e) => setItemForm({ ...itemForm, unit: e.target.value })}
-                  className="w-24 px-2 py-2 border border-gray-300 rounded-lg"
+                  className="w-[4.5rem] sm:w-24 px-1 sm:px-2 py-2 border border-gray-300 rounded-lg"
                 >
                   <option value="">{t('shoppingList.noUnit')}</option>
                   {units.map((u) => <option key={u.id} value={u.id}>{unitLabel(u, i18n.language)}</option>)}
                 </select>
                 <input
+                  ref={itemNameRef}
                   type="text" list="shopping-ingredient-suggestions"
                   placeholder={t('shoppingList.itemNamePlaceholder')}
                   value={itemForm.title}
                   onChange={(e) => setItemForm({ ...itemForm, title: e.target.value })}
-                  className="flex-1 min-w-40 px-3 py-2 border border-gray-300 rounded-lg"
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg"
+                  enterKeyHint="done"
                   required
                 />
-                <button type="submit" className="btn-primary text-white px-4 py-2 rounded-lg hover:btn-primary">
-                  {t('shoppingList.addButton')}
+                <button
+                  type="submit"
+                  className="btn-primary px-3 sm:px-4 py-2 rounded-lg flex-shrink-0"
+                  aria-label={t('shoppingList.addButton')}
+                >
+                  <span className="sm:hidden text-lg leading-none">+</span>
+                  <span className="hidden sm:inline">{t('shoppingList.addButton')}</span>
                 </button>
               </form>
 
               {items.length === 0 ? (
-                <div className="bg-white rounded-lg shadow">
-                  <p className="p-4 text-gray-500">{t('shoppingList.emptyList')}</p>
+                <div className="bg-white rounded-xl shadow">
+                  <EmptyState
+                    icon={<TaskIcon icon="shopping" />}
+                    text={t('shoppingList.emptyList')}
+                    action={{ label: `+ ${t('shoppingList.addFirstItem')}`, onClick: () => itemNameRef.current?.focus() }}
+                  />
                 </div>
               ) : (
                 <div className="space-y-4">
                   {itemGroups.map((group) => (
-                    <div key={group.id} className="bg-white rounded-lg shadow overflow-hidden">
+                    <div key={group.id} className="bg-white rounded-xl shadow overflow-hidden">
                       <div className="flex items-center gap-2 px-4 pt-3 pb-2">
                         <span
                           className="w-6 h-6 rounded-full flex items-center justify-center text-white text-sm flex-shrink-0"

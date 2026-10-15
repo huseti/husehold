@@ -73,11 +73,7 @@ export default function VoucherCard({ voucher, onRedeem, onToggleArchive, onDele
     onRedeem(voucher.id, null);
   };
 
-  const handleDelete = () => {
-    if (window.confirm(t('vouchers.confirmDelete', { title: voucher.title }))) {
-      onDelete(voucher.id);
-    }
-  };
+  const handleDelete = () => onDelete(voucher.id); // undo snackbar instead of a confirm
 
   return (
     <div className={`card ${voucher.is_archived ? 'opacity-60' : ''}`}>
@@ -87,7 +83,7 @@ export default function VoucherCard({ voucher, onRedeem, onToggleArchive, onDele
             type="text"
             value={editForm.title}
             onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
-            className="w-full px-3 py-1.5 border border-gray-300 rounded"
+            className="w-full px-3 py-1.5 border border-gray-300 rounded-lg"
             required
             autoFocus
           />
@@ -97,14 +93,14 @@ export default function VoucherCard({ voucher, onRedeem, onToggleArchive, onDele
               placeholder={t('vouchers.formReceivedFromPlaceholder')}
               value={editForm.received_from}
               onChange={(e) => setEditForm({ ...editForm, received_from: e.target.value })}
-              className="flex-1 px-3 py-1.5 border border-gray-300 rounded"
+              className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg"
             />
             <input
               type="text"
               placeholder={t('vouchers.formLocationPlaceholder')}
               value={editForm.location}
               onChange={(e) => setEditForm({ ...editForm, location: e.target.value })}
-              className="flex-1 px-3 py-1.5 border border-gray-300 rounded"
+              className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg"
             />
           </div>
 
@@ -127,7 +123,7 @@ export default function VoucherCard({ voucher, onRedeem, onToggleArchive, onDele
                     placeholder={t('vouchers.formTotalValue')}
                     value={editForm.total_value}
                     onChange={(e) => setEditForm({ ...editForm, total_value: e.target.value })}
-                    className="flex-1 px-3 py-1.5 border border-gray-300 rounded"
+                    className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg"
                     required
                   />
                   <input
@@ -136,7 +132,7 @@ export default function VoucherCard({ voucher, onRedeem, onToggleArchive, onDele
                     placeholder={t('vouchers.formCurrency')}
                     value={editForm.currency}
                     onChange={(e) => setEditForm({ ...editForm, currency: e.target.value.toUpperCase() })}
-                    className="w-20 px-3 py-1.5 border border-gray-300 rounded"
+                    className="w-20 px-3 py-1.5 border border-gray-300 rounded-lg"
                   />
                 </div>
               )}
@@ -151,12 +147,12 @@ export default function VoucherCard({ voucher, onRedeem, onToggleArchive, onDele
               type="date"
               value={editForm.valid_until}
               onChange={(e) => setEditForm({ ...editForm, valid_until: e.target.value })}
-              className="px-3 py-1.5 border border-gray-300 rounded"
+              className="px-3 py-1.5 border border-gray-300 rounded-lg"
             />
           </div>
 
           <div className="flex gap-2">
-            <button type="submit" className="text-sm btn-primary px-3 py-1.5 rounded">
+            <button type="submit" className="btn btn-sm btn-primary">
               {t('vouchers.editSave')}
             </button>
             <button type="button" onClick={() => setIsEditing(false)} className="text-sm text-gray-500 px-2">
@@ -196,33 +192,33 @@ export default function VoucherCard({ voucher, onRedeem, onToggleArchive, onDele
               {hasValue ? (
                 <button
                   onClick={() => (showRedeemForm ? setShowRedeemForm(false) : openRedeemForm())}
-                  className="text-sm btn-primary px-3 py-1.5 rounded"
+                  className="btn btn-sm btn-primary"
                 >
                   {t('vouchers.redeem')}
                 </button>
               ) : (
                 <button
                   onClick={handleMarkUsed}
-                  className="text-sm btn-primary px-3 py-1.5 rounded"
+                  className="btn btn-sm btn-primary"
                 >
                   {t('vouchers.markUsed')}
                 </button>
               )}
               <button
                 onClick={openEditForm}
-                className="text-sm btn-secondary px-3 py-1.5 rounded"
+                className="btn btn-sm btn-secondary"
               >
                 {t('vouchers.edit')}
               </button>
               <button
                 onClick={() => onToggleArchive(voucher.id)}
-                className="text-sm btn-secondary px-3 py-1.5 rounded"
+                className="btn btn-sm btn-secondary"
               >
                 {t('vouchers.archive')}
               </button>
               <button
                 onClick={handleDelete}
-                className="text-sm text-red-600 px-3 py-1.5 rounded hover:bg-red-50"
+                className="text-sm text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-50"
               >
                 {t('vouchers.delete')}
               </button>
@@ -233,19 +229,19 @@ export default function VoucherCard({ voucher, onRedeem, onToggleArchive, onDele
             <div className="mt-4 flex flex-wrap gap-2">
               <button
                 onClick={openEditForm}
-                className="text-sm btn-secondary px-3 py-1.5 rounded"
+                className="btn btn-sm btn-secondary"
               >
                 {t('vouchers.edit')}
               </button>
               <button
                 onClick={() => onToggleArchive(voucher.id)}
-                className="text-sm btn-secondary px-3 py-1.5 rounded"
+                className="btn btn-sm btn-secondary"
               >
                 {t('vouchers.unarchive')}
               </button>
               <button
                 onClick={handleDelete}
-                className="text-sm text-red-600 px-3 py-1.5 rounded hover:bg-red-50"
+                className="text-sm text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-50"
               >
                 {t('vouchers.delete')}
               </button>
@@ -271,7 +267,7 @@ export default function VoucherCard({ voucher, onRedeem, onToggleArchive, onDele
               className="flex-1"
               autoFocus
             />
-            <button type="submit" className="text-sm btn-primary px-3 py-1.5 rounded">
+            <button type="submit" className="btn btn-sm btn-primary">
               {t('vouchers.redeemSubmit')}
             </button>
             <button

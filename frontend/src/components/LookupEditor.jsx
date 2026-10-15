@@ -96,7 +96,7 @@ function Row({ item, fields, onUpdate, onDelete }) {
                 value={draft[field.key]}
                 onChange={(e) => setDraft({ ...draft, [field.key]: e.target.value })}
                 onBlur={() => draft[field.key] !== item[field.key] && save({ [field.key]: draft[field.key] })}
-                className="w-9 h-9 p-0 border border-gray-300 rounded cursor-pointer"
+                className="w-9 h-9 p-0 border border-gray-300 rounded-lg cursor-pointer"
               />
             );
           }
@@ -111,7 +111,7 @@ function Row({ item, fields, onUpdate, onDelete }) {
                   setDraft({ ...draft, [field.key]: value });
                   save({ [field.key]: value });
                 }}
-                className={`px-3 py-1.5 border border-gray-300 rounded ${field.className || ''}`}
+                className={`px-3 py-1.5 border border-gray-300 rounded-lg ${field.className || ''}`}
               >
                 {field.valueType !== 'string' && <option value="">{t(field.emptyLabelKey || 'recipeConfig.none')}</option>}
                 {field.options.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
@@ -137,7 +137,7 @@ function Row({ item, fields, onUpdate, onDelete }) {
               placeholder={t(field.labelKey)}
               onChange={(e) => setDraft({ ...draft, [field.key]: e.target.value })}
               onBlur={() => String(draft[field.key] ?? '') !== String(item[field.key] ?? '') && save({ [field.key]: draft[field.key] })}
-              className={`px-3 py-1.5 border border-gray-300 rounded ${field.className || 'flex-1 min-w-28'}`}
+              className={`px-3 py-1.5 border border-gray-300 rounded-lg ${field.className || 'flex-1 min-w-28'}`}
             />
           );
         })}
@@ -204,7 +204,7 @@ export default function LookupEditor({ titleKey, service, fields, newItemDefault
             placeholder={t('recipeConfig.search')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full px-3 py-1.5 border border-gray-300 rounded mb-2"
+            className="w-full px-3 py-1.5 border border-gray-300 rounded-lg mb-2"
           />
         )}
         <div className={searchable ? 'max-h-80 overflow-y-auto' : ''}>
@@ -229,7 +229,7 @@ export default function LookupEditor({ titleKey, service, fields, newItemDefault
                 type="color"
                 value={newItem[field.key]}
                 onChange={(e) => setNewItem({ ...newItem, [field.key]: e.target.value })}
-                className="w-9 h-9 p-0 border border-gray-300 rounded cursor-pointer"
+                className="w-9 h-9 p-0 border border-gray-300 rounded-lg cursor-pointer"
               />
             ) : field.type === 'select' ? (
               <select
@@ -239,7 +239,7 @@ export default function LookupEditor({ titleKey, service, fields, newItemDefault
                   const raw = e.target.value;
                   setNewItem({ ...newItem, [field.key]: raw === '' ? null : field.valueType === 'string' ? raw : Number(raw) });
                 }}
-                className={`px-3 py-1.5 border border-gray-300 rounded ${field.className || ''}`}
+                className={`px-3 py-1.5 border border-gray-300 rounded-lg ${field.className || ''}`}
               >
                 {field.valueType !== 'string' && <option value="">{t(field.emptyLabelKey || 'recipeConfig.none')}</option>}
                 {field.options.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
@@ -251,12 +251,12 @@ export default function LookupEditor({ titleKey, service, fields, newItemDefault
                 value={newItem[field.key] ?? ''}
                 placeholder={t(field.labelKey)}
                 onChange={(e) => setNewItem({ ...newItem, [field.key]: e.target.value })}
-                className={`px-3 py-1.5 border border-gray-300 rounded ${field.className || 'flex-1 min-w-28'}`}
+                className={`px-3 py-1.5 border border-gray-300 rounded-lg ${field.className || 'flex-1 min-w-28'}`}
                 required={field.key === 'name' || field.key === 'name_de' || field.key === 'text'}
               />
             )
           ))}
-          <button type="submit" className="btn-primary text-white px-3 py-1.5 rounded dark:hover:bg-eucalyptus-600 text-sm">
+          <button type="submit" className="btn btn-sm btn-primary text-white dark:hover:bg-eucalyptus-600">
             {t('recipeConfig.add')}
           </button>
         </form>

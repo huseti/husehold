@@ -71,8 +71,8 @@ export default function PackingListFormModal({
   const submitLabel = mode === 'edit' ? null : { create: 'createButton', copy: 'copyButton' }[mode];
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 overflow-y-auto p-4" onClick={onClose}>
-      <div className="bg-white rounded-lg shadow-xl max-w-md mx-auto my-8 p-6" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-backdrop fixed inset-0 z-50 bg-black/40 overflow-y-auto p-4" onClick={onClose}>
+      <div className="modal-panel bg-white rounded-xl shadow-xl max-w-md mx-auto my-8 p-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-start mb-4">
           <h3 className="text-xl font-semibold">{t(`packingLists.${title}`)}</h3>
           <button onClick={onClose} className="icon-btn text-xl hover:text-gray-700" aria-label={t('recipes.close')}><CloseGlyph /></button>
@@ -132,11 +132,11 @@ export default function PackingListFormModal({
             <button
               type="submit"
               disabled={busy || !canSubmit}
-              className="btn-primary text-white px-4 py-2 rounded disabled:opacity-50"
+              className="btn btn-md btn-primary text-white disabled:opacity-50"
             >
               {submitLabel ? t(`packingLists.${submitLabel}`) : t('recipes.save')}
             </button>
-            <button type="button" onClick={onClose} className="btn-secondary text-gray-700 px-4 py-2 rounded hover:bg-gray-300">
+            <button type="button" onClick={onClose} className="btn btn-md btn-secondary text-gray-700 hover:bg-gray-300">
               {t('recipes.cancel')}
             </button>
           </div>

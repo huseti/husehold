@@ -3,6 +3,10 @@ import { Link } from 'react-router-dom';
 import { mealName } from '../utils/taskDisplay';
 import ExpandIcon from './icons/expandIcon';
 import MemberAvatar from './MemberAvatar';
+import EmptyState from './EmptyState';
+import TaskIcon from './icons/taskIcons';
+import TitleIcon from './TitleIcon';
+import { CookingMenuIcon } from './icons/navIcons';
 
 // Today's planned meals with a one-click "mark cooked" action. task_instance
 // is only present once the week's plan is finalized, which also naturally
@@ -16,10 +20,15 @@ export default function TodaysMealsPanel({ meals, members = [], onMarkCooked }) 
     return members.find((m) => m.user.id === userId) || null;
   };
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <h2 className="text-xl font-semibold mb-4">{t('dashboard.todaysMeals.title')}</h2>
+    <div className="bg-white rounded-xl shadow p-6">
+      <h2 className="flex items-center gap-2 text-xl font-semibold mb-4"><TitleIcon><CookingMenuIcon /></TitleIcon>{t('dashboard.todaysMeals.title')}</h2>
       {meals.length === 0 ? (
-        <p className="text-gray-400 text-sm">{t('dashboard.todaysMeals.none')}</p>
+        <EmptyState
+          compact
+          icon={<TaskIcon icon="cooking" />}
+          text={t('dashboard.todaysMeals.none')}
+          action={{ to: '/cooking-plan', label: `+ ${t('dashboard.todaysMeals.planMeal')}` }}
+        />
       ) : (
         <ul className="space-y-2">
           {meals.map((entry) => {
@@ -38,7 +47,7 @@ export default function TodaysMealsPanel({ meals, members = [], onMarkCooked }) 
               {entry.kind === 'cook' && entry.recipe && (
                 <Link
                   to={`/recipes/${entry.recipe}/highlight?servings=${entry.servings}`}
-                  className="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-600 hover:btn-secondary"
+                  className="text-xs px-2 py-0.5 rounded-lg bg-gray-100 text-gray-600 hover:btn-secondary"
                   aria-label={t('recipes.highlightMode')}
                   title={t('recipes.highlightMode')}
                 >
@@ -48,7 +57,7 @@ export default function TodaysMealsPanel({ meals, members = [], onMarkCooked }) 
               {entry.task_instance && !entry.is_cooked && (
                 <button
                   onClick={() => onMarkCooked(entry.task_instance)}
-                  className="text-xs px-2 py-0.5 rounded btn-primary text-green-700 hover:bg-green-200"
+                  className="text-xs px-2 py-0.5 rounded-lg btn-primary text-green-700 hover:bg-green-200"
                 >
                   {t('dashboard.todaysMeals.markCooked')}
                 </button>

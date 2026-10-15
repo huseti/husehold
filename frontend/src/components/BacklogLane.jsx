@@ -16,7 +16,7 @@ export default function BacklogLane({
   return (
     <div
       ref={setNodeRef}
-      className={`rounded-lg border p-3 mb-3 ${isOver ? 'bg-eucalyptus-100 dark:bg-eucalyptus-900 border-eucalyptus-400 dark:border-eucalyptus-600' : 'bg-eucalyptus-50 dark:bg-gray-800 border-eucalyptus-200 dark:border-gray-700'}`}
+      className={`rounded-xl border p-3 mb-3 ${isOver ? 'bg-eucalyptus-100 dark:bg-eucalyptus-900 border-eucalyptus-400 dark:border-eucalyptus-600' : 'bg-eucalyptus-50 dark:bg-gray-800 border-eucalyptus-200 dark:border-gray-700'}`}
     >
       <div className="text-sm font-semibold mb-2 text-eucalyptus-800 dark:text-eucalyptus-300">{title || t('tasks.backlog')}</div>
       {instances.length === 0 ? (

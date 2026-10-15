@@ -6,6 +6,8 @@ import { toISODate } from '../utils/weekDates';
 import { getDisplayTitle, mealName } from '../utils/taskDisplay';
 import { eventsOnDay } from '../utils/calendarEvents';
 import { NextArrow, PrevArrow } from './icons/uiIcons';
+import TitleIcon from './TitleIcon';
+import { WeekIcon } from './icons/sectionIcons';
 
 // Read-only weekly overview for the Dashboard: each day is one column
 // (tasks, then meals, then calendar events stacked inside it) so a 7-column
@@ -19,17 +21,24 @@ export default function WeekPreview({
   const { t, i18n } = useTranslation();
   const fmt = (day) => day.toLocaleDateString(i18n.resolvedLanguage, { day: 'numeric', month: 'numeric' });
   const navButton = 'px-3 py-1 rounded btn-secondary hover:bg-gray-300';
+  const inWeek = (iso) => weekDays.some((d) => toISODate(d) === iso);
+  const weekHas = {
+    tasks: instances.some((i) => !i.is_in_backlog && inWeek(i.scheduled_date)),
+    meals: meals.some((entry) => inWeek(entry.date)),
+    events: weekDays.some((d) => eventsOnDay(calendarEvents, toISODate(d)).length > 0),
+  };
 
   return (
-    <div className="bg-white rounded-lg shadow p-4">
+    <div className="bg-white rounded-xl shadow p-4">
       <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-        <h2 className="text-xl font-semibold">
+        <h2 className="flex items-center gap-2 text-xl font-semibold">
+          <TitleIcon><WeekIcon /></TitleIcon>
           {isCurrentWeek ? t('dashboard.weekOverview') : `${fmt(weekDays[0])} – ${fmt(weekDays[6])}`}
         </h2>
         {onPrev && (
           <div className="flex items-center gap-2">
             {!isCurrentWeek && (
-              <button onClick={onCurrent} className="px-3 py-1 rounded text-sm btn-primary">
+              <button onClick={onCurrent} className="btn btn-sm btn-primary">
                 {t('dashboard.backToCurrentWeek')}
               </button>
             )}
@@ -39,23 +48,25 @@ export default function WeekPreview({
         )}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-7 gap-2">
+      {/* From sm up each day is a subgrid spanning the 4 shared rows (date, tasks,
+          meals, calendar): a row grows to its fullest day, so nothing is clipped and
+          the columns stay aligned. A row that's empty all week is left out. */}
+      <div className="grid grid-cols-1 sm:grid-cols-7 sm:grid-rows-[auto_auto_auto_auto] gap-2">
         {weekDays.map((day) => {
           const iso = toISODate(day);
           const dayInstances = instances.filter((i) => !i.is_in_backlog && i.scheduled_date === iso);
           const dayMeals = meals.filter((entry) => entry.date === iso);
           const dayEvents = eventsOnDay(calendarEvents, iso);
           const dayIsEmpty = !dayInstances.length && !dayMeals.length && !dayEvents.length;
-          // Below sm the days stack, so empty boxes are hidden and boxes size to
-          // their content; the fixed height only keeps the 7 desktop columns aligned.
+          // Below sm the days stack, so empty boxes are hidden.
           return (
-            <div key={iso} className="space-y-1.5 border-b last:border-b-0 pb-2 sm:border-b-0 sm:pb-0">
+            <div key={iso} className="space-y-1.5 border-b last:border-b-0 pb-2 sm:border-b-0 sm:pb-0 sm:grid sm:grid-rows-subgrid sm:row-span-4 sm:space-y-0">
               <div className="text-xs font-semibold text-gray-500 flex items-baseline gap-2">
                 {day.toLocaleDateString(i18n.resolvedLanguage, { weekday: 'short', day: 'numeric' })}
                 {dayIsEmpty && <span className="sm:hidden font-normal text-gray-400">{t('dashboard.dayEmpty')}</span>}
               </div>
 
-              <div className={`${dayInstances.length ? 'block' : 'hidden sm:block'} border rounded p-2 sm:h-[90px] overflow-y-auto`}>
+              <div className={`${dayInstances.length ? 'block' : weekHas.tasks ? 'hidden sm:block' : 'hidden'} border rounded-lg p-2 sm:min-h-[2.5rem]`}>
                 <div className="space-y-1">
                   {dayInstances.map((instance) => (
                     <div
@@ -76,9 +87,9 @@ export default function WeekPreview({
                 </div>
               </div>
 
-              <div className={`${dayMeals.length ? 'flex' : 'hidden sm:flex'} border rounded p-2 sm:h-[90px] bg-gray-50 flex-col`}>
-                <p className="text-[10px] uppercase text-gray-400 mb-1 flex-shrink-0">{t('dashboard.mealsRow')}</p>
-                <div className="space-y-1 overflow-y-auto flex-1">
+              <div className={`${dayMeals.length ? 'flex' : weekHas.meals ? 'hidden sm:flex' : 'hidden'} border rounded-lg p-2 bg-gray-50 flex-col`}>
+                <p className="text-xs uppercase text-gray-500 mb-1 flex-shrink-0">{t('dashboard.mealsRow')}</p>
+                <div className="space-y-1 flex-1">
                   {dayMeals.map((entry) => (
                     <div key={entry.id} className="text-xs flex items-center justify-between gap-1">
                       <span>
@@ -102,13 +113,14 @@ export default function WeekPreview({
                 </div>
               </div>
 
-              <div className={`${dayEvents.length ? 'flex' : 'hidden sm:flex'} border rounded p-2 sm:h-[90px] bg-gray-50 flex-col`}>
-                <p className="text-[10px] uppercase text-gray-400 mb-1 flex-shrink-0">{t('dashboard.calendarRow')}</p>
-                <div className="space-y-1 overflow-y-auto flex-1">
+              <div className={`${dayEvents.length ? 'flex' : weekHas.events ? 'hidden sm:flex' : 'hidden'} border rounded-lg p-2 bg-gray-50 flex-col`}>
+                <p className="text-xs uppercase text-gray-500 mb-1 flex-shrink-0">{t('dashboard.calendarRow')}</p>
+                <div className="space-y-1 flex-1">
                   {dayEvents.map((event) => (
                     <div
                       key={event.id}
-                      className="text-xs text-amber-800 truncate border-l-4 pl-1"
+                      title={event.title}
+                      className="text-xs text-amber-800 break-words hyphens-auto border-l-4 pl-1"
                       style={{ borderColor: event.color_hex || '#d97706' }}
                     >
                       {event.title}

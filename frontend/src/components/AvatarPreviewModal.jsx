@@ -1,4 +1,5 @@
 import { useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import TaskIcon from './icons/taskIcons';
 import { memberService } from '../services/api';
@@ -28,13 +29,16 @@ export default function AvatarPreviewModal({ member, onClose, onChanged }) {
 
   const initials = member?.user?.username?.[0]?.toUpperCase() || '?';
 
-  return (
+  // Portal into <body>: opened from inside the navbar / bottom bar, whose
+  // backdrop-filter would otherwise become the box this fixed overlay is
+  // positioned in (it showed up squeezed into the 65px navbar).
+  return createPortal(
     <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-30"
+      className="modal-backdrop fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-lg shadow-xl p-6 flex flex-col items-center gap-4"
+        className="modal-panel bg-white rounded-xl shadow-xl p-6 flex flex-col items-center gap-4"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="group relative h-40 w-40 rounded-full overflow-hidden border-4 border-gray-100">
@@ -65,13 +69,13 @@ export default function AvatarPreviewModal({ member, onClose, onChanged }) {
         <div className="flex gap-2">
           <button
             onClick={handleUploadClick}
-            className="text-sm px-3 py-1.5 rounded btn-primary text-white hover:btn-primary"
+            className="btn btn-sm btn-primary text-white hover:btn-primary"
           >
             {t('common.uploadNewPhoto')}
           </button>
           <button
             onClick={onClose}
-            className="text-sm px-3 py-1.5 rounded btn-secondary hover:bg-gray-300"
+            className="btn btn-sm btn-secondary hover:bg-gray-300"
           >
             {t('weeklyPlanning.cancel')}
           </button>
@@ -85,6 +89,7 @@ export default function AvatarPreviewModal({ member, onClose, onChanged }) {
           onChange={handleFileChange}
         />
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

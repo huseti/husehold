@@ -1,6 +1,8 @@
 import { useTranslation } from 'react-i18next';
 import ProgressBar from './ProgressBar';
 import MemberAvatar from './MemberAvatar';
+import TitleIcon from './TitleIcon';
+import { ProgressIcon } from './icons/sectionIcons';
 
 // This week's completion progress: an overall bar plus a per-member
 // breakdown. skipped/snoozed instances are excluded from both the numerator
@@ -20,12 +22,12 @@ export default function ProgressPanel({ weekDone, weekTotal, members, weekTasks 
   });
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <h2 className="text-xl font-semibold mb-4">{t('dashboard.progress.title')}</h2>
+    <div className="bg-white rounded-xl shadow p-6">
+      <h2 className="flex items-center gap-2 text-xl font-semibold mb-4"><TitleIcon><ProgressIcon /></TitleIcon>{t('dashboard.progress.title')}</h2>
       <div className="mb-4">
         <div className="flex justify-between text-sm text-gray-600 mb-1">
           <span>{t('dashboard.progress.overall')}</span>
-          <span>{weekDone}/{weekTotal}</span>
+          <span className="tabular-nums">{weekDone}/{weekTotal}</span>
         </div>
         <ProgressBar done={weekDone} total={weekTotal} />
         {weekTotal > 0 && weekDone === weekTotal && (
@@ -42,7 +44,7 @@ export default function ProgressPanel({ weekDone, weekTotal, members, weekTasks 
             <div className="flex-1 min-w-0">
               <div className="flex justify-between text-xs text-gray-500 mb-1">
                 <span>{member.name}</span>
-                <span>{member.done}/{member.total}</span>
+                <span className="tabular-nums">{member.done}/{member.total}</span>
               </div>
               <ProgressBar done={member.done} total={member.total} colorHex={member.color} />
             </div>

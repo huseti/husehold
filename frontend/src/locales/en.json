@@ -1,9 +1,10 @@
 {
   "common": {
+    "deleted": "Deleted “{{title}}”",
     "appName": "HUSEHOLD",
     "loading": "Loading...",
     "menu": "Menu",
-    "logout": "Log off",
+    "logout": "Log out",
     "editImage": "Edit Image",
     "systemSettings": "System Settings",
     "removeImage": "Remove photo",
@@ -12,6 +13,10 @@
     "back": "Back"
   },
   "nav": {
+    "tabHome": "Home",
+    "tabShopping": "Shopping",
+    "tabMore": "More",
+    "tabTasks": "Household",
     "dashboard": "Dashboard",
     "shopping": "Shopping",
     "recipes": "Recipes",
@@ -48,8 +53,8 @@
     "welcomeUpcoming": "Here's what's coming up in {{household}}.",
     "myOpenTasks": "My open household tasks",
     "noOpenTasks": "Nothing open — nice.",
-    "overdue": "Overdue",
-    "dueToday": "Today",
+    "overdue": "overdue",
+    "dueToday": "today",
     "calendarRow": "Calendar",
     "overview": {
       "title": "Overview",
@@ -80,7 +85,8 @@
       "title": "Today's meals",
       "none": "Nothing planned for today.",
       "markCooked": "Mark cooked",
-      "cooked": "Cooked"
+      "cooked": "Cooked",
+      "planMeal": "Plan a dish"
     }
   },
   "shoppingList": {
@@ -89,6 +95,8 @@
     "quantityPlaceholder": "Qty",
     "noUnit": "Unit",
     "addButton": "Add",
+    "newList": "New list",
+    "createList": "Create",
     "newListPlaceholder": "New list...",
     "noLists": "No shopping lists yet — create one above.",
     "emptyList": "Nothing on this list yet.",
@@ -117,7 +125,8 @@
     "editItem": "Edit item",
     "editList": "Edit list",
     "editFailed": "Could not save the list.",
-    "deleteFailed": "Could not delete the list."
+    "deleteFailed": "Could not delete the list.",
+    "addFirstItem": "Add the first item"
   },
   "recipes": {
     "title": "Recipes",
@@ -128,6 +137,8 @@
     "newButton": "Add recipe manually",
     "newTitle": "New recipe",
     "editTitle": "Edit recipe",
+    "importShort": "Import",
+    "newShort": "Add manually",
     "importButton": "Import recipe",
     "importTitle": "Import a recipe",
     "importTabPhoto": "Photo",
@@ -185,7 +196,6 @@
     "close": "Close",
     "edit": "Edit",
     "delete": "Delete",
-    "confirmDelete": "Delete the recipe \"{{title}}\"?",
     "saveFailed": "Could not save the recipe. Please check the fields and try again.",
     "noIngredients": "No ingredients entered.",
     "source": "Source",
@@ -210,9 +220,19 @@
     "highlightFontSmaller": "Smaller text",
     "highlightFontLarger": "Larger text",
     "addedMeta": "Added {{date}} by {{by}}",
-    "addedMetaUnknown": "someone no longer in the household"
+    "addedMetaUnknown": "someone no longer in the household",
+    "resetFilters": "Reset filters",
+    "historyGroup": {
+      "lastMonth": "Last month",
+      "olderThanMonth": "Older than a month",
+      "olderThanYear": "Older than a year"
+    },
+    "timesCookedShort": "{{count}}×"
   },
   "cookingPlan": {
+    "dishCount_one": "{{count}} dish",
+    "dishCount_other": "{{count}} dishes",
+    "nothingPlanned": "nothing planned",
     "title": "Cooking Plan",
     "servingsShort": "{{count}} serv.",
     "leftoversOf": "Leftovers of {{title}}",
@@ -234,7 +254,6 @@
     "leftoversWhen": "Leftovers on:",
     "add": "Add",
     "notesPlaceholder": "Note (optional)",
-    "confirmDelete": "Remove “{{title}}” from the plan?",
     "status": {
       "cooked": "cooked",
       "draft": "Draft — no task yet",
@@ -289,6 +308,8 @@
     "snoozed": "snoozed",
     "undo": "Undo",
     "snooze": "Snooze",
+    "moreActions": "More actions",
+    "lessActions": "Show less",
     "backlog": "Backlog — no day yet",
     "backlogEmpty": "Nothing here — tap a day on a task, drag one in, or add one without a day.",
     "backlogShort": "Backlog",
@@ -325,7 +346,6 @@
     "instanceCreatedBy": "Created {{date}} by {{name}}",
     "instanceCreatedOn": "Created {{date}}",
     "deleteInstance": "Delete this task",
-    "confirmDeleteInstance": "Delete \"{{title}}\"?",
     "confirmDeleteWithInstances": "\"{{title}}\" has {{count}} scheduled occurrence(s). Delete it and all of them?",
     "icon": {
       "cleaning": "Cleaning",
@@ -417,7 +437,6 @@
     "unarchive": "Unarchive",
     "archive": "Archive",
     "delete": "Delete",
-    "confirmDelete": "Delete \"{{title}}\"?",
     "redeemAmount": "Amount used",
     "redeemSubmit": "Log",
     "redeemCancel": "Cancel",
@@ -628,6 +647,7 @@
     },
     "meals": {
       "title": "Cooking Plan",
+      "topLabels": "Most cooked labels",
       "topRecipes": "Most-cooked recipes",
       "trend": "Meals over time",
       "timesCooked_one": "cooked {{count}}×",

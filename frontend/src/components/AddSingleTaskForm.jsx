@@ -26,7 +26,7 @@ export default function AddSingleTaskForm({ weekDays, members, onClose, onAdded 
   };
 
   return (
-    <div className="bg-white rounded-lg shadow p-4 mb-4 border border-eucalyptus-200">
+    <div className="bg-white rounded-xl shadow p-4 mb-4 border border-eucalyptus-200">
       <h3 className="font-semibold mb-2">{t('tasks.addSingleTask')}</h3>
       <form onSubmit={handleSubmit} className="space-y-3">
         <div>
@@ -35,7 +35,7 @@ export default function AddSingleTaskForm({ weekDays, members, onClose, onAdded 
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             required
-            className="border rounded px-2 py-1 text-sm w-full max-w-sm"
+            className="border rounded-lg px-2 py-1 text-sm w-full max-w-sm"
           />
         </div>
 
@@ -45,7 +45,7 @@ export default function AddSingleTaskForm({ weekDays, members, onClose, onAdded 
             <select
               value={assignedTo}
               onChange={(e) => setAssignedTo(e.target.value)}
-              className="border rounded px-2 py-1 text-sm"
+              className="border rounded-lg px-2 py-1 text-sm"
             >
               <option value="">{t('tasks.unassigned')}</option>
               {members.map((m) => (
@@ -58,7 +58,7 @@ export default function AddSingleTaskForm({ weekDays, members, onClose, onAdded 
             <select
               value={day}
               onChange={(e) => setDay(e.target.value)}
-              className="border rounded px-2 py-1 text-sm"
+              className="border rounded-lg px-2 py-1 text-sm"
             >
               <option value="backlog">{t('tasks.backlog')}</option>
               {weekDays.map((d) => (
@@ -76,10 +76,10 @@ export default function AddSingleTaskForm({ weekDays, members, onClose, onAdded 
         </div>
 
         <div className="flex gap-2">
-          <button type="submit" className="btn-primary text-white px-3 py-1 rounded text-sm hover:btn-primary">
+          <button type="submit" className="btn btn-sm btn-primary text-white hover:btn-primary">
             {t('tasks.addSingleTask')}
           </button>
-          <button type="button" onClick={onClose} className="px-3 py-1 rounded text-sm btn-secondary hover:bg-gray-300">
+          <button type="button" onClick={onClose} className="btn btn-sm btn-secondary hover:bg-gray-300">
             {t('weeklyPlanning.cancel')}
           </button>
         </div>

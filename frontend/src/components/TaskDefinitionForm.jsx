@@ -102,7 +102,7 @@ export default function TaskDefinitionForm({ members, definitions, onSaved }) {
 
   return (
     <div className="space-y-6 mb-6">
-      <div className="bg-white rounded-lg shadow p-4">
+      <div className="bg-white rounded-xl shadow p-4">
         <h3 className="font-semibold mb-2">{t('tasks.memberColors')}</h3>
         <div className="flex gap-4 flex-wrap">
           {members.map((m) => (
@@ -121,7 +121,7 @@ export default function TaskDefinitionForm({ members, definitions, onSaved }) {
       <WeeklyPlanningConfig definitions={definitions} members={members} onSaved={onSaved} />
       <WeeklyPlanningConfig kind="meal" definitions={definitions} members={members} onSaved={onSaved} />
 
-      <div className="bg-white rounded-lg shadow p-4">
+      <div className="bg-white rounded-xl shadow p-4">
         <h3 className="font-semibold mb-2">{t('tasks.recurringTasks')}</h3>
         <ul className="text-sm mb-3 space-y-2">
           {regularDefinitions.map((d) => (
@@ -138,7 +138,7 @@ export default function TaskDefinitionForm({ members, definitions, onSaved }) {
                   {' · '}
                   {assignmentSummary(d)}
                 </div>
-                <div className="text-[11px] text-gray-400 mt-0.5">
+                <div className="text-xs text-gray-400 mt-0.5">
                   {/* auto_now_add and auto_now both fire during the same
                       create() call, microseconds apart -- treat anything
                       under a couple seconds as "never actually edited". */}
@@ -174,7 +174,7 @@ export default function TaskDefinitionForm({ members, definitions, onSaved }) {
 
         <form onSubmit={handleSubmit} className="space-y-3">
           {editingId && (
-            <p className="text-xs text-eucalyptus-700 bg-eucalyptus-50 rounded px-2 py-1">{t('tasks.nowEditing')}</p>
+            <p className="text-xs text-eucalyptus-700 bg-eucalyptus-50 rounded-lg px-2 py-1">{t('tasks.nowEditing')}</p>
           )}
           <div className="flex gap-2 flex-wrap items-end">
             <div>
@@ -183,7 +183,7 @@ export default function TaskDefinitionForm({ members, definitions, onSaved }) {
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
                 required
-                className="border rounded px-2 py-1 text-sm"
+                className="border rounded-lg px-2 py-1 text-sm"
               />
             </div>
             <div>
@@ -193,7 +193,7 @@ export default function TaskDefinitionForm({ members, definitions, onSaved }) {
                 value={form.starts_on}
                 onChange={(e) => setForm({ ...form, starts_on: e.target.value })}
                 required
-                className="border rounded px-2 py-1 text-sm"
+                className="border rounded-lg px-2 py-1 text-sm"
               />
             </div>
           </div>
@@ -204,7 +204,7 @@ export default function TaskDefinitionForm({ members, definitions, onSaved }) {
               <select
                 value={form.assignment_mode}
                 onChange={(e) => setForm({ ...form, assignment_mode: e.target.value })}
-                className="border rounded px-2 py-1 text-sm"
+                className="border rounded-lg px-2 py-1 text-sm"
               >
                 {ASSIGNMENT_MODES.map((mode) => (
                   <option key={mode} value={mode}>{t(`tasks.assignmentMode.${mode}`)}</option>
@@ -217,7 +217,7 @@ export default function TaskDefinitionForm({ members, definitions, onSaved }) {
                 <select
                   value={form.default_assignee}
                   onChange={(e) => setForm({ ...form, default_assignee: e.target.value })}
-                  className="border rounded px-2 py-1 text-sm"
+                  className="border rounded-lg px-2 py-1 text-sm"
                 >
                   <option value="">{t('tasks.unassigned')}</option>
                   {members.map((m) => (
@@ -246,14 +246,14 @@ export default function TaskDefinitionForm({ members, definitions, onSaved }) {
           </div>
 
           <div className="flex gap-2">
-            <button type="submit" className="btn-primary text-white px-3 py-1 rounded text-sm hover:btn-primary">
+            <button type="submit" className="btn btn-sm btn-primary text-white hover:btn-primary">
               {editingId ? t('weeklyPlanning.save') : t('tasks.addRecurringTask')}
             </button>
             {editingId && (
               <button
                 type="button"
                 onClick={handleCancelEdit}
-                className="px-3 py-1 rounded text-sm btn-secondary hover:bg-gray-300"
+                className="btn btn-sm btn-secondary hover:bg-gray-300"
               >
                 {t('weeklyPlanning.cancel')}
               </button>

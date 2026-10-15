@@ -54,7 +54,7 @@ export default function CookingPlanSettings({ config, meals, onSaved }) {
   );
 
   return (
-    <div className="bg-white rounded-lg shadow p-5 mb-6 space-y-4">
+    <div className="bg-white rounded-xl shadow p-5 mb-6 space-y-4">
       <p className="text-xs text-gray-500">{t('cookingSettings.hint')}</p>
 
       <div>

@@ -1,6 +1,10 @@
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import TaskRow from './TaskRow';
+import EmptyState from './EmptyState';
+import { CheckGlyph } from './icons/uiIcons';
+import TitleIcon from './TitleIcon';
+import { OpenTasksIcon } from './icons/sectionIcons';
 
 // Combined tasks card: the current user's own open tasks (overdue/today/this
 // week), followed by the rest of the household's overdue tasks -- so the
@@ -12,8 +16,8 @@ export default function TasksPanel({
   const hasOwnTasks = overdueTasks.length + todayTasks.length + thisWeekTasks.length > 0;
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <h2 className="text-xl font-semibold mb-4">{t('dashboard.myOpenTasks')}</h2>
+    <div className="bg-white rounded-xl shadow p-6">
+      <h2 className="flex items-center gap-2 text-xl font-semibold mb-4"><TitleIcon><OpenTasksIcon /></TitleIcon>{t('dashboard.myOpenTasks')}</h2>
       {hasOwnTasks ? (
         <ul className="space-y-2">
           {overdueTasks.map((task) => (
@@ -27,7 +31,7 @@ export default function TasksPanel({
           ))}
         </ul>
       ) : (
-        <p className="text-gray-400 text-sm">{t('dashboard.noOpenTasks')}</p>
+        <EmptyState compact icon={<CheckGlyph />} text={t('dashboard.noOpenTasks')} />
       )}
       <Link to="/tasks" className="mt-4 inline-block text-eucalyptus-600 dark:text-eucalyptus-400 hover:text-eucalyptus-700 dark:hover:text-eucalyptus-300 font-medium">
         {t('dashboard.viewAll')}

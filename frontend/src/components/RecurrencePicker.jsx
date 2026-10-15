@@ -83,7 +83,7 @@ export default function RecurrencePicker({ value, onChange, initialRule, hasPref
   const weekdayLabel = (day) => t(`tasks.recurrence.weekday.${day.toLowerCase()}`);
 
   return (
-    <div className="border rounded p-3 bg-gray-50">
+    <div className="border rounded-lg p-3 bg-gray-50">
       <div className="flex items-center gap-2 flex-wrap mb-2">
         <span className="text-xs text-gray-500">{t('tasks.recurrence.every')}</span>
         <input
@@ -91,12 +91,12 @@ export default function RecurrencePicker({ value, onChange, initialRule, hasPref
           min="1"
           value={state.interval}
           onChange={(e) => set({ interval: Math.max(1, parseInt(e.target.value, 10) || 1) })}
-          className="border rounded px-2 py-1 text-sm w-16"
+          className="border rounded-lg px-2 py-1 text-sm w-16"
         />
         <select
           value={state.freq}
           onChange={(e) => set({ freq: e.target.value })}
-          className="border rounded px-2 py-1 text-sm"
+          className="border rounded-lg px-2 py-1 text-sm"
         >
           <option value="DAILY">{t('tasks.recurrence.days', { count: state.interval })}</option>
           <option value="WEEKLY">{t('tasks.recurrence.weeks', { count: state.interval })}</option>
@@ -125,7 +125,7 @@ export default function RecurrencePicker({ value, onChange, initialRule, hasPref
               key={day}
               type="button"
               onClick={() => toggleDay(day)}
-              className={`text-xs px-2 py-1 rounded border ${
+              className={`text-xs px-2 py-1 rounded-lg border ${
                 state.byday.includes(day)
                   ? 'btn-primary text-white border-eucalyptus-500'
                   : 'bg-white text-gray-600 border-gray-300'
@@ -151,7 +151,7 @@ export default function RecurrencePicker({ value, onChange, initialRule, hasPref
             value={state.ordinal}
             disabled={state.monthlyMode !== 'ordinal'}
             onChange={(e) => set({ ordinal: e.target.value, monthlyMode: 'ordinal' })}
-            className="border rounded px-1 py-0.5 text-sm"
+            className="border rounded-lg px-1 py-0.5 text-sm"
           >
             {ORDINALS.map((o) => (
               <option key={o} value={o}>{t(`tasks.recurrence.ordinal.${o}`)}</option>
@@ -161,7 +161,7 @@ export default function RecurrencePicker({ value, onChange, initialRule, hasPref
             value={state.ordinalWeekday}
             disabled={state.monthlyMode !== 'ordinal'}
             onChange={(e) => set({ ordinalWeekday: e.target.value, monthlyMode: 'ordinal' })}
-            className="border rounded px-1 py-0.5 text-sm"
+            className="border rounded-lg px-1 py-0.5 text-sm"
           >
             {WEEKDAYS.map((day) => (
               <option key={day} value={day}>{weekdayLabel(day)}</option>
@@ -183,7 +183,7 @@ export default function RecurrencePicker({ value, onChange, initialRule, hasPref
             value={state.monthDay}
             disabled={state.monthlyMode !== 'day'}
             onChange={(e) => set({ monthDay: Math.min(31, Math.max(1, parseInt(e.target.value, 10) || 1)), monthlyMode: 'day' })}
-            className="border rounded px-2 py-1 text-sm w-16"
+            className="border rounded-lg px-2 py-1 text-sm w-16"
           />
         </div>
       )}

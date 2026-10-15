@@ -33,3 +33,9 @@ export function parseISODate(iso) {
   const [year, month, day] = iso.split('-').map(Number);
   return new Date(year, month - 1, day);
 }
+
+// "12. Okt. – 18. Okt." -- the week range label shown next to the week arrows.
+export function formatDateRange(start, end, language) {
+  const fmt = (d) => d.toLocaleDateString(language, { day: 'numeric', month: 'short' });
+  return `${fmt(start)} – ${fmt(end)}`;
+}

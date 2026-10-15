@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import RecipeConfig from '../components/RecipeConfig';
 import { BackArrow } from '../components/icons/uiIcons';
+import TitleIcon from '../components/TitleIcon';
+import { ConfigIcon } from '../components/icons/sectionIcons';
 
 // Dedicated config screen for Recipes & Shopping (labels, meal categories,
 // units, ingredients) -- these are domain settings, not system settings, so
@@ -25,7 +27,7 @@ export default function RecipeShoppingConfig() {
         >
           <BackArrow /> {t('common.back')}
         </button>
-        <h2 className="text-3xl font-bold mb-8">{t('recipeConfig.title')}</h2>
+        <h2 className="flex items-center gap-2 text-2xl sm:text-3xl font-bold mb-8"><TitleIcon><ConfigIcon /></TitleIcon>{t('recipeConfig.title')}</h2>
         <RecipeConfig />
       </main>
     </div>

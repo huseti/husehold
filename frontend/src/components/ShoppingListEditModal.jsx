@@ -33,8 +33,8 @@ export default function ShoppingListEditModal({ list, onClose, onSave, onDelete 
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 overflow-y-auto p-4" onClick={onClose}>
-      <div className="bg-white rounded-lg shadow-xl max-w-md mx-auto my-8 p-6" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-backdrop fixed inset-0 z-50 bg-black/40 overflow-y-auto p-4" onClick={onClose}>
+      <div className="modal-panel bg-white rounded-xl shadow-xl max-w-md mx-auto my-8 p-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-start mb-4">
           <h3 className="text-xl font-semibold">{t('shoppingList.editList')}</h3>
           <button onClick={onClose} className="icon-btn text-xl hover:text-gray-700" aria-label={t('recipes.close')}><CloseGlyph /></button>
@@ -57,10 +57,10 @@ export default function ShoppingListEditModal({ list, onClose, onSave, onDelete 
           {error && <p className="text-sm text-red-600">{error}</p>}
 
           <div className="flex gap-3">
-            <button type="submit" disabled={busy || !name.trim()} className="btn-primary px-4 py-2 rounded disabled:opacity-50">
+            <button type="submit" disabled={busy || !name.trim()} className="btn btn-md btn-primary disabled:opacity-50">
               {t('recipes.save')}
             </button>
-            <button type="button" onClick={onClose} className="btn-secondary px-4 py-2 rounded">
+            <button type="button" onClick={onClose} className="btn btn-md btn-secondary">
               {t('recipes.cancel')}
             </button>
           </div>
