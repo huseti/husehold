@@ -13,6 +13,7 @@ import requests
 from django.conf import settings
 
 from ..models import IngredientCategory
+from .api_usage import record_claude_call
 from .claude import response_text
 
 CLAUDE_MODEL = 'claude-haiku-5-5'
@@ -122,7 +123,9 @@ def _llm_lookup(name, category_names):
             timeout=10,
         )
         response.raise_for_status()
-        text = response_text(response.json()).strip()
+        data = response.json()
+        record_claude_call('ingredient_categorization', CLAUDE_MODEL, data)
+        text = response_text(data).strip()
         return text if text in category_names else None
     except Exception:
         return None

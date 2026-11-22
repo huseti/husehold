@@ -582,7 +582,19 @@
     "notificationLanguage": "Sprache der Benachrichtigungen",
     "notificationLanguageHint": "Gilt für E-Mails und Push-Benachrichtigungen, unabhängig von der Sprache der App.",
     "pushIosHint": "Push kommt auch an, wenn die App geschlossen ist oder du nicht eingeloggt bist. Auf dem iPhone geht das nur, wenn du die Seite zum Home-Bildschirm hinzufügst, sie dort öffnest, dich einloggst und Push hier aktivierst.",
-    "householdSaveFailed": "Konnte nicht gespeichert werden."
+    "householdSaveFailed": "Konnte nicht gespeichert werden.",
+    "apiUsage": "KI-Verbrauch",
+    "apiUsageHint": "Geschätzte Kosten der KI-Aufrufe dieser App (Rezept-Import, Zutaten-Kategorisierung, Video-Transkription), berechnet aus den Token- bzw. Audio-Angaben jeder Antwort. Noch keine Aufrufe erfasst.",
+    "apiUsageHintSince": "Geschätzte Kosten der KI-Aufrufe dieser App (Rezept-Import, Zutaten-Kategorisierung, Video-Transkription), berechnet aus den Token- bzw. Audio-Angaben jeder Antwort. Erfasst seit {{date}} -- Aufrufe mit denselben Schlüsseln außerhalb der App zählen nicht mit.",
+    "apiUsageProvider": "Anbieter",
+    "apiUsageThisMonth": "Dieser Monat",
+    "apiUsageTotal": "Gesamt",
+    "apiUsageCalls_one": "{{count}} Aufruf",
+    "apiUsageCalls_other": "{{count}} Aufrufe",
+    "apiUsageProviders": {
+      "anthropic": "Anthropic (Claude)",
+      "openai": "OpenAI (Whisper)"
+    }
   },
   "recipeConfig": {
     "title": "Rezepte & Einkaufslisten",

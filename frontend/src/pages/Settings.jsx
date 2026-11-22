@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import {
   householdSettingsService, notificationPreferenceService, pushSubscriptionService, notificationTestService,
-  memberService, googleCalendarService, serviceStatusService,
+  memberService, googleCalendarService, serviceStatusService, apiUsageService,
 } from '../services/api';
 import { urlBase64ToUint8Array, isPushSupported } from '../utils/push';
 import TitleIcon from '../components/TitleIcon';
@@ -37,6 +37,14 @@ function getTimezoneOptions() {
   return FALLBACK_TIMEZONES;
 }
 
+// Most calls cost fractions of a cent, so show up to 4 decimals below $1.
+function formatUsd(value, locale) {
+  const amount = Number(value);
+  return new Intl.NumberFormat(locale, {
+    style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: amount < 1 ? 4 : 2,
+  }).format(amount);
+}
+
 export default function Settings() {
   const { t, i18n } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -64,6 +72,7 @@ export default function Settings() {
   const [googleCalendarList, setGoogleCalendarList] = useState(null);
   const [syncNowStatus, setSyncNowStatus] = useState(null);
   const [serviceStatus, setServiceStatus] = useState(null);
+  const [apiUsage, setApiUsage] = useState(null);
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'system');
 
   const loadGoogleCalendar = () => googleCalendarService.getStatus().then((res) => {
@@ -84,6 +93,7 @@ export default function Settings() {
     memberService.getMe().then((res) => setMember(res.data)).catch(() => {});
     loadGoogleCalendar();
     serviceStatusService.get().then((res) => setServiceStatus(res.data)).catch(() => {});
+    apiUsageService.get().then((res) => setApiUsage(res.data)).catch(() => {});
 
     if (isPushSupported()) {
       navigator.serviceWorker.ready.then((registration) =>
@@ -563,6 +573,39 @@ export default function Settings() {
                 </div>
               </li>
             </ul>
+          )}
+        </div>
+
+        <div className="bg-white rounded-xl shadow p-6 mb-8">
+          <h3 className="text-lg font-semibold mb-4">{t('settings.apiUsage')}</h3>
+          <p className="text-sm text-gray-500 mb-4">
+            {apiUsage?.tracking_since
+              ? t('settings.apiUsageHintSince', { date: new Date(apiUsage.tracking_since).toLocaleDateString(i18n.resolvedLanguage) })
+              : t('settings.apiUsageHint')}
+          </p>
+          {apiUsage && (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-gray-500">
+                  <th className="font-medium pb-2">{t('settings.apiUsageProvider')}</th>
+                  <th className="font-medium pb-2 text-right">{t('settings.apiUsageThisMonth')}</th>
+                  <th className="font-medium pb-2 text-right">{t('settings.apiUsageTotal')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {apiUsage.providers.map((p) => (
+                  <tr key={p.provider} className="border-t">
+                    <td className="py-2 font-medium">{t(`settings.apiUsageProviders.${p.provider}`)}</td>
+                    {[p.this_month, p.total].map((period, index) => (
+                      <td key={index} className="py-2 text-right tabular-nums">
+                        {formatUsd(period.cost_usd, i18n.resolvedLanguage)}
+                        <span className="block text-xs text-gray-500">{t('settings.apiUsageCalls', { count: period.calls })}</span>
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
         </div>
       </main>

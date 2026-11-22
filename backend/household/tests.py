@@ -16,7 +16,7 @@ from .models import (
     CookingPlanConfig, CookingPlanEntry, Ingredient, IngredientCategory, Label, MealEvent, MealTimeCategory, NotificationPreference,
     PurchaseRecord, Recipe, RecipeRating, ShoppingList, ShoppingListItem, UnitOfMeasure, Voucher, VoucherRedemption,
     PackingList, PackingListParticipant, PackingListItem, PackingBucket, PackingBucketItem,
-    GoogleCalendarLink, CalendarEvent,
+    GoogleCalendarLink, CalendarEvent, ApiUsageRecord,
 )
 from .services.task_generation import generate_instances_for_range
 from .services import analytics as analytics_service
@@ -24,6 +24,7 @@ from .services import google_calendar as google_calendar_service
 from .services import ingredient_categorization as categorization_service
 from .services import recipe_import as recipe_import_service
 from .services import social_recipe_import
+from .services import api_usage as api_usage_service
 
 
 class HouseholdSettingsTests(TestCase):
@@ -3732,3 +3733,149 @@ class BackupDbCommandTests(TransactionTestCase):
         self.assertEqual(mail.outbox[0].subject, '[HUSEHOLD] Backup OK')
         self.assertEqual(mail.outbox[0].to, ['tim@example.com'])
         self.assertIn('Backups kept (1)', mail.outbox[0].body)
+
+
+class ApiUsageTests(TestCase):
+    def setUp(self):
+        self.tim = User.objects.create_user(username='tim', password='pw')
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.tim)
+
+    def test_claude_cost_uses_per_million_prices(self):
+        # 100K input (still the normal rate) at $0.10/M + 1M output at $0.50/M
+        self.assertEqual(api_usage_service.claude_cost('claude-haiku-5-5', 100_000, 1_000_000), Decimal('0.51'))
+
+    def test_claude_cost_uses_long_prompt_rate_above_100k_input(self):
+        cost = api_usage_service.claude_cost('claude-haiku-5-5', 200_000, 1_000)
+        # 200K * $0.50/M + 1K * $2.50/M
+        self.assertEqual(cost, Decimal('0.1025'))
+
+    def test_unknown_model_is_recorded_at_zero_cost(self):
+        api_usage_service.record_claude_call('recipe_import', 'claude-unknown', {'usage': {'input_tokens': 10, 'output_tokens': 5}})
+
+        record = ApiUsageRecord.objects.get()
+        self.assertEqual(record.cost_usd, 0)
+        self.assertEqual(record.input_tokens, 10)
+
+    def test_whisper_cost_is_per_minute(self):
+        self.assertEqual(api_usage_service.whisper_cost('whisper-1', 90), Decimal('0.009'))
+
+    @override_settings(ANTHROPIC_API_KEY='test-key')
+    @patch('household.services.recipe_import.requests.post')
+    def test_recipe_import_records_usage(self, mock_post):
+        response = type('R', (), {})()
+        response.status_code = 200
+        response.json = lambda: {
+            'content': [{'type': 'text', 'text': '{"title": "Pasta"}'}],
+            'usage': {'input_tokens': 1000, 'output_tokens': 200},
+        }
+        mock_post.return_value = response
+
+        recipe_import_service.extract_from_text('some caption text')
+
+        record = ApiUsageRecord.objects.get()
+        self.assertEqual((record.provider, record.feature), ('anthropic', 'recipe_import'))
+        self.assertEqual(record.cost_usd, Decimal('0.0002'))  # 1000*0.10/M + 200*0.50/M
+
+    @override_settings(ANTHROPIC_API_KEY='test-key')
+    @patch('household.services.recipe_import.requests.post')
+    def test_failed_recipe_import_records_nothing(self, mock_post):
+        response = type('R', (), {})()
+        response.status_code = 529
+        mock_post.return_value = response
+
+        with self.assertRaises(recipe_import_service.RecipeImportError):
+            recipe_import_service.extract_from_text('some caption text')
+
+        self.assertFalse(ApiUsageRecord.objects.exists())
+
+    @override_settings(ANTHROPIC_API_KEY='test-key')
+    @patch('household.services.ingredient_categorization.requests.post')
+    def test_llm_categorization_records_usage(self, mock_post):
+        response = type('R', (), {})()
+        response.raise_for_status = lambda: None
+        response.json = lambda: {
+            'content': [{'type': 'text', 'text': 'Sonstiges'}],
+            'usage': {'input_tokens': 50, 'output_tokens': 3},
+        }
+        mock_post.return_value = response
+
+        categorization_service.categorize_text('Xyzzyfrobnicator')
+
+        self.assertEqual(ApiUsageRecord.objects.get().feature, 'ingredient_categorization')
+
+    @patch('household.services.social_recipe_import.requests.post')
+    def test_transcription_records_audio_duration(self, mock_post):
+        response = MagicMock()
+        response.status_code = 200
+        response.json.return_value = {'text': 'two eggs', 'duration': 60.0}
+        mock_post.return_value = response
+
+        fd, path = tempfile.mkstemp(suffix='.mp3')
+        try:
+            with os.fdopen(fd, 'wb') as f:
+                f.write(b'fake-audio')
+            social_recipe_import._transcribe(path, fallback_duration=999)
+        finally:
+            os.remove(path)
+
+        record = ApiUsageRecord.objects.get()
+        self.assertEqual((record.provider, record.audio_seconds), ('openai', 60.0))
+        self.assertEqual(record.cost_usd, Decimal('0.006'))
+        self.assertEqual(mock_post.call_args.kwargs['data']['response_format'], 'verbose_json')
+
+    @patch('household.services.social_recipe_import.requests.post')
+    def test_transcription_falls_back_to_video_duration(self, mock_post):
+        response = MagicMock()
+        response.status_code = 200
+        response.json.return_value = {'text': 'two eggs'}
+        mock_post.return_value = response
+
+        fd, path = tempfile.mkstemp(suffix='.mp3')
+        try:
+            with os.fdopen(fd, 'wb') as f:
+                f.write(b'fake-audio')
+            social_recipe_import._transcribe(path, fallback_duration=30)
+        finally:
+            os.remove(path)
+
+        self.assertEqual(ApiUsageRecord.objects.get().audio_seconds, 30.0)
+
+    def test_usage_endpoint_sums_this_month_and_total_per_provider(self):
+        old = ApiUsageRecord.objects.create(provider='anthropic', feature='recipe_import', model='m', cost_usd=Decimal('1.5'))
+        ApiUsageRecord.objects.filter(pk=old.pk).update(created_at=dj_timezone.now() - timedelta(days=40))
+        ApiUsageRecord.objects.create(provider='anthropic', feature='recipe_import', model='m', cost_usd=Decimal('0.25'))
+        ApiUsageRecord.objects.create(provider='openai', feature='video_transcription', model='whisper-1', cost_usd=Decimal('0.006'))
+
+        response = self.client.get('/api/api-usage/')
+
+        self.assertEqual(response.status_code, 200)
+        by_provider = {p['provider']: p for p in response.data['providers']}
+        self.assertEqual(Decimal(by_provider['anthropic']['this_month']['cost_usd']), Decimal('0.25'))
+        self.assertEqual(by_provider['anthropic']['this_month']['calls'], 1)
+        self.assertEqual(Decimal(by_provider['anthropic']['total']['cost_usd']), Decimal('1.75'))
+        self.assertEqual(by_provider['anthropic']['total']['calls'], 2)
+        self.assertEqual(Decimal(by_provider['openai']['total']['cost_usd']), Decimal('0.006'))
+        self.assertIsNotNone(response.data['tracking_since'])
+
+    def test_backfilled_spend_adds_cost_but_not_calls(self):
+        ApiUsageRecord.objects.create(
+            provider='anthropic', feature=ApiUsageRecord.BACKFILL_FEATURE, model='claude-haiku-4-5', cost_usd=Decimal('0.01'),
+        )
+        ApiUsageRecord.objects.create(provider='anthropic', feature='recipe_import', model='m', cost_usd=Decimal('0.0002'))
+
+        response = self.client.get('/api/api-usage/')
+
+        anthropic = next(p for p in response.data['providers'] if p['provider'] == 'anthropic')
+        self.assertEqual(anthropic['total']['cost_usd'], '0.010200')
+        self.assertEqual(anthropic['total']['calls'], 1)
+
+    def test_usage_endpoint_with_no_records(self):
+        response = self.client.get('/api/api-usage/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([p['total']['calls'] for p in response.data['providers']], [0, 0])
+        self.assertIsNone(response.data['tracking_since'])
+
+    def test_usage_endpoint_requires_login(self):
+        self.assertEqual(APIClient().get('/api/api-usage/').status_code, 401)

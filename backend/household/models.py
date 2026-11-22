@@ -813,3 +813,32 @@ class CalendarEvent(models.Model):
 
     def __str__(self):
         return self.title or self.external_event_id
+
+
+class ApiUsageRecord(models.Model):
+    """One billed call to an external AI API (Claude, OpenAI Whisper), with
+    its estimated cost -- Settings sums these up to show how much has been
+    spent. Self-counted from each response's usage data rather than read
+    from the providers' cost APIs, which need an org-admin key (too much
+    power to keep on the Pi) and lag by hours. It's an estimate: prices come
+    from services/api_usage.py and calls made with the same keys outside
+    this app aren't counted."""
+    PROVIDER_CHOICES = [('anthropic', 'Anthropic'), ('openai', 'OpenAI')]
+    # Rows entered by hand for spend from before tracking existed (one row
+    # per provider, cost only) -- summed into the cost, not counted as calls.
+    BACKFILL_FEATURE = 'manual_backfill'
+
+    provider = models.CharField(max_length=20, choices=PROVIDER_CHOICES)
+    feature = models.CharField(max_length=40)
+    model = models.CharField(max_length=60)
+    input_tokens = models.PositiveIntegerField(default=0)
+    output_tokens = models.PositiveIntegerField(default=0)
+    audio_seconds = models.FloatField(null=True, blank=True)
+    cost_usd = models.DecimalField(max_digits=12, decimal_places=6)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.provider}/{self.feature} {self.model}: ${self.cost_usd}"

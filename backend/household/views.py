@@ -12,7 +12,7 @@ from rest_framework.views import APIView
 from django.contrib.auth.models import User
 from django.conf import settings as django_settings
 from django.core.cache import cache
-from django.db.models import ProtectedError, Q
+from django.db.models import Count, ProtectedError, Q, Sum
 from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
@@ -22,7 +22,7 @@ from .models import (
     NotificationPreference, PushSubscription, Voucher, VoucherRedemption,
     UnitOfMeasure, Ingredient, IngredientCategory, Label, MealTimeCategory, RecipeRating, MealEvent, PurchaseRecord, CookingPlanConfig, CookingPlanEntry,
     PackingList, PackingListParticipant, PackingListItem, PackingBucket, PackingBucketItem,
-    GoogleCalendarLink, CalendarEvent,
+    GoogleCalendarLink, CalendarEvent, ApiUsageRecord,
 )
 from .serializers import (
     UserSerializer, HouseholdMemberSerializer, HouseholdSettingsSerializer,
@@ -162,6 +162,41 @@ class ServiceStatusView(APIView):
                 'configured': bool(django_settings.OPENAI_API_KEY),
                 'ffmpeg_available': social_recipe_import.ffmpeg_available(),
             },
+        })
+
+class ApiUsageView(APIView):
+    """Estimated spend on the external AI APIs (see ApiUsageRecord), per
+    provider, for the current calendar month and in total. Costs are
+    decimal strings in USD so the frontend doesn't round them twice."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        now = timezone.localtime()
+        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+        def totals(queryset):
+            # Backfilled rows (spend from before tracking existed) add cost
+            # but aren't single calls, so they don't count toward `calls`.
+            agg = queryset.aggregate(
+                cost=Sum('cost_usd'),
+                calls=Count('id', filter=~Q(feature=ApiUsageRecord.BACKFILL_FEATURE)),
+            )
+            # SQLite sums decimals as floats -- round back to the stored precision.
+            cost = Decimal(agg['cost'] or 0).quantize(Decimal('0.000001'))
+            return {'cost_usd': str(cost), 'calls': agg['calls']}
+
+        providers = []
+        for provider, _label in ApiUsageRecord.PROVIDER_CHOICES:
+            records = ApiUsageRecord.objects.filter(provider=provider)
+            providers.append({
+                'provider': provider,
+                'this_month': totals(records.filter(created_at__gte=month_start)),
+                'total': totals(records),
+            })
+        first = ApiUsageRecord.objects.order_by('created_at').first()
+        return Response({
+            'providers': providers,
+            'tracking_since': first.created_at if first else None,
         })
 
 class TestEmailNotificationView(APIView):

@@ -23,6 +23,7 @@ from bs4 import BeautifulSoup
 from django.conf import settings
 
 from ..models import MealTimeCategory
+from .api_usage import record_claude_call
 from .claude import response_text
 
 CLAUDE_MODEL = 'claude-haiku-5-5'
@@ -107,7 +108,9 @@ def _call_claude(content_blocks):
     )
     if response.status_code >= 400:
         raise RecipeImportError('The AI extraction request failed. Please try again.')
-    text = response_text(response.json())
+    data = response.json()
+    record_claude_call('recipe_import', CLAUDE_MODEL, data)
+    text = response_text(data)
     return _parse_claude_json(text)
 
 

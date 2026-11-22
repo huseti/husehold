@@ -582,7 +582,19 @@
     "notificationLanguage": "Notification language",
     "notificationLanguageHint": "Applies to emails and push notifications, independent of the app language.",
     "pushIosHint": "Push also arrives when the app is closed or you are logged out. On iPhone this only works if you add the page to the Home Screen, open it there, log in and enable push here.",
-    "householdSaveFailed": "Could not be saved."
+    "householdSaveFailed": "Could not be saved.",
+    "apiUsage": "AI usage",
+    "apiUsageHint": "Estimated cost of this app's AI calls (recipe import, ingredient categorization, video transcription), calculated from each response's token or audio figures. No calls recorded yet.",
+    "apiUsageHintSince": "Estimated cost of this app's AI calls (recipe import, ingredient categorization, video transcription), calculated from each response's token or audio figures. Recorded since {{date}} -- calls made with the same keys outside the app aren't counted.",
+    "apiUsageProvider": "Provider",
+    "apiUsageThisMonth": "This month",
+    "apiUsageTotal": "Total",
+    "apiUsageCalls_one": "{{count}} call",
+    "apiUsageCalls_other": "{{count}} calls",
+    "apiUsageProviders": {
+      "anthropic": "Anthropic (Claude)",
+      "openai": "OpenAI (Whisper)"
+    }
   },
   "recipeConfig": {
     "title": "Recipes & Shopping Lists",

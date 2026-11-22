@@ -6,6 +6,7 @@ from .models import (
     HouseholdTaskDefinition, HouseholdTaskInstance, HouseholdTaskEvent,
     NotificationPreference, PushSubscription, NotificationLog, Voucher, VoucherRedemption,
     PackingList, PackingListParticipant, PackingListItem, PackingBucket, PackingBucketItem,
+    ApiUsageRecord,
 )
 
 @admin.register(HouseholdMember)
@@ -154,3 +155,9 @@ class CookingPlanEntryAdmin(admin.ModelAdmin):
 @admin.register(CookingPlanConfig)
 class CookingPlanConfigAdmin(admin.ModelAdmin):
     list_display = ('__str__', 'top_rating_percentile', 'uncooked_threshold_days', 'rating_weight', 'neglect_weight')
+
+
+@admin.register(ApiUsageRecord)
+class ApiUsageRecordAdmin(admin.ModelAdmin):
+    list_display = ('created_at', 'provider', 'feature', 'model', 'input_tokens', 'output_tokens', 'audio_seconds', 'cost_usd')
+    list_filter = ('provider', 'feature', 'model')

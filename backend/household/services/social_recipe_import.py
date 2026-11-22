@@ -29,6 +29,7 @@ import requests
 from django.conf import settings
 
 from . import recipe_import
+from .api_usage import record_whisper_call
 
 logger = logging.getLogger(__name__)
 
@@ -97,19 +98,24 @@ def _download_audio(url, workdir):
     return audio_path, info or {}
 
 
-def _transcribe(audio_path):
+def _transcribe(audio_path, fallback_duration=None):
+    """fallback_duration: the video's length in seconds from yt-dlp, used
+    for the cost estimate if Whisper doesn't report the audio duration."""
     with open(audio_path, 'rb') as f:
         response = requests.post(
             WHISPER_URL,
             headers={'Authorization': f'Bearer {settings.OPENAI_API_KEY}'},
-            data={'model': WHISPER_MODEL},
+            # verbose_json adds the audio `duration`, which is what Whisper bills by.
+            data={'model': WHISPER_MODEL, 'response_format': 'verbose_json'},
             files={'file': ('audio.mp3', f, 'audio/mpeg')},
             timeout=120,
         )
     if response.status_code >= 400:
         logger.warning('Social import: Whisper request failed (%s): %s', response.status_code, response.text[:500])
         raise SocialImportError('The transcription request failed. Please try again.')
-    return (response.json().get('text') or '').strip()
+    data = response.json()
+    record_whisper_call('video_transcription', WHISPER_MODEL, data.get('duration') or fallback_duration)
+    return (data.get('text') or '').strip()
 
 
 def extract_from_social_url(url):
@@ -121,7 +127,7 @@ def extract_from_social_url(url):
 
     with tempfile.TemporaryDirectory() as workdir:
         audio_path, info = _download_audio(url, workdir)
-        transcript = _transcribe(audio_path)
+        transcript = _transcribe(audio_path, fallback_duration=info.get('duration'))
 
     caption = (info.get('description') or '').strip()
     title = (info.get('title') or '').strip()

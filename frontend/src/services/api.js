@@ -203,6 +203,10 @@ export const serviceStatusService = {
   get: () => api.get('/service-status/'),
 };
 
+export const apiUsageService = {
+  get: () => api.get('/api-usage/'),
+};
+
 export const pushSubscriptionService = {
   getVapidPublicKey: () => api.get('/vapid-public-key/'),
   // subscription.toJSON() already gives keys as base64url strings, matching
