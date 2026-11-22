@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import {
-  recipeService, mealEventService, unitService, ingredientService, labelService, mealCategoryService,
+  recipeService, mealEventService, unitService, ingredientService, labelService, mealCategoryService, fetchAllPages,
 } from '../services/api';
 import Navbar from '../components/Navbar';
 import StarRating from '../components/StarRating';
@@ -51,8 +51,8 @@ export default function Recipes() {
   };
 
   const loadIngredientNames = async () => {
-    const response = await ingredientService.getAll();
-    setIngredientNames((response.data.results || []).map((i) => i.name));
+    const ingredients = await fetchAllPages(ingredientService);
+    setIngredientNames(ingredients.map((i) => i.name));
   };
 
   const loadAll = async () => {

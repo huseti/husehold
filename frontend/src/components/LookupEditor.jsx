@@ -154,12 +154,40 @@ export default function LookupEditor({ titleKey, service, fields, newItemDefault
   const [newItem, setNewItem] = useState(newItemDefaults);
   const [search, setSearch] = useState('');
   const [error, setError] = useState('');
+  const [total, setTotal] = useState(null);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  // Searchable lists (ingredients) filter server-side, since the API
-  // paginates and the catalogue can outgrow one page.
+  // The API paginates (100 per page), so lists are loaded page by page.
+  // Searchable lists (ingredients) filter server-side as well.
+  const fetchPage = (pageNumber) => service.getAll({
+    ...(searchable && search.trim() ? { q: search.trim() } : {}),
+    page: pageNumber,
+  });
+
   const load = async () => {
-    const response = await service.getAll(searchable && search.trim() ? { q: search.trim() } : undefined);
+    const response = await fetchPage(1);
     setItems(response.data.results || []);
+    setTotal(response.data.count ?? null);
+    setPage(1);
+    setHasMore(Boolean(response.data.next));
+  };
+
+  const loadMore = async () => {
+    setLoadingMore(true);
+    try {
+      const nextPage = page + 1;
+      const response = await fetchPage(nextPage);
+      setItems((list) => [...list, ...(response.data.results || [])]);
+      setTotal(response.data.count ?? null);
+      setPage(nextPage);
+      setHasMore(Boolean(response.data.next));
+    } catch (err) {
+      console.error('Error loading more config items:', err);
+    } finally {
+      setLoadingMore(false);
+    }
   };
 
   useEffect(() => {
@@ -196,7 +224,7 @@ export default function LookupEditor({ titleKey, service, fields, newItemDefault
 
   return (
     <details className="border-t py-3">
-      <summary className="cursor-pointer font-medium">{t(titleKey)} <span className="text-sm text-gray-400">({items.length})</span></summary>
+      <summary className="cursor-pointer font-medium">{t(titleKey)} <span className="text-sm text-gray-400">({total ?? items.length})</span></summary>
       <div className="mt-3">
         {searchable && (
           <input
@@ -212,6 +240,16 @@ export default function LookupEditor({ titleKey, service, fields, newItemDefault
             <Row key={item.id} item={item} fields={fields} onUpdate={handleUpdate} onDelete={handleDelete} />
           ))}
         </div>
+        {hasMore && (
+          <button
+            type="button"
+            onClick={loadMore}
+            disabled={loadingMore}
+            className="btn btn-sm mt-2 border border-gray-300 rounded-lg px-3 py-1.5 disabled:opacity-50"
+          >
+            {t('recipeConfig.loadMore')}
+          </button>
+        )}
 
         <form onSubmit={handleAdd} className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-dashed">
           {fields.filter((f) => f.type !== 'checkbox').map((field, index) => (

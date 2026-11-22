@@ -14,7 +14,7 @@ from django.conf import settings
 
 from ..models import IngredientCategory
 
-CLAUDE_MODEL = 'claude-haiku-4-5-20251001'
+CLAUDE_MODEL = 'claude-haiku-5-5'
 
 # keyword (lowercase, matched as a substring of the item/ingredient name) ->
 # IngredientCategory.name_de. Order matters where one keyword could be a

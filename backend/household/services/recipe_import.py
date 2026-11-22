@@ -24,7 +24,7 @@ from django.conf import settings
 
 from ..models import MealTimeCategory
 
-CLAUDE_MODEL = 'claude-haiku-4-5-20251001'
+CLAUDE_MODEL = 'claude-haiku-5-5'
 MESSAGES_URL = 'https://api.anthropic.com/v1/messages'
 
 DRAFT_FIELDS = (

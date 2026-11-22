@@ -127,6 +127,18 @@ const lookupService = (path) => ({
   delete: (id) => api.delete(`/${path}/${id}/`),
 });
 
+// Fetches every page of a paginated list (the API returns 100 items per page).
+export const fetchAllPages = async (service, params = {}) => {
+  const results = [];
+  let page = 1;
+  for (;;) {
+    const response = await service.getAll({ ...params, page });
+    results.push(...(response.data.results || []));
+    if (!response.data.next) return results;
+    page += 1;
+  }
+};
+
 export const mealEventService = {
   getAll: (params) => api.get('/meal-events/', { params }),
   create: (data) => api.post('/meal-events/', data),

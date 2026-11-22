@@ -619,7 +619,8 @@
       "sweets": "Süßes",
       "household": "Haushalt",
       "other": "Sonstiges"
-    }
+    },
+    "loadMore": "Mehr laden"
   },
   "packingBuckets": {
     "title": "Reise-Buckets",

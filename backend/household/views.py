@@ -399,7 +399,8 @@ class IngredientViewSet(AuditedConfigViewSet):
         q = self.request.query_params.get('q')
         if q:
             queryset = queryset.filter(name__icontains=q)
-        return queryset
+        # Stable ordering so paginated pages neither skip nor repeat entries.
+        return queryset.order_by('name', 'id')
 
     def perform_create(self, serializer):
         super().perform_create(serializer)

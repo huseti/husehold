@@ -619,7 +619,8 @@
       "sweets": "Sweets",
       "household": "Household",
       "other": "Other"
-    }
+    },
+    "loadMore": "Load more"
   },
   "packingBuckets": {
     "title": "Trip Buckets",

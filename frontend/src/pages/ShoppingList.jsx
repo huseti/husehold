@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import {
-  shoppingService, shoppingListService, unitService, ingredientService, ingredientCategoryService,
+  shoppingService, shoppingListService, unitService, ingredientService, ingredientCategoryService, fetchAllPages,
 } from '../services/api';
 import Navbar from '../components/Navbar';
 import PurchaseHistory from '../components/PurchaseHistory';
@@ -67,11 +67,11 @@ export default function ShoppingList() {
       }
 
       const [unitRes, ingredientRes, categoryRes] = await Promise.allSettled([
-        unitService.getAll(), ingredientService.getAll(), ingredientCategoryService.getAll(),
+        unitService.getAll(), fetchAllPages(ingredientService), ingredientCategoryService.getAll(),
       ]);
       if (unitRes.status === 'fulfilled') setUnits(unitRes.value.data.results || []);
       if (ingredientRes.status === 'fulfilled') {
-        setIngredientNames((ingredientRes.value.data.results || []).map((i) => i.name));
+        setIngredientNames(ingredientRes.value.map((i) => i.name));
       }
       if (categoryRes.status === 'fulfilled') setIngredientCategories(categoryRes.value.data.results || []);
     };
