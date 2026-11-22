@@ -146,7 +146,16 @@ export const mealEventService = {
 };
 
 export const unitService = lookupService('units');
-export const ingredientService = lookupService('ingredients');
+export const ingredientService = {
+  ...lookupService('ingredients'),
+  // One Claude call over the whole catalogue -- can take a minute or two.
+  duplicateSuggestions: () => api.post('/ingredients/duplicate-suggestions/', null, { timeout: 240000 }),
+  merge: (data) => api.post('/ingredients/merge/', data),
+  dismissSuggestion: (ids) => api.post('/ingredients/dismiss-suggestion/', { ids }),
+};
+export const ingredientAliasService = {
+  delete: (id) => api.delete(`/ingredient-aliases/${id}/`),
+};
 export const ingredientCategoryService = lookupService('ingredient-categories');
 export const labelService = lookupService('labels');
 export const mealCategoryService = lookupService('meal-categories');

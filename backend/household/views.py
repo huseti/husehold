@@ -4,7 +4,7 @@ from decimal import Decimal, InvalidOperation
 
 from django.utils import timezone
 from django.utils.dateparse import parse_date
-from rest_framework import viewsets, permissions, status
+from rest_framework import mixins, viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.response import Response
@@ -22,7 +22,7 @@ from .models import (
     NotificationPreference, PushSubscription, Voucher, VoucherRedemption,
     UnitOfMeasure, Ingredient, IngredientCategory, Label, MealTimeCategory, RecipeRating, MealEvent, PurchaseRecord, CookingPlanConfig, CookingPlanEntry,
     PackingList, PackingListParticipant, PackingListItem, PackingBucket, PackingBucketItem,
-    GoogleCalendarLink, CalendarEvent, ApiUsageRecord,
+    GoogleCalendarLink, CalendarEvent, ApiUsageRecord, IngredientAlias, DismissedDuplicateSuggestion,
 )
 from .serializers import (
     UserSerializer, HouseholdMemberSerializer, HouseholdSettingsSerializer,
@@ -35,9 +35,10 @@ from .serializers import (
     VoucherSerializer,
     PackingListSerializer, PackingListParticipantSerializer, PackingListItemSerializer,
     PackingBucketSerializer, PackingBucketItemSerializer,
-    GoogleCalendarLinkSerializer, CalendarEventSerializer,
+    GoogleCalendarLinkSerializer, CalendarEventSerializer, IngredientMergeSerializer,
 )
 from .services.task_generation import generate_instances_for_range, monday_of_week_as_datetime
+from .services import ingredient_dedup, ingredient_merge
 from .services.cooking_suggestions import build_suggestions
 from .services.analytics import build_analytics
 from .services.cooking_shopping import add_lines_to_list, dish as shopping_dish, free_dish
@@ -430,10 +431,11 @@ class IngredientViewSet(AuditedConfigViewSet):
     serializer_class = IngredientSerializer
 
     def get_queryset(self):
-        queryset = Ingredient.objects.all()
+        queryset = Ingredient.objects.annotate(recipe_count=Count('recipe_lines', distinct=True)).prefetch_related('aliases')
         q = self.request.query_params.get('q')
         if q:
-            queryset = queryset.filter(name__icontains=q)
+            # Searching finds an ingredient by any of its alternative names too.
+            queryset = queryset.filter(Q(name__icontains=q) | Q(aliases__name__icontains=q)).distinct()
         # Stable ordering so paginated pages neither skip nor repeat entries.
         return queryset.order_by('name', 'id')
 
@@ -442,6 +444,62 @@ class IngredientViewSet(AuditedConfigViewSet):
         # Only auto-assign when the person didn't already pick one themselves.
         if serializer.instance.category_id is None:
             categorize_ingredient(serializer.instance)
+
+    @action(detail=False, methods=['post'], url_path='duplicate-suggestions')
+    def duplicate_suggestions(self, request):
+        """AI-suggested merge/cleanup groups (one Claude call, see
+        services/ingredient_dedup.py). Changes nothing by itself."""
+        try:
+            suggestions = ingredient_dedup.suggest_duplicates()
+        except ingredient_dedup.DedupError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
+        return Response({'suggestions': suggestions})
+
+    @action(detail=False, methods=['post'])
+    def merge(self, request):
+        """Body: {keep_id, name, preferred_unit, preferred_new_unit,
+        members: [{id, note, quantity, unit, new_unit}]}
+        -- see services/ingredient_merge.py."""
+        serializer = IngredientMergeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        # The kept ingredient is always part of the merge, listed or not.
+        if data['keep_id'] not in [m['id'] for m in data['members']]:
+            data['members'].append({'id': data['keep_id'], 'note': '', 'unit': None, 'new_unit': '', 'quantity': ''})
+        ingredients = Ingredient.objects.in_bulk([m['id'] for m in data['members']])
+        if len(ingredients) != len(data['members']):
+            return Response({'detail': 'Some of these ingredients no longer exist. Please search again.'}, status=status.HTTP_400_BAD_REQUEST)
+        members = [
+            {
+                'ingredient': ingredients[m['id']], 'note': m.get('note', ''), 'unit': m.get('unit'),
+                'new_unit': m.get('new_unit', ''), 'quantity': m.get('quantity', ''),
+            }
+            for m in data['members']
+        ]
+        kwargs = {'preferred_unit': data['preferred_unit']} if 'preferred_unit' in data else {}
+        try:
+            kept = ingredient_merge.merge_ingredients(
+                ingredients[data['keep_id']], members, name=data.get('name'), user=request.user,
+                preferred_new_unit=data.get('preferred_new_unit', ''), **kwargs,
+            )
+        except ingredient_merge.MergeError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(IngredientSerializer(self.get_queryset().get(pk=kept.pk)).data)
+
+    @action(detail=False, methods=['post'], url_path='dismiss-suggestion')
+    def dismiss_suggestion(self, request):
+        """Body: {ids: [...]} -- don't suggest this exact group again."""
+        ids = request.data.get('ids')
+        if not isinstance(ids, list) or not ids or not all(isinstance(i, int) for i in ids):
+            return Response({'detail': 'ids must be a non-empty list of ingredient ids.'}, status=status.HTTP_400_BAD_REQUEST)
+        DismissedDuplicateSuggestion.objects.get_or_create(member_ids=DismissedDuplicateSuggestion.key_for(ids))
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+class IngredientAliasViewSet(mixins.DestroyModelMixin, viewsets.GenericViewSet):
+    """Only deleting: aliases are created by merges, and listed on their
+    ingredient (IngredientSerializer.aliases)."""
+    queryset = IngredientAlias.objects.all()
+    permission_classes = [permissions.IsAuthenticated]
 
 class IngredientCategoryViewSet(AuditedConfigViewSet):
     queryset = IngredientCategory.objects.all()
@@ -453,7 +511,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = Recipe.objects.prefetch_related(
-            'ingredients__ingredient', 'ingredients__unit', 'ratings__rated_by', 'labels', 'categories', 'meal_events__logged_by',
+            'ingredients__ingredient__aliases', 'ingredients__unit', 'ratings__rated_by', 'labels', 'categories', 'meal_events__logged_by',
         ).select_related('created_by')
         params = self.request.query_params
         q = params.get('q')

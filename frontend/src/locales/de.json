@@ -227,7 +227,8 @@
       "olderThanMonth": "Älter als 1 Monat",
       "olderThanYear": "Älter als 1 Jahr"
     },
-    "timesCookedShort": "{{count}}×"
+    "timesCookedShort": "{{count}}×",
+    "noAmount": "ohne Mengenangabe"
   },
   "cookingPlan": {
     "dishCount_one": "{{count}} Gericht",
@@ -632,7 +633,13 @@
       "household": "Haushalt",
       "other": "Sonstiges"
     },
-    "loadMore": "Mehr laden"
+    "loadMore": "Mehr laden",
+    "preferredUnit": "Bevorzugte Einheit",
+    "noPreferredUnit": "– Einheit –",
+    "recipeCount_one": "in {{count}} Rezept",
+    "recipeCount_other": "in {{count}} Rezepten",
+    "aliases": "Andere Schreibweisen",
+    "removeAlias": "„{{name}}“ entfernen"
   },
   "packingBuckets": {
     "title": "Reise-Buckets",
@@ -728,5 +735,51 @@
     "noMatch": "Kein Icon gefunden.",
     "refine": "Zeige {{shown}} von {{count}} Icons – Suche verfeinern für mehr.",
     "change": "Icon ändern"
+  },
+  "ingredientDuplicates": {
+    "title": "Zutaten aufräumen (KI)",
+    "hint": "Claude prüft alle Zutaten in einem Durchgang auf Duplikate, unsaubere Namen und Einheiten oder Mengen im Namen. Nichts ändert sich, bevor du einen Vorschlag übernimmst. Rezepte, Einkaufslisten und Kaufhistorie werden dabei auf die behaltene Zutat umgehängt, Zusätze aus dem alten Namen wandern in die Rezeptzeile, und alte Namen bleiben als andere Schreibweise erhalten. Dauert etwa eine Minute und kostet rund einen Cent.",
+    "search": "Mit KI prüfen",
+    "searching": "Claude prüft die Zutaten … (ca. 1 Minute)",
+    "none": "Nichts gefunden – alles sauber.",
+    "section": {
+      "duplicate": "Duplikate",
+      "name": "Namen bereinigen",
+      "unit": "Einheit/Menge herausziehen"
+    },
+    "sectionHint": {
+      "duplicate": "Mehrere Einträge sind dieselbe Zutat. Der markierte Eintrag bleibt erhalten (mit seiner Kategorie und seinen Einstellungen), die anderen werden in ihn aufgenommen und gelöscht.",
+      "name": "Eine Zutat, deren Name Zusätze wie Zubereitung, Größe, Marke oder Klammern enthält. Sie wird umbenannt, die Zusätze landen als Notiz in ihren Rezeptzeilen.",
+      "unit": "Eine Zutat mit Einheit oder Menge im Namen („Tasse Quinoa“, „Knoblauchzehen“). Sie wird umbenannt, Einheit und Menge wandern in die Rezeptzeilen, die noch keine haben."
+    },
+    "applyAll": "Alle {{count}} übernehmen",
+    "applyingAll": "Wird übernommen …",
+    "newName": "Neuer Name",
+    "preferredUnit": "Bevorzugte Einheit",
+    "keepHint": "◉ = bleibt erhalten, ☑ = wird aufgenommen. Nicht angehakte Einträge bleiben unverändert.",
+    "keepThis": "„{{name}}“ behalten",
+    "include": "Einbeziehen",
+    "kept": "bleibt",
+    "recipeCount_one": "{{count}} Rezept",
+    "recipeCount_other": "{{count}} Rezepte",
+    "effectKeep": "bleibt erhalten",
+    "effectKeepRenamed": "bleibt erhalten, heißt künftig „{{name}}“",
+    "effectMerged": "wird in „{{name}}“ aufgenommen, der alte Name bleibt als Schreibweise",
+    "effectSkipped": "bleibt unverändert",
+    "effectQuantity": "Menge {{quantity}}",
+    "effectUnit": "Einheit {{unit}}",
+    "effectNote": "Notiz „{{note}}“",
+    "quantityPlaceholder": "Menge",
+    "quantityHint": "Menge aus dem alten Namen – wird in Rezeptzeilen ohne Menge eingetragen (Spannen wie 250-300 als Notiz)",
+    "notePlaceholder": "Notiz in der Rezeptzeile",
+    "noteHint": "Wird bei den Rezeptzeilen dieser Zutat als Notiz ergänzt",
+    "unitHint": "Wird bei Rezeptzeilen dieser Zutat gesetzt, die noch keine Einheit haben",
+    "noUnit": "– Einheit –",
+    "newUnitOption": "{{name}} (neu anlegen)",
+    "merge_one": "Übernehmen",
+    "merge_other": "{{count}} zusammenführen",
+    "apply": "Übernehmen",
+    "dismiss": "Ignorieren",
+    "failed": "Das hat nicht geklappt. Bitte nochmal versuchen."
   }
 }

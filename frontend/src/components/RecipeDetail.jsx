@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import StarRating from './StarRating';
+import IngredientText from './IngredientText';
 import ExpandIcon from './icons/expandIcon';
 import PrintIcon from './icons/printIcon';
 import { formatQuantity, scaleQuantity } from '../utils/recipeDisplay';
@@ -51,6 +52,8 @@ export default function RecipeDetail({
   const [cookServings, setCookServings] = useState(recipe.servings);
   const [cookError, setCookError] = useState('');
   const [askForRating, setAskForRating] = useState(false);
+
+  const ingredientTextProps = { lines: recipe.ingredients, units, fromServings: recipe.servings, toServings: servings };
 
   const formatDate = (iso) => new Date(`${iso}T00:00:00`).toLocaleDateString(i18n.language);
 
@@ -119,7 +122,9 @@ export default function RecipeDetail({
         </div>
       )}
 
-      {recipe.description && <p className="text-gray-600">{recipe.description}</p>}
+      {recipe.description && (
+        <IngredientText text={recipe.description} {...ingredientTextProps} className="text-gray-600" />
+      )}
 
       <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-gray-600">
         {recipe.prep_time !== null && <span>{t('recipes.prepTime', { minutes: recipe.prep_time })}</span>}
@@ -190,14 +195,14 @@ export default function RecipeDetail({
       {recipe.instructions && (
         <div>
           <h4 className="font-semibold mb-2">{t('recipes.instructionsLabel')}</h4>
-          <p className="whitespace-pre-wrap">{recipe.instructions}</p>
+          <IngredientText text={recipe.instructions} {...ingredientTextProps} />
         </div>
       )}
 
       {recipe.notes && (
         <div>
           <h4 className="font-semibold mb-2">{t('recipes.notesLabel')}</h4>
-          <p className="whitespace-pre-wrap text-gray-700">{recipe.notes}</p>
+          <IngredientText text={recipe.notes} {...ingredientTextProps} className="text-gray-700" />
         </div>
       )}
 

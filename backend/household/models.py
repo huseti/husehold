@@ -99,6 +99,12 @@ class Ingredient(AuditableMixin):
     category = models.ForeignKey(
         IngredientCategory, on_delete=models.SET_NULL, null=True, blank=True, related_name='ingredients',
     )
+    # Pre-selected when the ingredient is entered into a recipe or shopping
+    # list without a unit (always overridable) -- units belong here, not in
+    # the name ("Knoblauch" + Zehe, not "Zehe(n) Knoblauch").
+    preferred_unit = models.ForeignKey(
+        UnitOfMeasure, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+    )
 
     class Meta:
         ordering = ['name']
@@ -108,6 +114,44 @@ class Ingredient(AuditableMixin):
 
     def __str__(self):
         return self.name
+
+
+class IngredientAlias(models.Model):
+    """An alternative spelling that resolves to an ingredient -- created
+    from the old names when duplicates are merged, so a later import writing
+    "Zwiebel(n)" lands on "Zwiebel" instead of re-creating the duplicate
+    (see get_or_create_ingredient), and so the recipe view can highlight
+    those spellings in the instructions too. A name is either an ingredient
+    or an alias, never both."""
+    ingredient = models.ForeignKey(Ingredient, on_delete=models.CASCADE, related_name='aliases')
+    name = models.CharField(max_length=100)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['name']
+        verbose_name_plural = 'ingredient aliases'
+        constraints = [
+            models.UniqueConstraint(Lower('name'), name='unique_ingredient_alias_name_ci'),
+        ]
+
+    def __str__(self):
+        return f"{self.name} -> {self.ingredient.name}"
+
+
+class DismissedDuplicateSuggestion(models.Model):
+    """A duplicate-ingredient suggestion the user rejected ("these really
+    are different"), keyed by the sorted member ids -- so the AI check
+    doesn't keep proposing the same group. A group with a different set of
+    members is a new suggestion and shows up again."""
+    member_ids = models.CharField(max_length=500, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    @staticmethod
+    def key_for(ids):
+        return ','.join(str(i) for i in sorted(set(ids)))
+
+    def __str__(self):
+        return self.member_ids
 
 
 class Label(AuditableMixin):

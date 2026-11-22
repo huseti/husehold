@@ -1,13 +1,22 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { parseIngredientLine } from '../utils/recipeDisplay';
+import { buildIngredientLookup, preferredUnitUpdate } from '../utils/ingredientMatching';
 import { localizedName, unitLabel } from '../utils/localized';
 import { CloseGlyph } from './icons/uiIcons';
 import { pillStyle } from '../utils/colorContrast';
 
-const emptyLine = () => ({ quantity: '', unit: '', name: '', note: '' });
+const emptyLine = () => ({ quantity: '', unit: '', unitAuto: false, name: '', note: '' });
 
-function recipeToForm(recipe, draft, units) {
+// "Zwiebeln, in Ringe geschnitten" -> name "Zwiebeln", note "in Ringe geschnitten":
+// preparation belongs on the recipe line, not in the shared ingredient name.
+function splitNote(name) {
+  const comma = name.indexOf(',');
+  if (comma === -1) return { name: name.trim(), note: '' };
+  return { name: name.slice(0, comma).trim(), note: name.slice(comma + 1).trim() };
+}
+
+function recipeToForm(recipe, draft, units, lookupIngredient) {
   if (!recipe && draft) {
     // A just-extracted (not yet saved) recipe from photo/text/URL import --
     // ingredient_lines are plain text, same shape the "paste ingredient
@@ -16,7 +25,14 @@ function recipeToForm(recipe, draft, units) {
     const lines = (draft.ingredient_lines || [])
       .map((line) => parseIngredientLine(line, units))
       .filter(Boolean)
-      .map((p) => ({ quantity: p.quantity ?? '', unit: p.unit ?? '', name: p.name, note: '' }));
+      .map((p) => {
+        const { name, note } = splitNote(p.name);
+        // "2 Eier" -> "2 Stk Eier" when Eier's preferred unit is Stück.
+        const preferred = p.unit === null && p.quantity !== null ? lookupIngredient(name)?.preferred_unit : null;
+        return {
+          quantity: p.quantity ?? '', unit: p.unit ?? (preferred ? String(preferred) : ''), unitAuto: !!preferred, name, note,
+        };
+      });
     return {
       title: draft.title || '',
       description: draft.description || '',
@@ -60,9 +76,10 @@ function recipeToForm(recipe, draft, units) {
 
 const inputClass = 'px-3 py-2 border border-gray-300 rounded-lg';
 
-export default function RecipeForm({ recipe, draft, units, categories, labels, ingredientNames, onSave, onCancel }) {
+export default function RecipeForm({ recipe, draft, units, categories, labels, ingredients, onSave, onCancel }) {
   const { t, i18n } = useTranslation();
-  const [form, setForm] = useState(() => recipeToForm(recipe, draft, units));
+  const lookupIngredient = useMemo(() => buildIngredientLookup(ingredients), [ingredients]);
+  const [form, setForm] = useState(() => recipeToForm(recipe, draft, units, lookupIngredient));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -76,6 +93,14 @@ export default function RecipeForm({ recipe, draft, units, categories, labels, i
   const updateLine = (index, field, value) => setForm((f) => ({
     ...f,
     lines: f.lines.map((line, i) => (i === index ? { ...line, [field]: value } : line)),
+  }));
+
+  // Typing an ingredient pre-selects its preferred unit (see preferredUnitUpdate).
+  const updateLineName = (index, name) => setForm((f) => ({
+    ...f,
+    lines: f.lines.map((line, i) => (i === index
+      ? { ...line, name, ...preferredUnitUpdate(name, line.unit, line.unitAuto, lookupIngredient) }
+      : line)),
   }));
 
   const removeLine = (index) => setForm((f) => ({
@@ -198,7 +223,7 @@ export default function RecipeForm({ recipe, draft, units, categories, labels, i
       <div>
         <p className="text-sm text-gray-600 mb-1">{t('recipes.ingredientsLabel')}</p>
         <datalist id="ingredient-suggestions">
-          {ingredientNames.map((name) => <option key={name} value={name} />)}
+          {ingredients.map((i) => <option key={i.id} value={i.name} />)}
         </datalist>
         <div className="space-y-2">
           {form.lines.map((line, index) => (
@@ -210,7 +235,7 @@ export default function RecipeForm({ recipe, draft, units, categories, labels, i
                 onChange={(e) => updateLine(index, 'quantity', e.target.value)}
                 className={`w-20 ${inputClass}`}
               />
-              <select value={line.unit} onChange={(e) => updateLine(index, 'unit', e.target.value)} className={`w-24 ${inputClass}`}>
+              <select value={line.unit} onChange={(e) => setForm((f) => ({ ...f, lines: f.lines.map((l, i) => (i === index ? { ...l, unit: e.target.value, unitAuto: false } : l)) }))} className={`w-24 ${inputClass}`}>
                 <option value="">{t('recipes.noUnit')}</option>
                 {units.map((u) => <option key={u.id} value={u.id}>{unitLabel(u, i18n.language)}</option>)}
               </select>
@@ -218,7 +243,7 @@ export default function RecipeForm({ recipe, draft, units, categories, labels, i
                 type="text" list="ingredient-suggestions"
                 placeholder={t('recipes.ingredientPlaceholder')}
                 value={line.name}
-                onChange={(e) => updateLine(index, 'name', e.target.value)}
+                onChange={(e) => updateLineName(index, e.target.value)}
                 className={`flex-1 min-w-32 ${inputClass}`}
               />
               <input

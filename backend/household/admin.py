@@ -6,7 +6,7 @@ from .models import (
     HouseholdTaskDefinition, HouseholdTaskInstance, HouseholdTaskEvent,
     NotificationPreference, PushSubscription, NotificationLog, Voucher, VoucherRedemption,
     PackingList, PackingListParticipant, PackingListItem, PackingBucket, PackingBucketItem,
-    ApiUsageRecord,
+    ApiUsageRecord, IngredientAlias, DismissedDuplicateSuggestion,
 )
 
 @admin.register(HouseholdMember)
@@ -161,3 +161,13 @@ class CookingPlanConfigAdmin(admin.ModelAdmin):
 class ApiUsageRecordAdmin(admin.ModelAdmin):
     list_display = ('created_at', 'provider', 'feature', 'model', 'input_tokens', 'output_tokens', 'audio_seconds', 'cost_usd')
     list_filter = ('provider', 'feature', 'model')
+
+
+@admin.register(IngredientAlias)
+class IngredientAliasAdmin(admin.ModelAdmin):
+    list_display = ('name', 'ingredient', 'created_at')
+    search_fields = ('name', 'ingredient__name')
+
+@admin.register(DismissedDuplicateSuggestion)
+class DismissedDuplicateSuggestionAdmin(admin.ModelAdmin):
+    list_display = ('member_ids', 'created_at')

@@ -71,8 +71,9 @@ def _extraction_system_prompt():
         'instructions (string -- each step numbered ("1. ...", "2. ...") and separated from the next '
         'by a blank line, i.e. two newlines between steps, so it reads as separate paragraphs, not one block), '
         'notes (string or ""), '
-        'ingredient_lines (array of strings, one ingredient per line, formatted like "200 g Mehl" or "2 Zwiebeln" -- '
-        'quantity and unit first when known, then the ingredient name), '
+        'ingredient_lines (array of strings, one ingredient per line, formatted like "200 g Mehl", "2 Zwiebeln, in Ringe geschnitten" '
+        'or "2 Zehen Knoblauch" -- quantity and unit first when known, then the plain ingredient name as on a shopping list '
+        '(no quantities, units, sizes or "(n)" suffixes in the name), then any preparation note after a comma), '
         'category_guess (string or null).' + category_hint
     )
 

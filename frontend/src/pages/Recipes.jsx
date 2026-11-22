@@ -27,7 +27,7 @@ export default function Recipes() {
   const [units, setUnits] = useState([]);
   const [labels, setLabels] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [ingredientNames, setIngredientNames] = useState([]);
+  const [ingredients, setIngredients] = useState([]);
   const [loading, setLoading] = useState(true);
   const { deleteWithUndo } = useUndo();
 
@@ -50,16 +50,15 @@ export default function Recipes() {
     setRecipes(response.data.results || []);
   };
 
-  const loadIngredientNames = async () => {
-    const ingredients = await fetchAllPages(ingredientService);
-    setIngredientNames(ingredients.map((i) => i.name));
+  const loadIngredients = async () => {
+    setIngredients(await fetchAllPages(ingredientService));
   };
 
   const loadAll = async () => {
     try {
       const [, unitRes, labelRes, categoryRes] = await Promise.all([
         loadRecipes(), unitService.getAll(), labelService.getAll(), mealCategoryService.getAll(),
-        loadIngredientNames(),
+        loadIngredients(),
       ]);
       setUnits(unitRes.data.results || []);
       setLabels(labelRes.data.results || []);
@@ -89,7 +88,7 @@ export default function Recipes() {
     const response = editing
       ? await recipeService.update(editing.id, payload)
       : await recipeService.create(payload);
-    await Promise.all([loadRecipes(), loadIngredientNames()]);
+    await Promise.all([loadRecipes(), loadIngredients()]);
     setMode({ type: 'view', id: response.data.id });
   };
 
@@ -272,7 +271,7 @@ export default function Recipes() {
                 units={units}
                 categories={categories}
                 labels={labels}
-                ingredientNames={ingredientNames}
+                ingredients={ingredients}
                 onSave={handleSave}
                 onCancel={() => setMode(mode.recipe ? { type: 'view', id: mode.recipe.id } : null)}
               />

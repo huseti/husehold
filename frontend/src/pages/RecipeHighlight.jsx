@@ -6,6 +6,7 @@ import { formatQuantity, scaleQuantity } from '../utils/recipeDisplay';
 import { unitLabel } from '../utils/localized';
 import { asClickableUrl } from '../utils/sourceDisplay';
 import PrintIcon from '../components/icons/printIcon';
+import IngredientText from '../components/IngredientText';
 import { BackArrow } from '../components/icons/uiIcons';
 
 const SOURCE_TYPE_KEYS = { manual: 'sourceTypeManual', website: 'sourceTypeWebsite', photo: 'sourceTypePhoto', text: 'sourceTypeText', social: 'sourceTypeSocial' };
@@ -164,7 +165,11 @@ export default function RecipeHighlight() {
         {recipe.instructions && (
           <div className="mb-8">
             <h2 className={`${HEADING_SIZES[fontScale]} font-semibold mb-3`}>{t('recipes.instructionsLabel')}</h2>
-            <p className={`${BODY_SIZES[fontScale]} whitespace-pre-wrap leading-relaxed`}>{recipe.instructions}</p>
+            <IngredientText
+              text={recipe.instructions}
+              lines={recipe.ingredients} units={units} fromServings={recipe.servings} toServings={servings}
+              className={`${BODY_SIZES[fontScale]} leading-relaxed`}
+            />
           </div>
         )}
 
@@ -179,7 +184,7 @@ export default function RecipeHighlight() {
             {recipe.notes && (
               <div>
                 <p className="font-semibold text-gray-600 mb-1">{t('recipes.notesLabel')}</p>
-                <p className="whitespace-pre-wrap">{recipe.notes}</p>
+                <IngredientText text={recipe.notes} lines={recipe.ingredients} units={units} fromServings={recipe.servings} toServings={servings} />
               </div>
             )}
             {recipe.source && (

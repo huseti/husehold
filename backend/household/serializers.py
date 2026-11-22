@@ -9,7 +9,7 @@ from .models import (
     NotificationPreference, PushSubscription, Voucher, VoucherRedemption,
     UnitOfMeasure, Ingredient, IngredientCategory, Label, MealTimeCategory, RecipeIngredient, RecipeRating, MealEvent, PurchaseRecord, CookingPlanConfig, CookingPlanEntry,
     PackingList, PackingListParticipant, PackingListItem, PackingBucket, PackingBucketItem,
-    GoogleCalendarLink, CalendarEvent,
+    GoogleCalendarLink, CalendarEvent, IngredientAlias,
 )
 
 class UserSerializer(serializers.ModelSerializer):
@@ -60,10 +60,19 @@ class UnitOfMeasureSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('A unit with this name already exists.')
         return value
 
+class IngredientAliasSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = IngredientAlias
+        fields = ('id', 'name')
+
 class IngredientSerializer(serializers.ModelSerializer):
+    aliases = IngredientAliasSerializer(many=True, read_only=True)
+    # Annotated by IngredientViewSet; absent (None) on freshly created rows.
+    recipe_count = serializers.IntegerField(read_only=True, default=None)
+
     class Meta:
         model = Ingredient
-        fields = ('id', 'name', 'default_excluded_from_shopping_list', 'category')
+        fields = ('id', 'name', 'default_excluded_from_shopping_list', 'category', 'preferred_unit', 'aliases', 'recipe_count')
 
     def validate_name(self, value):
         value = value.strip()
@@ -72,6 +81,39 @@ class IngredientSerializer(serializers.ModelSerializer):
             clash = clash.exclude(pk=self.instance.pk)
         if clash.exists():
             raise serializers.ValidationError('An ingredient with this name already exists.')
+        alias = IngredientAlias.objects.filter(name__iexact=value).select_related('ingredient').first()
+        if alias and (not self.instance or alias.ingredient_id != self.instance.pk):
+            raise serializers.ValidationError(f'"{value}" is already an alternative name of "{alias.ingredient.name}".')
+        return value
+
+    def update(self, instance, validated_data):
+        instance = super().update(instance, validated_data)
+        # Renamed to one of its own aliases: the name is now the real one.
+        instance.aliases.filter(name__iexact=instance.name).delete()
+        return instance
+
+class IngredientMergeMemberSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    note = serializers.CharField(required=False, allow_blank=True, default='', max_length=200)
+    unit = serializers.PrimaryKeyRelatedField(queryset=UnitOfMeasure.objects.all(), required=False, allow_null=True, default=None)
+    # A unit to create by this name (used when `unit` is empty).
+    new_unit = serializers.CharField(required=False, allow_blank=True, default='', max_length=50)
+    # Amount that was part of the old name ("2", "250-300").
+    quantity = serializers.CharField(required=False, allow_blank=True, default='', max_length=30)
+
+class IngredientMergeSerializer(serializers.Serializer):
+    keep_id = serializers.IntegerField()
+    name = serializers.CharField(required=False, max_length=100)
+    preferred_unit = serializers.PrimaryKeyRelatedField(queryset=UnitOfMeasure.objects.all(), required=False, allow_null=True)
+    preferred_new_unit = serializers.CharField(required=False, allow_blank=True, default='', max_length=50)
+    members = IngredientMergeMemberSerializer(many=True)
+
+    def validate_members(self, value):
+        ids = [m['id'] for m in value]
+        if not ids:
+            raise serializers.ValidationError('At least one ingredient is required.')
+        if len(ids) != len(set(ids)):
+            raise serializers.ValidationError('An ingredient is listed twice.')
         return value
 
 class LabelSerializer(serializers.ModelSerializer):
@@ -124,6 +166,10 @@ def get_or_create_ingredient(name, user):
     existing = Ingredient.objects.filter(name__iexact=name).first()
     if existing:
         return existing
+    # A spelling merged away earlier (see services/ingredient_merge.py).
+    alias = IngredientAlias.objects.filter(name__iexact=name).select_related('ingredient').first()
+    if alias:
+        return alias.ingredient
     ingredient = Ingredient.objects.create(name=name, created_by=user, updated_by=user)
     categorize_ingredient(ingredient)
     return ingredient
@@ -180,14 +226,20 @@ class RecipeIngredientSerializer(serializers.ModelSerializer):
     # recipe form can be free-text -- see get_or_create_ingredient().
     ingredient_name = serializers.CharField(source='ingredient.name', max_length=100)
     unit_name = serializers.SerializerMethodField()
+    # Other spellings of the ingredient, so the recipe view can highlight
+    # "Zwiebeln" in the instructions when the line says "Zwiebel".
+    ingredient_aliases = serializers.SerializerMethodField()
 
     class Meta:
         model = RecipeIngredient
-        fields = ('id', 'ingredient', 'ingredient_name', 'quantity', 'unit', 'unit_name', 'note', 'sort_order')
+        fields = ('id', 'ingredient', 'ingredient_name', 'ingredient_aliases', 'quantity', 'unit', 'unit_name', 'note', 'sort_order')
         read_only_fields = ('ingredient',)
 
     def get_unit_name(self, obj):
         return str(obj.unit) if obj.unit else None
+
+    def get_ingredient_aliases(self, obj):
+        return [alias.name for alias in obj.ingredient.aliases.all()]
 
 class RecipeRatingSerializer(serializers.ModelSerializer):
     rated_by_username = serializers.CharField(source='rated_by.username', read_only=True)

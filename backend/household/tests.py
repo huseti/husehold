@@ -16,7 +16,7 @@ from .models import (
     CookingPlanConfig, CookingPlanEntry, Ingredient, IngredientCategory, Label, MealEvent, MealTimeCategory, NotificationPreference,
     PurchaseRecord, Recipe, RecipeRating, ShoppingList, ShoppingListItem, UnitOfMeasure, Voucher, VoucherRedemption,
     PackingList, PackingListParticipant, PackingListItem, PackingBucket, PackingBucketItem,
-    GoogleCalendarLink, CalendarEvent, ApiUsageRecord,
+    GoogleCalendarLink, CalendarEvent, ApiUsageRecord, IngredientAlias, RecipeIngredient,
 )
 from .services.task_generation import generate_instances_for_range
 from .services import analytics as analytics_service
@@ -3879,3 +3879,396 @@ class ApiUsageTests(TestCase):
 
     def test_usage_endpoint_requires_login(self):
         self.assertEqual(APIClient().get('/api/api-usage/').status_code, 401)
+
+
+class IngredientMergeTests(TestCase):
+    """Merging duplicate ingredients and the aliases it leaves behind --
+    services/ingredient_merge.py and the /ingredients/merge/ endpoint."""
+
+    def setUp(self):
+        self.tim = User.objects.create_user(username='tim', password='pw')
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.tim)
+        self.piece = UnitOfMeasure.objects.get(name_de='Stück')
+        self.clove = UnitOfMeasure.objects.get(name_de='Zehe')
+        self.gram = UnitOfMeasure.objects.get(name_de='Gramm')
+        self.recipe = Recipe.objects.create(title='Suppe', servings=2)
+
+    def _line(self, ingredient, **kwargs):
+        return RecipeIngredient.objects.create(recipe=self.recipe, ingredient=ingredient, **kwargs)
+
+    def _merge(self, keep, members, **body):
+        return self.client.post('/api/ingredients/merge/', {
+            'keep_id': keep.id,
+            'members': [{'id': m.id, **extra} for m, extra in members],
+            **body,
+        }, format='json')
+
+    def test_merge_moves_recipe_lines_notes_units_and_creates_aliases(self):
+        keep = Ingredient.objects.create(name='Knoblauch')
+        variant = Ingredient.objects.create(name='Zehe/n Knoblauch, fein gehackt')
+        keep_line = self._line(keep, quantity=1, unit=self.piece)
+        moved_line = self._line(variant, quantity=2)
+
+        response = self._merge(keep, [(keep, {}), (variant, {'note': 'fein gehackt', 'unit': self.clove.id})],
+                               preferred_unit=self.clove.id)
+
+        self.assertEqual(response.status_code, 200)
+        moved_line.refresh_from_db()
+        self.assertEqual(moved_line.ingredient, keep)
+        self.assertEqual(moved_line.note, 'fein gehackt')
+        self.assertEqual(moved_line.unit, self.clove)
+        keep_line.refresh_from_db()
+        self.assertEqual(keep_line.unit, self.piece)  # an existing unit is never overwritten
+        self.assertFalse(Ingredient.objects.filter(pk=variant.pk).exists())
+        keep.refresh_from_db()
+        self.assertEqual(keep.preferred_unit, self.clove)
+        self.assertEqual(list(keep.aliases.values_list('name', flat=True)), ['Zehe/n Knoblauch, fein gehackt'])
+        self.assertEqual(response.data['aliases'], [{'id': keep.aliases.get().id, 'name': 'Zehe/n Knoblauch, fein gehackt'}])
+
+    def test_merge_prepends_note_to_an_existing_one_without_repeating_it(self):
+        keep = Ingredient.objects.create(name='Zwiebel')
+        a = Ingredient.objects.create(name='Zwiebel(n), in Ringe geschnitten')
+        b = Ingredient.objects.create(name='Zwiebel, fein gehackt')
+        line_a = self._line(a, note='rot')
+        line_b = self._line(b, note='fein gehackt')
+
+        self._merge(keep, [(a, {'note': 'in Ringe geschnitten'}), (b, {'note': 'fein gehackt'})])
+
+        line_a.refresh_from_db()
+        line_b.refresh_from_db()
+        self.assertEqual(line_a.note, 'in Ringe geschnitten, rot')
+        self.assertEqual(line_b.note, 'fein gehackt')
+
+    def test_merge_can_rename_and_keeps_old_name_as_alias(self):
+        keep = Ingredient.objects.create(name='Hokkaido-Kürbis')
+        other = Ingredient.objects.create(name='Hokkaidokürbis(se) (netto gewogen), gewürfelt')
+
+        response = self._merge(keep, [(keep, {}), (other, {'note': 'gewürfelt'})], name='Hokkaidokürbis')
+
+        self.assertEqual(response.status_code, 200)
+        keep.refresh_from_db()
+        self.assertEqual(keep.name, 'Hokkaidokürbis')
+        self.assertEqual(
+            sorted(keep.aliases.values_list('name', flat=True)),
+            ['Hokkaido-Kürbis', 'Hokkaidokürbis(se) (netto gewogen), gewürfelt'],
+        )
+
+    def test_single_ingredient_cleanup_moves_note_into_its_lines(self):
+        ingredient = Ingredient.objects.create(name='Pck. Gnocchi (aus dem Kühlregal)')
+        line = self._line(ingredient, quantity=1)
+        pack = UnitOfMeasure.objects.get(name_de='Packung')
+
+        self._merge(ingredient, [(ingredient, {'note': 'aus dem Kühlregal', 'unit': pack.id})], name='Gnocchi')
+
+        line.refresh_from_db()
+        self.assertEqual((line.ingredient.name, line.note, line.unit), ('Gnocchi', 'aus dem Kühlregal', pack))
+
+    def test_merge_moves_shopping_items_purchase_history_and_existing_aliases(self):
+        keep = Ingredient.objects.create(name='Zwiebel')
+        other = Ingredient.objects.create(name='Zwiebeln')
+        IngredientAlias.objects.create(ingredient=other, name='Zwiebeln (rot)')
+        shopping_list = ShoppingList.objects.create(name='Einkauf')
+        item = ShoppingListItem.objects.create(shopping_list=shopping_list, title='Zwiebeln', ingredient=other)
+        record = PurchaseRecord.objects.create(title='Zwiebeln', ingredient=other)
+
+        self._merge(keep, [(other, {})])
+
+        item.refresh_from_db()
+        record.refresh_from_db()
+        self.assertEqual((item.ingredient, record.ingredient), (keep, keep))
+        self.assertEqual(sorted(keep.aliases.values_list('name', flat=True)), ['Zwiebeln', 'Zwiebeln (rot)'])
+
+    def test_merge_inherits_category_when_the_kept_one_has_none(self):
+        category = IngredientCategory.objects.first()
+        keep = Ingredient.objects.create(name='Xyzzy')
+        other = Ingredient.objects.create(name='Xyzzys', category=category)
+
+        self._merge(keep, [(other, {})])
+
+        keep.refresh_from_db()
+        self.assertEqual(keep.category, category)
+
+    def test_rename_to_a_name_taken_by_another_ingredient_fails_and_changes_nothing(self):
+        keep = Ingredient.objects.create(name='Zwiebel')
+        other = Ingredient.objects.create(name='Zwiebeln')
+        Ingredient.objects.create(name='Lauch')
+        line = self._line(other)
+
+        response = self._merge(keep, [(other, {'note': 'gehackt'})], name='Lauch')
+
+        self.assertEqual(response.status_code, 400)
+        line.refresh_from_db()
+        self.assertEqual((line.ingredient, line.note), (other, ''))
+        self.assertTrue(Ingredient.objects.filter(pk=other.pk).exists())
+
+    def test_merge_rejects_unknown_ids(self):
+        keep = Ingredient.objects.create(name='Zwiebel')
+        other = Ingredient.objects.create(name='Zwiebeln')
+
+        self.assertEqual(self._merge(keep, [(other, {})], keep_id=other.id + 1000).status_code, 400)
+        response = self.client.post('/api/ingredients/merge/', {
+            'keep_id': keep.id, 'members': [{'id': keep.id}, {'id': 999999}],
+        }, format='json')
+        self.assertEqual(response.status_code, 400)
+
+    def test_alias_resolves_when_a_recipe_uses_the_old_spelling(self):
+        keep = Ingredient.objects.create(name='Zwiebel')
+        other = Ingredient.objects.create(name='Zwiebel(n)')
+        self._merge(keep, [(other, {})])
+
+        response = self.client.post('/api/recipes/', {
+            'title': 'Zwiebelkuchen', 'servings': 4,
+            'ingredients': [{'ingredient_name': 'zwiebel(n)', 'quantity': '3', 'unit': None, 'note': ''}],
+        }, format='json')
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data['ingredients'][0]['ingredient'], keep.id)
+        self.assertEqual(response.data['ingredients'][0]['ingredient_aliases'], ['Zwiebel(n)'])
+        self.assertEqual(Ingredient.objects.filter(name__icontains='zwiebel').count(), 1)
+
+    def test_ingredient_name_cannot_take_another_ingredients_alias(self):
+        keep = Ingredient.objects.create(name='Zwiebel')
+        IngredientAlias.objects.create(ingredient=keep, name='Zwiebeln')
+
+        response = self.client.post('/api/ingredients/', {'name': 'zwiebeln'}, format='json')
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_renaming_to_own_alias_drops_that_alias(self):
+        keep = Ingredient.objects.create(name='Zwiebel')
+        IngredientAlias.objects.create(ingredient=keep, name='Zwiebeln')
+
+        response = self.client.patch(f'/api/ingredients/{keep.id}/', {'name': 'Zwiebeln'}, format='json')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(keep.aliases.exists())
+
+    def test_ingredient_list_includes_preferred_unit_aliases_and_recipe_count_and_searches_aliases(self):
+        keep = Ingredient.objects.create(name='Knoblauch', preferred_unit=self.clove)
+        IngredientAlias.objects.create(ingredient=keep, name='Zehe/n Knoblauch')
+        IngredientAlias.objects.create(ingredient=keep, name='Knoblauchzehen')
+        self._line(keep)
+
+        response = self.client.get('/api/ingredients/', {'q': 'zehe'})
+
+        self.assertEqual(len(response.data['results']), 1)
+        row = response.data['results'][0]
+        self.assertEqual((row['preferred_unit'], row['recipe_count']), (self.clove.id, 1))
+        self.assertEqual(sorted(a['name'] for a in row['aliases']), ['Knoblauchzehen', 'Zehe/n Knoblauch'])
+
+    def test_alias_can_be_deleted(self):
+        keep = Ingredient.objects.create(name='Zwiebel')
+        alias = IngredientAlias.objects.create(ingredient=keep, name='Zwiebeln')
+
+        self.assertEqual(self.client.delete(f'/api/ingredient-aliases/{alias.id}/').status_code, 204)
+        self.assertFalse(IngredientAlias.objects.exists())
+
+
+class IngredientDuplicateSuggestionTests(TestCase):
+    """services/ingredient_dedup.py -- Claude's answer is only a proposal;
+    these check it's validated against the database before reaching the UI."""
+
+    def setUp(self):
+        self.tim = User.objects.create_user(username='tim', password='pw')
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.tim)
+        self.zwiebel = Ingredient.objects.create(name='Zwiebel')
+        self.zwiebeln = Ingredient.objects.create(name='Zwiebel(n), in Ringe geschnitten')
+        self.knoblauch = Ingredient.objects.create(name='Zehe(n) Knoblauch')
+        self.lauch = Ingredient.objects.create(name='Lauch')
+        recipe = Recipe.objects.create(title='Suppe', servings=2)
+        RecipeIngredient.objects.create(recipe=recipe, ingredient=self.zwiebeln)
+
+    def _claude_answer(self, mock_post, groups):
+        response = type('R', (), {})()
+        response.status_code = 200
+        response.json = lambda: {
+            'content': [{'type': 'thinking', 'thinking': ''}, {'type': 'text', 'text': json.dumps({'groups': groups})}],
+            'stop_reason': 'end_turn',
+            'usage': {'input_tokens': 7000, 'output_tokens': 15000},
+        }
+        mock_post.return_value = response
+
+    @override_settings(ANTHROPIC_API_KEY='test-key')
+    @patch('household.services.ingredient_dedup.requests.post')
+    def test_suggestions_are_validated_and_enriched(self, mock_post):
+        self._claude_answer(mock_post, [
+            {'keep_id': self.zwiebel.id, 'name': 'Zwiebel', 'preferred_unit': 'Stück', 'members': [
+                {'id': self.zwiebel.id, 'note': '', 'unit': None},
+                {'id': self.zwiebeln.id, 'note': 'in Ringe geschnitten', 'unit': None},
+                {'id': 999999, 'note': '', 'unit': None},  # unknown -> dropped
+            ]},
+            {'keep_id': self.knoblauch.id, 'name': 'Knoblauch', 'preferred_unit': 'Zehe', 'members': [
+                {'id': self.knoblauch.id, 'note': '', 'unit': 'Zehe'},
+            ]},
+            # Nothing would change -> dropped.
+            {'keep_id': self.lauch.id, 'name': 'Lauch', 'preferred_unit': None, 'members': [
+                {'id': self.lauch.id, 'note': '', 'unit': None},
+            ]},
+            # Re-uses an id from the first group -> dropped.
+            {'keep_id': self.zwiebel.id, 'name': 'Zwiebeln', 'preferred_unit': None, 'members': [
+                {'id': self.zwiebel.id, 'note': '', 'unit': None},
+            ]},
+        ])
+
+        response = self.client.post('/api/ingredients/duplicate-suggestions/')
+
+        self.assertEqual(response.status_code, 200)
+        suggestions = response.data['suggestions']
+        self.assertEqual([s['name'] for s in suggestions], ['Zwiebel', 'Knoblauch'])  # real duplicates first
+        zwiebel = suggestions[0]
+        self.assertEqual(zwiebel['preferred_unit'], UnitOfMeasure.objects.get(name_de='Stück').id)
+        self.assertEqual([m['id'] for m in zwiebel['members']], [self.zwiebel.id, self.zwiebeln.id])
+        self.assertEqual(zwiebel['members'][1]['recipe_count'], 1)
+        self.assertEqual(suggestions[1]['members'][0]['unit'], UnitOfMeasure.objects.get(name_de='Zehe').id)
+        self.assertEqual(ApiUsageRecord.objects.get().feature, 'ingredient_dedup')
+        body = mock_post.call_args.kwargs['json']
+        self.assertEqual(body['output_config']['format']['type'], 'json_schema')
+        self.assertIn(f'{self.zwiebeln.id} | Zwiebel(n), in Ringe geschnitten | 1', body['messages'][0]['content'])
+
+    @override_settings(ANTHROPIC_API_KEY='test-key')
+    @patch('household.services.ingredient_dedup.requests.post')
+    def test_existing_ingredient_with_the_clean_name_is_folded_in(self, mock_post):
+        self._claude_answer(mock_post, [
+            {'keep_id': self.zwiebeln.id, 'name': 'Zwiebel', 'preferred_unit': None, 'members': [
+                {'id': self.zwiebeln.id, 'note': 'in Ringe geschnitten', 'unit': None},
+            ]},
+        ])
+
+        suggestions = self.client.post('/api/ingredients/duplicate-suggestions/').data['suggestions']
+
+        self.assertEqual(sorted(m['id'] for m in suggestions[0]['members']), sorted([self.zwiebel.id, self.zwiebeln.id]))
+
+    @override_settings(ANTHROPIC_API_KEY='test-key')
+    @patch('household.services.ingredient_dedup.requests.post')
+    def test_dismissed_groups_are_not_suggested_again(self, mock_post):
+        group = {'keep_id': self.zwiebel.id, 'name': 'Zwiebel', 'preferred_unit': None, 'members': [
+            {'id': self.zwiebeln.id, 'note': 'in Ringe geschnitten', 'unit': None},
+            {'id': self.zwiebel.id, 'note': '', 'unit': None},
+        ]}
+        self._claude_answer(mock_post, [group])
+
+        dismiss = self.client.post('/api/ingredients/dismiss-suggestion/', {'ids': [self.zwiebeln.id, self.zwiebel.id]}, format='json')
+        response = self.client.post('/api/ingredients/duplicate-suggestions/')
+
+        self.assertEqual(dismiss.status_code, 204)
+        self.assertEqual(response.data['suggestions'], [])
+
+    @override_settings(ANTHROPIC_API_KEY='test-key')
+    @patch('household.services.ingredient_dedup.requests.post')
+    def test_cut_off_answer_is_a_clear_error(self, mock_post):
+        response = type('R', (), {})()
+        response.status_code = 200
+        response.json = lambda: {'content': [{'type': 'text', 'text': '{"groups": ['}], 'stop_reason': 'max_tokens', 'usage': {}}
+        mock_post.return_value = response
+
+        result = self.client.post('/api/ingredients/duplicate-suggestions/')
+
+        self.assertEqual(result.status_code, 502)
+        self.assertIn('cut off', result.data['detail'])
+
+    @override_settings(ANTHROPIC_API_KEY='')
+    def test_without_api_key(self):
+        result = self.client.post('/api/ingredients/duplicate-suggestions/')
+
+        self.assertEqual(result.status_code, 502)
+        self.assertIn('ANTHROPIC_API_KEY', result.data['detail'])
+
+
+class IngredientCleanupTests(TestCase):
+    """Amounts and unit words that were part of an ingredient name, and the
+    three suggestion kinds -- see services/ingredient_merge.py / ingredient_dedup.py."""
+
+    def setUp(self):
+        self.tim = User.objects.create_user(username='tim', password='pw')
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.tim)
+        self.ml = UnitOfMeasure.objects.get(name_de='Milliliter')
+        self.recipe = Recipe.objects.create(title='Porridge', servings=1)
+
+    def _merge(self, body):
+        return self.client.post('/api/ingredients/merge/', body, format='json')
+
+    def test_single_number_from_the_name_becomes_the_line_quantity(self):
+        ingredient = Ingredient.objects.create(name='2 Kuhmilch')
+        line = RecipeIngredient.objects.create(recipe=self.recipe, ingredient=ingredient)
+        with_amount = RecipeIngredient.objects.create(recipe=self.recipe, ingredient=ingredient, quantity=Decimal('5'))
+
+        self._merge({'keep_id': ingredient.id, 'name': 'Kuhmilch', 'members': [{'id': ingredient.id, 'quantity': '2'}]})
+
+        line.refresh_from_db()
+        with_amount.refresh_from_db()
+        self.assertEqual(line.quantity, Decimal('2'))
+        self.assertEqual(with_amount.quantity, Decimal('5'))  # an existing amount wins
+
+    def test_range_from_the_name_is_kept_as_note(self):
+        ingredient = Ingredient.objects.create(name='250-300 ml Mandelmilch (ungesüßt)')
+        line = RecipeIngredient.objects.create(recipe=self.recipe, ingredient=ingredient)
+
+        self._merge({'keep_id': ingredient.id, 'name': 'Mandelmilch', 'members': [
+            {'id': ingredient.id, 'quantity': '250-300', 'unit': self.ml.id, 'note': 'ungesüßt'},
+        ]})
+
+        line.refresh_from_db()
+        self.assertEqual((line.quantity, line.unit), (None, self.ml))
+        self.assertEqual(line.note, '250-300 ml, ungesüßt')
+
+    def test_unknown_unit_word_creates_the_unit(self):
+        ingredient = Ingredient.objects.create(name='Tasse Quinoa')
+        line = RecipeIngredient.objects.create(recipe=self.recipe, ingredient=ingredient, quantity=1)
+
+        response = self._merge({'keep_id': ingredient.id, 'name': 'Quinoa', 'preferred_new_unit': 'Tasse', 'members': [
+            {'id': ingredient.id, 'new_unit': 'Tasse'},
+        ]})
+
+        self.assertEqual(response.status_code, 200)
+        cup = UnitOfMeasure.objects.get(name_de='Tasse')
+        line.refresh_from_db()
+        self.assertEqual((line.ingredient.name, line.unit), ('Quinoa', cup))
+        self.assertEqual(response.data['preferred_unit'], cup.id)
+
+    def test_new_unit_reuses_an_existing_one_case_insensitively(self):
+        ingredient = Ingredient.objects.create(name='Zehe Knoblauch')
+        clove = UnitOfMeasure.objects.get(name_de='Zehe')
+        clove.abbreviation_de = 'Zh'
+        clove.save()
+        count = UnitOfMeasure.objects.count()
+
+        self._merge({'keep_id': ingredient.id, 'name': 'Knoblauch', 'members': [{'id': ingredient.id, 'new_unit': 'zehe'}],
+                     'preferred_new_unit': 'Zh'})
+
+        self.assertEqual(UnitOfMeasure.objects.count(), count)
+        ingredient.refresh_from_db()
+        self.assertEqual(ingredient.preferred_unit, clove)
+
+    @override_settings(ANTHROPIC_API_KEY='test-key')
+    @patch('household.services.ingredient_dedup.requests.post')
+    def test_suggestion_kinds_and_new_units(self, mock_post):
+        milk = Ingredient.objects.create(name='Mandelmilch (ungesüßt)')
+        quinoa = Ingredient.objects.create(name='Tasse Quinoa')
+        a = Ingredient.objects.create(name='Zwiebel')
+        b = Ingredient.objects.create(name='Zwiebeln')
+        groups = [
+            {'keep_id': quinoa.id, 'name': 'Quinoa', 'preferred_unit': 'Tasse', 'members': [
+                {'id': quinoa.id, 'note': '', 'quantity': '', 'unit': 'Tasse'}]},
+            {'keep_id': milk.id, 'name': 'Mandelmilch', 'preferred_unit': 'Milliliter', 'members': [
+                {'id': milk.id, 'note': 'ungesüßt', 'quantity': '', 'unit': None}]},
+            {'keep_id': a.id, 'name': 'Zwiebel', 'preferred_unit': 'Stk', 'members': [
+                {'id': a.id, 'note': '', 'quantity': '', 'unit': None},
+                {'id': b.id, 'note': '', 'quantity': '', 'unit': None}]},
+        ]
+        response = type('R', (), {})()
+        response.status_code = 200
+        response.json = lambda: {'content': [{'type': 'text', 'text': json.dumps({'groups': groups})}],
+                                 'stop_reason': 'end_turn', 'usage': {}}
+        mock_post.return_value = response
+
+        suggestions = self.client.post('/api/ingredients/duplicate-suggestions/').data['suggestions']
+
+        self.assertEqual([(s['kind'], s['name']) for s in suggestions],
+                         [('duplicate', 'Zwiebel'), ('name', 'Mandelmilch'), ('unit', 'Quinoa')])
+        quinoa_suggestion = suggestions[2]
+        self.assertEqual((quinoa_suggestion['preferred_unit'], quinoa_suggestion['preferred_new_unit']), (None, 'Tasse'))
+        self.assertEqual((quinoa_suggestion['members'][0]['unit'], quinoa_suggestion['members'][0]['new_unit']), (None, 'Tasse'))
+        self.assertEqual(suggestions[0]['preferred_unit'], UnitOfMeasure.objects.get(name_de='Stück').id)

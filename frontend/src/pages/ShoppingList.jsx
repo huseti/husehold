@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import {
@@ -20,8 +20,9 @@ import EmptyState from '../components/EmptyState';
 import TaskIcon from '../components/icons/taskIcons';
 import TitleIcon from '../components/TitleIcon';
 import { ShoppingMenuIcon } from '../components/icons/navIcons';
+import { buildIngredientLookup, preferredUnitUpdate } from '../utils/ingredientMatching';
 
-const emptyItem = { title: '', quantity: '', unit: '' };
+const emptyItem = { title: '', quantity: '', unit: '', unitAuto: false };
 
 // Ticked items sink to the bottom of their group, so what's left to grab stays on top.
 const openFirst = (items) => [...items].sort((a, b) => Number(a.is_completed) - Number(b.is_completed));
@@ -33,7 +34,8 @@ export default function ShoppingList() {
   const [items, setItems] = useState([]);
   const [units, setUnits] = useState([]);
   const [ingredientCategories, setIngredientCategories] = useState([]);
-  const [ingredientNames, setIngredientNames] = useState([]);
+  const [ingredients, setIngredients] = useState([]);
+  const lookupIngredient = useMemo(() => buildIngredientLookup(ingredients), [ingredients]);
   const [loading, setLoading] = useState(true);
 
   const [itemForm, setItemForm] = useState(emptyItem);
@@ -71,7 +73,7 @@ export default function ShoppingList() {
       ]);
       if (unitRes.status === 'fulfilled') setUnits(unitRes.value.data.results || []);
       if (ingredientRes.status === 'fulfilled') {
-        setIngredientNames(ingredientRes.value.map((i) => i.name));
+        setIngredients(ingredientRes.value);
       }
       if (categoryRes.status === 'fulfilled') setIngredientCategories(categoryRes.value.data.results || []);
     };
@@ -398,7 +400,7 @@ export default function ShoppingList() {
                   bottom: a bottom-fixed field fights the iOS keyboard.) */}
               <form onSubmit={handleAddItem} className="sticky top-[env(safe-area-inset-top)] md:top-[4.25rem] z-10 bg-white rounded-xl shadow p-2 sm:p-4 mb-4 sm:mb-6 flex gap-2">
                 <datalist id="shopping-ingredient-suggestions">
-                  {ingredientNames.map((name) => <option key={name} value={name} />)}
+                  {ingredients.map((i) => <option key={i.id} value={i.name} />)}
                 </datalist>
                 <input
                   type="number" step="any" min="0"
@@ -409,7 +411,7 @@ export default function ShoppingList() {
                 />
                 <select
                   value={itemForm.unit}
-                  onChange={(e) => setItemForm({ ...itemForm, unit: e.target.value })}
+                  onChange={(e) => setItemForm({ ...itemForm, unit: e.target.value, unitAuto: false })}
                   className="w-[4.5rem] sm:w-24 px-1 sm:px-2 py-2 border border-gray-300 rounded-lg"
                 >
                   <option value="">{t('shoppingList.noUnit')}</option>
@@ -420,7 +422,11 @@ export default function ShoppingList() {
                   type="text" list="shopping-ingredient-suggestions"
                   placeholder={t('shoppingList.itemNamePlaceholder')}
                   value={itemForm.title}
-                  onChange={(e) => setItemForm({ ...itemForm, title: e.target.value })}
+                  onChange={(e) => setItemForm({
+                    ...itemForm,
+                    title: e.target.value,
+                    ...preferredUnitUpdate(e.target.value, itemForm.unit, itemForm.unitAuto, lookupIngredient),
+                  })}
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-lg"
                   enterKeyHint="done"
                   required

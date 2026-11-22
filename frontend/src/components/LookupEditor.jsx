@@ -7,6 +7,8 @@ import IconPickerModal from './IconPickerModal';
 // (labels, meal categories, units, ingredients). Each row saves on change
 // (checkbox/color) or blur (text/number); `fields` describes the columns:
 // { key, labelKey, type: 'text' | 'number' | 'color' | 'checkbox', className? }.
+// Optional: renderExtra(item, reload) adds content under a row; changing
+// reloadKey reloads the list (e.g. after a merge changed it from outside).
 
 function errorMessage(error, t) {
   if (error.response?.status === 409) return t('recipeConfig.inUse');
@@ -46,7 +48,7 @@ function IconField({ field, value, color, onChange }) {
   );
 }
 
-function Row({ item, fields, onUpdate, onDelete }) {
+function Row({ item, fields, onUpdate, onDelete, extra }) {
   const { t } = useTranslation();
   const [draft, setDraft] = useState(item);
   const [error, setError] = useState('');
@@ -143,12 +145,15 @@ function Row({ item, fields, onUpdate, onDelete }) {
         })}
         <button onClick={remove} className="icon-btn hover:text-red-600" aria-label={t('recipeConfig.delete')}><CloseGlyph /></button>
       </div>
+      {extra}
       {error && <p className="text-sm text-red-600 pb-1">{error}</p>}
     </div>
   );
 }
 
-export default function LookupEditor({ titleKey, service, fields, newItemDefaults, searchable = false, onChanged }) {
+export default function LookupEditor({
+  titleKey, service, fields, newItemDefaults, searchable = false, onChanged, renderExtra, reloadKey = 0,
+}) {
   const { t } = useTranslation();
   const [items, setItems] = useState([]);
   const [newItem, setNewItem] = useState(newItemDefaults);
@@ -217,7 +222,7 @@ export default function LookupEditor({ titleKey, service, fields, newItemDefault
       load().catch((err) => console.error('Error loading config list:', err));
     }, searchable ? 250 : 0);
     return () => clearTimeout(timer);
-  }, [search]);
+  }, [search, reloadKey]);
 
   const handleUpdate = async (id, changes) => {
     const response = await service.update(id, changes);
@@ -261,7 +266,10 @@ export default function LookupEditor({ titleKey, service, fields, newItemDefault
         )}
         <div className={searchable ? 'max-h-80 overflow-y-auto' : ''}>
           {items.map((item) => (
-            <Row key={item.id} item={item} fields={fields} onUpdate={handleUpdate} onDelete={handleDelete} />
+            <Row
+              key={item.id} item={item} fields={fields} onUpdate={handleUpdate} onDelete={handleDelete}
+              extra={renderExtra?.(item, load)}
+            />
           ))}
         </div>
         {hasMore && (

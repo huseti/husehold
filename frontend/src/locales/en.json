@@ -227,7 +227,8 @@
       "olderThanMonth": "Older than a month",
       "olderThanYear": "Older than a year"
     },
-    "timesCookedShort": "{{count}}×"
+    "timesCookedShort": "{{count}}×",
+    "noAmount": "no amount given"
   },
   "cookingPlan": {
     "dishCount_one": "{{count}} dish",
@@ -632,7 +633,13 @@
       "household": "Household",
       "other": "Other"
     },
-    "loadMore": "Load more"
+    "loadMore": "Load more",
+    "preferredUnit": "Preferred unit",
+    "noPreferredUnit": "– unit –",
+    "recipeCount_one": "in {{count}} recipe",
+    "recipeCount_other": "in {{count}} recipes",
+    "aliases": "Other spellings",
+    "removeAlias": "Remove \"{{name}}\""
   },
   "packingBuckets": {
     "title": "Trip Buckets",
@@ -728,5 +735,51 @@
     "noMatch": "No icon found.",
     "refine": "Showing {{shown}} of {{count}} icons – refine the search to see more.",
     "change": "Change icon"
+  },
+  "ingredientDuplicates": {
+    "title": "Clean up ingredients (AI)",
+    "hint": "Claude checks all ingredients in one pass for duplicates, messy names, and units or amounts inside names. Nothing changes until you apply a suggestion. Recipes, shopping lists and purchase history then move to the kept ingredient, extras from the old name move into the recipe line, and old names are kept as other spellings. Takes about a minute and costs around a cent.",
+    "search": "Check with AI",
+    "searching": "Claude is checking the ingredients … (about 1 minute)",
+    "none": "Nothing found – all clean.",
+    "section": {
+      "duplicate": "Duplicates",
+      "name": "Clean up names",
+      "unit": "Extract unit/amount"
+    },
+    "sectionHint": {
+      "duplicate": "Several entries are the same ingredient. The selected entry is kept (with its category and settings); the others are folded into it and deleted.",
+      "name": "One ingredient whose name carries extras such as preparation, size, brand or parentheses. It is renamed; the extras become a note on its recipe lines.",
+      "unit": "One ingredient with a unit or amount in its name (\"Tasse Quinoa\", \"Knoblauchzehen\"). It is renamed; unit and amount move into recipe lines that have none."
+    },
+    "applyAll": "Apply all {{count}}",
+    "applyingAll": "Applying …",
+    "newName": "New name",
+    "preferredUnit": "Preferred unit",
+    "keepHint": "◉ = kept, ☑ = folded in. Unticked entries stay as they are.",
+    "keepThis": "Keep \"{{name}}\"",
+    "include": "Include",
+    "kept": "kept",
+    "recipeCount_one": "{{count}} recipe",
+    "recipeCount_other": "{{count}} recipes",
+    "effectKeep": "is kept",
+    "effectKeepRenamed": "is kept, renamed to \"{{name}}\"",
+    "effectMerged": "is folded into \"{{name}}\", the old name stays as a spelling",
+    "effectSkipped": "stays as it is",
+    "effectQuantity": "amount {{quantity}}",
+    "effectUnit": "unit {{unit}}",
+    "effectNote": "note \"{{note}}\"",
+    "quantityPlaceholder": "Amount",
+    "quantityHint": "Amount from the old name – set on recipe lines without an amount (ranges like 250-300 as a note)",
+    "notePlaceholder": "Note on the recipe line",
+    "noteHint": "Added as a note to this ingredient's recipe lines",
+    "unitHint": "Set on this ingredient's recipe lines that have no unit yet",
+    "noUnit": "– unit –",
+    "newUnitOption": "{{name}} (create)",
+    "merge_one": "Apply",
+    "merge_other": "Merge {{count}}",
+    "apply": "Apply",
+    "dismiss": "Dismiss",
+    "failed": "That didn't work. Please try again."
   }
 }
