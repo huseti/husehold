@@ -3096,7 +3096,7 @@ class IngredientCategorizationTests(TestCase):
     def test_llm_fallback_when_dictionary_misses(self, mock_post):
         response = type('R', (), {})()
         response.raise_for_status = lambda: None
-        response.json = lambda: {'content': [{'text': 'Drogerie & Haushalt'}]}
+        response.json = lambda: {'content': [{'type': 'text', 'text': 'Drogerie & Haushalt'}]}
         mock_post.return_value = response
 
         category = categorization_service.categorize_text('Wunderbatterie 9000')
@@ -3105,10 +3105,28 @@ class IngredientCategorizationTests(TestCase):
 
     @override_settings(ANTHROPIC_API_KEY='test-key')
     @patch('household.services.ingredient_categorization.requests.post')
+    def test_llm_request_sends_no_temperature_and_skips_thinking_blocks(self, mock_post):
+        # Haiku 5.5 rejects `temperature` with a 400, and thinks adaptively,
+        # so the answer can come after an (empty) thinking block.
+        response = type('R', (), {})()
+        response.raise_for_status = lambda: None
+        response.json = lambda: {'content': [
+            {'type': 'thinking', 'thinking': ''},
+            {'type': 'text', 'text': 'Drogerie & Haushalt'},
+        ]}
+        mock_post.return_value = response
+
+        category = categorization_service.categorize_text('Xyzzyfrobnicator')
+
+        self.assertEqual(category.name_de, 'Drogerie & Haushalt')
+        self.assertNotIn('temperature', mock_post.call_args.kwargs['json'])
+
+    @override_settings(ANTHROPIC_API_KEY='test-key')
+    @patch('household.services.ingredient_categorization.requests.post')
     def test_llm_response_outside_the_known_categories_is_ignored(self, mock_post):
         response = type('R', (), {})()
         response.raise_for_status = lambda: None
-        response.json = lambda: {'content': [{'text': 'Not a real category'}]}
+        response.json = lambda: {'content': [{'type': 'text', 'text': 'Not a real category'}]}
         mock_post.return_value = response
 
         category = categorization_service.categorize_text('Something weird')
@@ -3225,7 +3243,7 @@ class RecipeImportServiceTests(TestCase):
     def _claude_response(self, payload):
         response = type('R', (), {})()
         response.status_code = 200
-        response.json = lambda: {'content': [{'text': json.dumps(payload)}]}
+        response.json = lambda: {'content': [{'type': 'text', 'text': json.dumps(payload)}]}
         return response
 
     @override_settings(ANTHROPIC_API_KEY='')
@@ -3256,13 +3274,29 @@ class RecipeImportServiceTests(TestCase):
     def test_extract_from_text_strips_markdown_fences(self, mock_post):
         response = type('R', (), {})()
         response.status_code = 200
-        response.json = lambda: {'content': [{'text': '```json\n{"title": "Pasta"}\n```'}]}
+        response.json = lambda: {'content': [{'type': 'text', 'text': '```json\n{"title": "Pasta"}\n```'}]}
         mock_post.return_value = response
 
         draft = recipe_import_service.extract_from_text('some caption text')
 
         self.assertEqual(draft['title'], 'Pasta')
         self.assertEqual(draft['source_type'], 'text')
+
+    @override_settings(ANTHROPIC_API_KEY='test-key')
+    @patch('household.services.recipe_import.requests.post')
+    def test_extraction_sends_no_temperature_and_skips_thinking_blocks(self, mock_post):
+        response = type('R', (), {})()
+        response.status_code = 200
+        response.json = lambda: {'content': [
+            {'type': 'thinking', 'thinking': ''},
+            {'type': 'text', 'text': '{"title": "Pasta"}'},
+        ]}
+        mock_post.return_value = response
+
+        draft = recipe_import_service.extract_from_text('some caption text')
+
+        self.assertEqual(draft['title'], 'Pasta')
+        self.assertNotIn('temperature', mock_post.call_args.kwargs['json'])
 
     def test_extract_from_text_requires_nonempty_text(self):
         with self.assertRaises(recipe_import_service.RecipeImportError):
@@ -3502,7 +3536,7 @@ class RecipeImportViewTests(TestCase):
         lunch, _ = MealTimeCategory.objects.get_or_create(name_de='Mittagessen', defaults={'name_en': 'Lunch'})
         response_obj = type('R', (), {})()
         response_obj.status_code = 200
-        response_obj.json = lambda: {'content': [{'text': json.dumps({
+        response_obj.json = lambda: {'content': [{'type': 'text', 'text': json.dumps({
             'title': 'Suppe', 'ingredient_lines': ['1 L Brühe'], 'category_guess': 'Mittagessen',
         })}]}
         mock_post.return_value = response_obj
@@ -3518,7 +3552,7 @@ class RecipeImportViewTests(TestCase):
     def test_unmatched_category_guess_becomes_null(self, mock_post):
         response_obj = type('R', (), {})()
         response_obj.status_code = 200
-        response_obj.json = lambda: {'content': [{'text': json.dumps({
+        response_obj.json = lambda: {'content': [{'type': 'text', 'text': json.dumps({
             'title': 'Suppe', 'ingredient_lines': [], 'category_guess': 'Nonexistent Category',
         })}]}
         mock_post.return_value = response_obj

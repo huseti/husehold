@@ -23,6 +23,7 @@ from bs4 import BeautifulSoup
 from django.conf import settings
 
 from ..models import MealTimeCategory
+from .claude import response_text
 
 CLAUDE_MODEL = 'claude-haiku-5-5'
 MESSAGES_URL = 'https://api.anthropic.com/v1/messages'
@@ -99,9 +100,6 @@ def _call_claude(content_blocks):
         json={
             'model': CLAUDE_MODEL,
             'max_tokens': 2000,
-            # Structured extraction into a fixed schema -- no reason to let
-            # sampling vary the output shape or category choice.
-            'temperature': 0,
             'system': _extraction_system_prompt(),
             'messages': [{'role': 'user', 'content': content_blocks}],
         },
@@ -109,7 +107,7 @@ def _call_claude(content_blocks):
     )
     if response.status_code >= 400:
         raise RecipeImportError('The AI extraction request failed. Please try again.')
-    text = response.json()['content'][0]['text']
+    text = response_text(response.json())
     return _parse_claude_json(text)
 
 

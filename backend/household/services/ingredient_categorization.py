@@ -13,6 +13,7 @@ import requests
 from django.conf import settings
 
 from ..models import IngredientCategory
+from .claude import response_text
 
 CLAUDE_MODEL = 'claude-haiku-5-5'
 
@@ -111,9 +112,6 @@ def _llm_lookup(name, category_names):
             json={
                 'model': CLAUDE_MODEL,
                 'max_tokens': 20,
-                # Deterministic classification into a fixed category list --
-                # no reason to let sampling vary the answer.
-                'temperature': 0,
                 'system': (
                     'You sort German grocery/household shopping list items into exactly '
                     f'one of these categories: {", ".join(category_names)}. '
@@ -124,7 +122,7 @@ def _llm_lookup(name, category_names):
             timeout=10,
         )
         response.raise_for_status()
-        text = response.json()['content'][0]['text'].strip()
+        text = response_text(response.json()).strip()
         return text if text in category_names else None
     except Exception:
         return None
