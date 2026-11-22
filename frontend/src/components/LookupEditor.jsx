@@ -166,20 +166,42 @@ export default function LookupEditor({ titleKey, service, fields, newItemDefault
     page: pageNumber,
   });
 
+  // Deleting shifts every later entry one slot forward on the server, so
+  // page N+1 would skip entries. Count deletions since the last full load.
+  const [removedSinceLoad, setRemovedSinceLoad] = useState(0);
+
   const load = async () => {
     const response = await fetchPage(1);
     setItems(response.data.results || []);
     setTotal(response.data.count ?? null);
     setPage(1);
     setHasMore(Boolean(response.data.next));
+    setRemovedSinceLoad(0);
   };
 
   const loadMore = async () => {
     setLoadingMore(true);
     try {
       const nextPage = page + 1;
-      const response = await fetchPage(nextPage);
-      setItems((list) => [...list, ...(response.data.results || [])]);
+      let response;
+      if (removedSinceLoad > 0) {
+        // Pages have shifted: re-fetch everything up to nextPage instead of
+        // appending, so no entry falls into the gap.
+        const all = [];
+        for (let p = 1; p <= nextPage; p += 1) {
+          response = await fetchPage(p);
+          all.push(...(response.data.results || []));
+          if (!response.data.next) break;
+        }
+        setItems(all);
+        setRemovedSinceLoad(0);
+      } else {
+        response = await fetchPage(nextPage);
+        setItems((list) => {
+          const seen = new Set(list.map((i) => i.id));
+          return [...list, ...(response.data.results || []).filter((i) => !seen.has(i.id))];
+        });
+      }
       setTotal(response.data.count ?? null);
       setPage(nextPage);
       setHasMore(Boolean(response.data.next));
@@ -206,6 +228,8 @@ export default function LookupEditor({ titleKey, service, fields, newItemDefault
   const handleDelete = async (id) => {
     await service.delete(id);
     setItems((list) => list.filter((i) => i.id !== id));
+    setTotal((n) => (n == null ? n : n - 1));
+    setRemovedSinceLoad((n) => n + 1);
     onChanged?.();
   };
 
